@@ -52,17 +52,17 @@ INITIAL_LOT: float = float(_get_env("INITIAL_LOT", default="0.01"))
 
 # ─── DCA Parameters ─────────────────────────────────────────
 # Distance in pips before opening the next DCA order
-STEP_DISTANCE_PIPS: float = float(_get_env("STEP_DISTANCE_PIPS", default="20"))
+STEP_DISTANCE_PIPS: float = float(_get_env("STEP_DISTANCE_PIPS", default="2"))
 
 # Multiplier applied to each successive DCA order's lot size
-LOT_MULTIPLIER: float = float(_get_env("LOT_MULTIPLIER", default="1.5"))
+LOT_MULTIPLIER: float = float(_get_env("LOT_MULTIPLIER", default="1.0"))
 
 # Maximum total orders (initial + DCA layers) to cap margin exposure
-MAX_ORDERS: int = int(_get_env("MAX_ORDERS", default="6"))
+MAX_ORDERS: int = int(_get_env("MAX_ORDERS", default="15"))
 
 # ─── Basket Close ───────────────────────────────────────────
 # Close all positions when combined floating profit ≥ this value (account currency)
-TARGET_PROFIT_USD: float = float(_get_env("TARGET_PROFIT_USD", default="5.0"))
+TARGET_PROFIT_USD: float = float(_get_env("TARGET_PROFIT_USD", default="2.0"))
 
 # ─── Safety ─────────────────────────────────────────────────
 # Emergency close if drawdown from session equity exceeds this %

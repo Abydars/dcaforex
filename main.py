@@ -263,13 +263,13 @@ def main():
                 if not positions:
                     logger.info("Basket positions no longer exist (closed externally?).")
                     _reset_state()
-                    time.sleep(0.1)
+                    time.sleep(0.01)
                     continue
 
                 # Fast profit check (every 100ms)
                 if _check_basket_target():
                     _reset_state()
-                    time.sleep(0.5)  # Brief pause before next cycle
+                    time.sleep(0.1)  # Minimal pause before next cycle
                     continue
 
                 # DCA trigger check
@@ -277,7 +277,7 @@ def main():
 
                 # Periodic status log (every ~5 seconds)
                 profit_log_counter += 1
-                if profit_log_counter >= 50:
+                if profit_log_counter >= 500:  # ~5 seconds at 10ms loop
                     profit = get_basket_profit()
                     num_pos = len(positions)
                     account = mt5.account_info()
@@ -289,8 +289,8 @@ def main():
                     )
                     profit_log_counter = 0
 
-                # Fast loop: 100ms for responsive profit monitoring
-                time.sleep(0.1)
+                # Ultra-fast loop: 10ms for maximum responsiveness
+                time.sleep(0.01)
                 continue
 
             # ──────────────────────────────────────────────
