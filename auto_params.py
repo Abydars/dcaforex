@@ -99,7 +99,7 @@ def recalculate() -> bool:
     pip_size  = _get_pip_size(info)
     
     # Auto-Scaling Volume (1 step per $500 of capital)
-    risk_factor = 500.0
+    risk_factor = 200.0
     raw_lot = (capital / risk_factor) * info.volume_step
     
     # Apply broker limits
