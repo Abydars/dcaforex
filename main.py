@@ -163,24 +163,26 @@ def _check_dca_trigger():
 
 
 # ─── Dynamic Target Calculator ─────────────────────────────
-def _get_dynamic_target(num_positions: int) -> float:
+def _get_dynamic_target(total_volume: float) -> float:
     """
-    Scale the profit target based on how many DCA layers are active.
-    More layers = more risk taken = bigger target required.
+    Scale the profit target based on TOTAL BASKET VOLUME,
+    not just order count. This correctly handles any lot multiplier.
 
-    Tiers (configurable via config):
-      Low risk  (1-3 orders):  TARGET_PROFIT_USD      (e.g., $2)
-      Med risk  (4-7 orders):  TARGET_PROFIT_USD × 2.5 (e.g., $5)
-      High risk (8+ orders):   TARGET_PROFIT_USD × 5   (e.g., $10)
+    Formula: target = base × (total_volume / initial_lot)
+
+    Examples (base=$2, initial=0.01):
+      0.01 lots (1 order)  → $2 × 1   = $2
+      0.05 lots (5 orders) → $2 × 5   = $10
+      0.15 lots (15 orders)→ $2 × 15  = $30
+
+    With 2.0x multiplier:
+      0.01 + 0.02 + 0.04 = 0.07 lots (3 orders) → $2 × 7 = $14
     """
-    base = config.TARGET_PROFIT_USD
+    if config.INITIAL_LOT <= 0:
+        return config.TARGET_PROFIT_USD
 
-    if num_positions <= 3:
-        return base
-    elif num_positions <= 7:
-        return base * 2.5
-    else:
-        return base * 5.0
+    risk_ratio = total_volume / config.INITIAL_LOT
+    return config.TARGET_PROFIT_USD * risk_ratio
 
 
 # ─── Basket Profit Monitor ─────────────────────────────────
@@ -198,14 +200,15 @@ def _check_basket_target() -> bool:
     if num_pos == 0:
         return False
 
+    total_volume = sum(p.volume for p in positions)
     profit = get_basket_profit()
-    target = _get_dynamic_target(num_pos)
+    target = _get_dynamic_target(total_volume)
 
     if profit >= target:
         logger.info(
             f"🎯 TARGET PROFIT REACHED! "
             f"Basket P/L: ${profit:+.2f} ≥ ${target:.2f} "
-            f"(dynamic target for {num_pos} orders)"
+            f"({num_pos} orders, {total_volume:.2f} lots)"
         )
         close_all_positions(reason="TARGET_HIT")
         return True
@@ -320,11 +323,12 @@ def main():
                 if profit_log_counter >= 500:  # ~5 seconds at 10ms loop
                     profit = get_basket_profit()
                     num_pos = len(positions)
-                    target = _get_dynamic_target(num_pos)
+                    total_vol = sum(p.volume for p in positions)
+                    target = _get_dynamic_target(total_vol)
                     account = mt5.account_info()
                     eq = account.equity if account else 0
                     logger.info(
-                        f"📊 Basket: {num_pos} orders | "
+                        f"📊 Basket: {num_pos} orders ({total_vol:.2f} lots) | "
                         f"P/L: ${profit:+.2f} / ${target:.2f} target | "
                         f"Equity: ${eq:.2f}"
                     )
