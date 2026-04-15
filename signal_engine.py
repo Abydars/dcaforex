@@ -119,11 +119,15 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
             if body <= avg_body:
                 logger.info(f"🟢 GREEN candle, but low momentum (Body: {body:.5f} <= Avg: {avg_body:.5f}). Skipping BUY.")
                 return None
-            # Check for massive upper wick (Bearish rejection trap)
-            if upper_wick >= body * 1.5:
-                logger.info(f"🟢 GREEN candle, but HUGE upper wick (rejection). Skipping BUY.")
+            # Strict momentum continuation: candle MUST break previous high
+            if curr_close <= prev["high"]:
+                logger.info(f"🟢 GREEN candle, but failed to break previous High ({prev['high']}). Weak bullish momentum. Skipping BUY.")
                 return None
-            logger.info(f"🟢 GREEN candle (Trend: {trend}, Momentum: High) → BUY signal on {symbol} (Surge: {surge_ratio:.2f}x)")
+            # Reject if there is noticeable selling pressure at the top
+            if upper_wick >= body * 0.5:
+                logger.info(f"🟢 GREEN candle, but noticeable upper wick rejection. Buyers lost control at the top. Skipping BUY.")
+                return None
+            logger.info(f"🟢 GREEN candle (Trend: {trend}, Momentum: Strong Breakout) → BUY signal on {symbol} (Surge: {surge_ratio:.2f}x)")
             return {"direction": "BUY", "surge_ratio": surge_ratio}
         elif curr_close < curr_open:
             if body < (atr * 0.5):
@@ -135,11 +139,15 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
             if body <= avg_body:
                 logger.info(f"🔴 RED candle, but low momentum (Body: {body:.5f} <= Avg: {avg_body:.5f}). Skipping SELL.")
                 return None
-            # Check for massive lower wick (Bullish rejection trap)
-            if lower_wick >= body * 1.5:
-                logger.info(f"🔴 RED candle, but HUGE lower wick (rejection). Skipping SELL.")
+            # Strict momentum continuation: candle MUST break previous low
+            if curr_close >= prev["low"]:
+                logger.info(f"🔴 RED candle, but failed to break previous Low ({prev['low']}). Weak bearish momentum. Skipping SELL.")
                 return None
-            logger.info(f"🔴 RED candle (Trend: {trend}, Momentum: High) → SELL signal on {symbol} (Surge: {surge_ratio:.2f}x)")
+            # Reject if there is noticeable buying pressure at the bottom
+            if lower_wick >= body * 0.5:
+                logger.info(f"🔴 RED candle, but noticeable lower wick rejection. Sellers lost control at the bottom. Skipping SELL.")
+                return None
+            logger.info(f"🔴 RED candle (Trend: {trend}, Momentum: Strong Breakout) → SELL signal on {symbol} (Surge: {surge_ratio:.2f}x)")
             return {"direction": "SELL", "surge_ratio": surge_ratio}
         else:
             logger.debug("Doji candle, no signal.")
