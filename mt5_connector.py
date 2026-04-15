@@ -111,6 +111,7 @@ def initialize_mt5():
         _register_symbol(sym)
 
     logger.info("MT5 connection fully established ✓")
+    return True
 
 
 def _register_symbol(symbol: str):
