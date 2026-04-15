@@ -333,8 +333,8 @@ def main():
                     time.sleep(0.1)
                     continue
 
-                # DCA trigger
-                _check_dca_trigger()
+                # DCA and Pyramid trigger
+                _check_order_triggers()
 
                 # Status log every ~5 seconds
                 profit_log_counter += 1
