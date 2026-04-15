@@ -106,8 +106,9 @@ def initialize_mt5():
         mt5.shutdown()
         sys.exit(1)
 
-    # ── Symbol Registration ──
-    _register_symbol(config.SYMBOL)
+    # ─── Symbol Registration ──
+    for sym in config.SYMBOLS:
+        _register_symbol(sym)
 
     logger.info("MT5 connection fully established ✓")
 

@@ -370,31 +370,44 @@ def main():
                 time.sleep(1.0)
                 continue
 
-            # New candle confirmed — recalculate params from live spread + ATR
-            # This adapts step pips, exit pips, and max orders to current conditions
-            recalculate()
-
             if not _is_within_trading_hours():
                 time.sleep(5.0)
                 continue
 
-            direction = get_entry_signal()
-            if direction is None:
+            # Scan all symbols for an entry signal
+            best_direction = None
+            best_symbol = None
+
+            for sym in config.SYMBOLS:
+                direction = get_entry_signal(target_symbol=sym)
+                if direction is not None:
+                    best_direction = direction
+                    best_symbol = sym
+                    break  # Lock onto the first valid setup found
+
+            if best_direction is None:
                 continue
 
-            # ── Execute Entry ──
-            logger.info(f"🚀 ENTRY: {direction} {config.SYMBOL}")
+            # ── Pre-Entry Preparation ──
+            # Lock the bot to this newly found symbol
+            config.SYMBOL = best_symbol
 
-            if place_entry_order(direction):
-                _current_direction = direction
-                _last_dca_price = _get_price(config.SYMBOL, direction)
+            # Recalculate lot sizes, steps, margins dynamically for THIS exact symbol
+            recalculate()
+
+            # ── Execute Entry ──
+            logger.info(f"🚀 ENTRY: {best_direction} {config.SYMBOL}")
+
+            if place_entry_order(best_direction):
+                _current_direction = best_direction
+                _last_dca_price = _get_price(config.SYMBOL, best_direction)
                 _last_pyramid_price = _last_dca_price
                 _dca_layer = 0
                 _pyramid_layer = 0
                 _trailing_active = False
                 profit_log_counter = 0
                 logger.info(
-                    f"✅ Basket started: {direction} @ {_last_dca_price} | "
+                    f"✅ Basket started: {best_direction} @ {_last_dca_price} | "
                     f"Layer gap: {config.STEP_PIPS} pips | "
                     f"Trail mode: +{config.EXIT_PIPS} pips from BE"
                 )

@@ -27,14 +27,14 @@ logger = logging.getLogger("SignalEngine")
 SIGNAL_MODE = getattr(config, "SIGNAL_MODE", "candle")
 
 
-def get_entry_signal() -> str | None:
+def get_entry_signal(target_symbol: str = None) -> str | None:
     """
     Fetch the last few candles and detect an entry signal
     on the most recently CLOSED candle (index -2).
 
     Returns: "BUY", "SELL", or None
     """
-    symbol = config.SYMBOL
+    symbol = target_symbol if target_symbol else config.SYMBOL
     tf = get_mt5_timeframe()
 
     # ─── 1. Fetch Higher Timeframe Context ───

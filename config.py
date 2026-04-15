@@ -39,7 +39,9 @@ MT5_PASS: str = _get_env("MT5_PASS")
 MT5_SERVER: str = _get_env("MT5_SERVER")
 
 # ─── User Inputs (only these matter) ────────────────────────
-SYMBOL: str = _get_env("SYMBOL", default="EURUSDm")
+SYMBOLS_RAW: str = _get_env("SYMBOLS", default="EURUSDm")
+SYMBOLS: list = [s.strip() for s in SYMBOLS_RAW.split(",") if s.strip()]
+SYMBOL: str = SYMBOLS[0] if len(SYMBOLS) > 0 else "EURUSDm"  # Dynamic active tracker
 TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()
 SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
 
