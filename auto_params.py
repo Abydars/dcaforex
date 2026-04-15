@@ -13,6 +13,7 @@ the bot adapts to changing market conditions in real time.
 """
 
 import logging
+import math
 
 import MetaTrader5 as mt5
 import numpy as np
@@ -96,7 +97,25 @@ def recalculate() -> bool:
 
     # ── Base Properties ──────────────────────────────────
     pip_size  = _get_pip_size(info)
-    base_lot  = info.volume_min
+    
+    # Auto-Scaling Volume (1 step per $500 of capital)
+    risk_factor = 500.0
+    raw_lot = (capital / risk_factor) * info.volume_step
+    
+    # Apply broker limits
+    bounded_lot = max(info.volume_min, min(info.volume_max, raw_lot))
+    
+    # Calculate precision based on volume_step (e.g. 0.01 -> 2 decimals)
+    step_str = str(info.volume_step)
+    if "." in step_str:
+        decimals = len(step_str.rstrip("0").split(".")[1]) if "." in step_str.rstrip("0") else 0
+    else:
+        decimals = 0
+        
+    base_lot = round(bounded_lot, decimals)
+    # Ensure it's not absolutely 0 if math rounding drops it under min
+    base_lot = max(info.volume_min, base_lot)
+    
     pip_value = _get_pip_value(info, pip_size, base_lot)
 
     if pip_size <= 0 or pip_value <= 0:
