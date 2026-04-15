@@ -30,6 +30,16 @@ _TF_MAP = {
     "D1": mt5.TIMEFRAME_D1,
 }
 
+_HTF_MAP = {
+    mt5.TIMEFRAME_M1: mt5.TIMEFRAME_M5,
+    mt5.TIMEFRAME_M5: mt5.TIMEFRAME_M15,
+    mt5.TIMEFRAME_M15: mt5.TIMEFRAME_H1,
+    mt5.TIMEFRAME_M30: mt5.TIMEFRAME_H4,
+    mt5.TIMEFRAME_H1: mt5.TIMEFRAME_H4,
+    mt5.TIMEFRAME_H4: mt5.TIMEFRAME_D1,
+    mt5.TIMEFRAME_D1: mt5.TIMEFRAME_W1,
+}
+
 
 def get_mt5_timeframe() -> int:
     """Resolve the string timeframe from config to an MT5 constant."""
@@ -41,6 +51,11 @@ def get_mt5_timeframe() -> int:
         )
         sys.exit(1)
     return tf
+
+
+def get_mt5_htf(current_tf: int) -> int:
+    """Get the higher timeframe mapping for trend context."""
+    return _HTF_MAP.get(current_tf, mt5.TIMEFRAME_H1)
 
 
 def initialize_mt5():
