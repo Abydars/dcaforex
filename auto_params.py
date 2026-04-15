@@ -132,6 +132,9 @@ def recalculate() -> bool:
     atr_price = _calc_atr(rates, period=10)
     atr_pips  = atr_price / pip_size if pip_size > 0 else 0.0
 
+    # ── Multiplier for Heavy Assets (Indices / Metals) ────
+    heavy_multiplier = 4.0 if any(s.upper() in symbol.upper() for s in ["US30", "USTEC", "US100", "XAU", "XAG", "BTC", "ETH"]) else 1.0
+
     # ── Step Distance ─────────────────────────────────────
     # Must clear spread. Scales with ATR so wide-ranging
     # markets get wider steps, quiet markets get tight steps.
@@ -140,7 +143,7 @@ def recalculate() -> bool:
     step_from_spread = max(spread_pips * 5.0, 2.0)
     step_from_atr    = atr_pips * 0.25 if atr_pips > 0 else step_from_spread
     step_pips        = max(step_from_spread, step_from_atr)
-    step_pips        = round(max(step_pips, 2.0), 1)
+    step_pips        = round(max(step_pips * heavy_multiplier, 2.0), 1)
 
     # ── Margin per order ─────────────────────────────────
     margin_per_lot = mt5.order_calc_margin(
@@ -174,11 +177,11 @@ def recalculate() -> bool:
     exit_from_spread = max(spread_pips * 3.0, 2.0)
     exit_from_atr    = atr_pips * 0.10 if atr_pips > 0 else exit_from_spread
     exit_pips        = max(exit_from_spread, exit_from_atr)
-    exit_pips        = round(max(exit_pips, 2.0), 1)
+    exit_pips        = round(max(exit_pips * heavy_multiplier, 2.0), 1)
 
     # ── Trailing Stop (activated after exit_pips) ─────────
     # Allows pyramiding to ride the trend until a pullback
-    trail_pips = round(max(spread_pips * 2.0, 1.5), 1)
+    trail_pips = round(max(spread_pips * 2.0 * heavy_multiplier, 1.5), 1)
 
     # ── Check if anything changed significantly ───────────
     prev_step = getattr(config, "STEP_PIPS", 0)
