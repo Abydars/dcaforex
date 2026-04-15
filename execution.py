@@ -2,14 +2,14 @@
 ============================================================
  DCA Forex Bot — Execution Engine
 ============================================================
-Handles all order management:
+Handles all order management using auto-calculated parameters:
   • Initial entry orders
-  • DCA (Dollar Cost Averaging) layer orders
-  • Basket close (close all positions by magic number)
-  • Emergency close (global stop loss)
+  • DCA layer orders (same lot size, rapid-fire)
+  • Basket close (by magic number)
+  • Break-even tracking
 
-Includes retry logic for requotes and fill-mode fallback
-for Exness symbol compatibility.
+Includes retry logic for requotes and fill-mode fallback.
+============================================================
 """
 
 import logging
@@ -22,29 +22,8 @@ import config
 logger = logging.getLogger("Execution")
 
 
-# ─── Pip Value Helper ───────────────────────────────────────
-def _pip_size(symbol: str) -> float:
-    """
-    Returns the pip size for a symbol.
-    • 5-digit pairs (e.g., EURUSD): pip = 0.0001
-    • 3-digit pairs (e.g., USDJPY): pip = 0.01
-    • Metals / exotics: derived from trade_tick_size × 10
-    """
-    info = mt5.symbol_info(symbol)
-    if info is None:
-        return 0.0001  # fallback
-
-    if info.digits == 5 or info.digits == 4:
-        return 10 ** -(info.digits - 1)
-    elif info.digits == 3 or info.digits == 2:
-        return 10 ** -(info.digits - 1)
-    else:
-        # For non-standard symbols, use tick_size × 10
-        return info.trade_tick_size * 10
-
-
 def _get_price(symbol: str, direction: str) -> float:
-    """Get the entry price based on direction (BUY→ask, SELL→bid)."""
+    """Get entry price (BUY→ask, SELL→bid)."""
     tick = mt5.symbol_info_tick(symbol)
     if tick is None:
         logger.error(f"Cannot get tick for {symbol}. Error: {mt5.last_error()}")
@@ -52,7 +31,6 @@ def _get_price(symbol: str, direction: str) -> float:
     return tick.ask if direction == "BUY" else tick.bid
 
 
-# ─── Send Order with Retry ──────────────────────────────────
 def _send_order(
     symbol: str,
     direction: str,
@@ -61,10 +39,8 @@ def _send_order(
     max_retries: int = 3,
 ) -> bool:
     """
-    Send a market order with retry logic for requotes and
-    fill-mode fallback (IOC → FOK) for Exness compatibility.
-
-    Returns True if the order was filled successfully.
+    Send a market order with retry + IOC→FOK fallback.
+    Returns True if filled.
     """
     order_type = mt5.ORDER_TYPE_BUY if direction == "BUY" else mt5.ORDER_TYPE_SELL
     info = mt5.symbol_info(symbol)
@@ -72,9 +48,8 @@ def _send_order(
         logger.error(f"Symbol info unavailable for {symbol}")
         return False
 
-    # Clamp volume to broker limits
+    # Clamp and snap volume
     volume = max(info.volume_min, min(volume, info.volume_max))
-    # Snap to lot step
     step = info.volume_step
     volume = round(volume - (volume % step), 8)
 
@@ -88,7 +63,7 @@ def _send_order(
         "volume": float(volume),
         "type": order_type,
         "price": price,
-        "deviation": 30,  # 3 pips slippage tolerance on 5-digit pairs
+        "deviation": 30,
         "magic": config.MAGIC_NUMBER,
         "comment": comment,
         "type_time": mt5.ORDER_TIME_GTC,
@@ -96,7 +71,6 @@ def _send_order(
     }
 
     for attempt in range(1, max_retries + 1):
-        # Refresh price on each retry to avoid stale quotes
         request["price"] = _get_price(symbol, direction)
         if request["price"] <= 0:
             continue
@@ -112,38 +86,26 @@ def _send_order(
             time.sleep(0.1)
             continue
 
-        # ── Success ──
         if result.retcode == mt5.TRADE_RETCODE_DONE:
-            logger.info(
-                f"✅ Order filled. Ticket: {result.order} | "
-                f"Vol: {result.volume} @ {result.price}"
-            )
+            logger.info(f"✅ Filled. Ticket: {result.order} | Vol: {result.volume} @ {result.price}")
             return True
 
-        # ── Fill-mode fallback (IOC → FOK) ──
         if result.retcode == mt5.TRADE_RETCODE_INVALID_FILL:
-            logger.warning(
-                f"IOC fill rejected (retcode={result.retcode}). "
-                f"Retrying with FOK..."
-            )
+            logger.warning(f"IOC rejected. Retrying FOK...")
             request["type_filling"] = mt5.ORDER_FILLING_FOK
             result = mt5.order_send(request)
             if result and result.retcode == mt5.TRADE_RETCODE_DONE:
-                logger.info(f"✅ FOK fill succeeded. Ticket: {result.order}")
+                logger.info(f"✅ FOK filled. Ticket: {result.order}")
                 return True
 
-        # ── Requote ──
         if result.retcode == mt5.TRADE_RETCODE_REQUOTE:
-            logger.warning(
-                f"Requote on attempt {attempt}. Re-fetching price..."
-            )
-            time.sleep(0.05)  # Brief cooldown
+            logger.warning(f"Requote on attempt {attempt}. Refreshing...")
+            time.sleep(0.05)
             continue
 
-        # ── Other errors ──
         logger.error(
             f"Order rejected. RetCode: {result.retcode} | "
-            f"Comment: {result.comment} | MT5 Error: {mt5.last_error()}"
+            f"Comment: {result.comment}"
         )
         time.sleep(0.1)
 
@@ -151,116 +113,77 @@ def _send_order(
     return False
 
 
-# ─── Place Initial Entry ────────────────────────────────────
+# ─── Place Entry Order ──────────────────────────────────────
 def place_entry_order(direction: str) -> bool:
-    """
-    Place the initial entry order using the configured lot size.
-    """
-    logger.info(
-        f"📍 Placing INITIAL {direction} entry on {config.SYMBOL} "
-        f"with {config.INITIAL_LOT} lots"
-    )
+    """Place initial entry with auto-calculated lot size."""
+    logger.info(f"📍 ENTRY {direction} {config.SYMBOL} × {config.LOT_SIZE} lots")
     return _send_order(
         symbol=config.SYMBOL,
         direction=direction,
-        volume=config.INITIAL_LOT,
+        volume=config.LOT_SIZE,
         comment="DCA_ENTRY",
     )
 
 
-# ─── Place DCA Layer ────────────────────────────────────────
+# ─── Place DCA Order ────────────────────────────────────────
 def place_dca_order(direction: str, layer: int) -> bool:
-    """
-    Place a DCA (averaging) order.
-    Layer index starts at 1 (first DCA after entry).
-    Lot size = INITIAL_LOT × LOT_MULTIPLIER^layer
-
-    Args:
-        direction: "BUY" or "SELL"
-        layer:     The DCA layer number (1, 2, 3, ...)
-    """
-    volume = config.INITIAL_LOT * (config.LOT_MULTIPLIER ** layer)
-
-    logger.info(
-        f"📍 Placing DCA Layer {layer} — {direction} {config.SYMBOL} "
-        f"with {volume:.2f} lots (multiplier: {config.LOT_MULTIPLIER}^{layer})"
-    )
+    """Place DCA layer (same lot size every time — rapid fire)."""
+    logger.info(f"📍 DCA Layer {layer} — {direction} {config.SYMBOL} × {config.LOT_SIZE} lots")
     return _send_order(
         symbol=config.SYMBOL,
         direction=direction,
-        volume=volume,
+        volume=config.LOT_SIZE,
         comment=f"DCA_L{layer}",
     )
 
 
-# ─── Get Basket Positions ───────────────────────────────────
+# ─── Basket Helpers ─────────────────────────────────────────
 def get_basket_positions() -> list:
-    """
-    Retrieve all open positions tagged with our magic number.
-    Returns a list of MT5 TradePosition named tuples.
-    """
+    """Get all open positions with our magic number."""
     positions = mt5.positions_get(symbol=config.SYMBOL)
     if positions is None:
         return []
     return [p for p in positions if p.magic == config.MAGIC_NUMBER]
 
 
-# ─── Get Basket Profit ──────────────────────────────────────
 def get_basket_profit() -> float:
-    """
-    Calculate the total floating profit of our basket.
-    Uses the native .profit field which includes swap & commission
-    on Exness accounts.
-    """
+    """Total floating profit of our basket."""
     return sum(p.profit for p in get_basket_positions())
 
 
-# ─── Get Basket Entry Average ───────────────────────────────
-def get_basket_avg_price() -> float:
-    """
-    Volume-weighted average entry price of all basket positions.
-    Used to calculate the break-even level.
-    """
+def get_basket_volume() -> float:
+    """Total volume of all basket positions."""
+    return sum(p.volume for p in get_basket_positions())
+
+
+def get_breakeven_price() -> float:
+    """Volume-weighted average entry price (break-even level)."""
     positions = get_basket_positions()
     if not positions:
         return 0.0
-
-    total_volume = sum(p.volume for p in positions)
-    if total_volume == 0:
+    total_vol = sum(p.volume for p in positions)
+    if total_vol == 0:
         return 0.0
-
-    weighted_price = sum(p.price_open * p.volume for p in positions)
-    return weighted_price / total_volume
+    return sum(p.price_open * p.volume for p in positions) / total_vol
 
 
-# ─── Close All Basket Positions ─────────────────────────────
+# ─── Close All ──────────────────────────────────────────────
 def close_all_positions(reason: str = "BASKET_CLOSE") -> int:
-    """
-    Immediately close every open position in our basket.
-    Uses market orders with aggressive deviation for speed.
-
-    Returns the number of successfully closed positions.
-    """
+    """Close every position in the basket. Returns count closed."""
     positions = get_basket_positions()
     if not positions:
-        logger.info("No basket positions to close.")
         return 0
 
-    logger.info(
-        f"🔒 CLOSING {len(positions)} positions — Reason: {reason}"
-    )
+    logger.info(f"🔒 CLOSING {len(positions)} positions — {reason}")
 
     closed = 0
     for pos in positions:
-        # Determine close direction (opposite of open)
         close_type = (
             mt5.ORDER_TYPE_SELL if pos.type == mt5.ORDER_TYPE_BUY
             else mt5.ORDER_TYPE_BUY
         )
-        # Use real-time tick for close price
         tick = mt5.symbol_info_tick(pos.symbol)
         if tick is None:
-            logger.error(f"Cannot get tick for {pos.symbol} to close ticket {pos.ticket}")
             continue
 
         close_price = tick.bid if close_type == mt5.ORDER_TYPE_SELL else tick.ask
@@ -272,7 +195,7 @@ def close_all_positions(reason: str = "BASKET_CLOSE") -> int:
             "type": close_type,
             "position": pos.ticket,
             "price": close_price,
-            "deviation": 50,  # Aggressive deviation for speed
+            "deviation": 50,
             "magic": config.MAGIC_NUMBER,
             "comment": reason,
             "type_time": mt5.ORDER_TIME_GTC,
@@ -281,47 +204,20 @@ def close_all_positions(reason: str = "BASKET_CLOSE") -> int:
 
         result = mt5.order_send(request)
 
-        if result is None:
-            logger.error(
-                f"Close order returned None for ticket {pos.ticket}. "
-                f"Error: {mt5.last_error()}"
-            )
-            # Retry with FOK
+        # Fallback to FOK if IOC fails
+        if result is None or result.retcode == mt5.TRADE_RETCODE_INVALID_FILL:
             request["type_filling"] = mt5.ORDER_FILLING_FOK
-            request["price"] = (
-                mt5.symbol_info_tick(pos.symbol).bid
-                if close_type == mt5.ORDER_TYPE_SELL
-                else mt5.symbol_info_tick(pos.symbol).ask
-            )
+            tick = mt5.symbol_info_tick(pos.symbol)
+            if tick:
+                request["price"] = tick.bid if close_type == mt5.ORDER_TYPE_SELL else tick.ask
             result = mt5.order_send(request)
 
         if result and result.retcode == mt5.TRADE_RETCODE_DONE:
-            logger.info(
-                f"  ✅ Closed ticket {pos.ticket} | "
-                f"P/L: {pos.profit:+.2f}"
-            )
+            logger.info(f"  ✅ Closed #{pos.ticket} | P/L: {pos.profit:+.2f}")
             closed += 1
-        elif result and result.retcode == mt5.TRADE_RETCODE_INVALID_FILL:
-            # Final fallback
-            request["type_filling"] = mt5.ORDER_FILLING_FOK
-            tick = mt5.symbol_info_tick(pos.symbol)
-            request["price"] = tick.bid if close_type == mt5.ORDER_TYPE_SELL else tick.ask
-            result = mt5.order_send(request)
-            if result and result.retcode == mt5.TRADE_RETCODE_DONE:
-                logger.info(f"  ✅ Closed ticket {pos.ticket} (FOK fallback)")
-                closed += 1
-            else:
-                retcode = result.retcode if result else "None"
-                logger.error(
-                    f"  ❌ Failed to close ticket {pos.ticket}. "
-                    f"RetCode: {retcode}"
-                )
         else:
             retcode = result.retcode if result else "None"
-            logger.error(
-                f"  ❌ Failed to close ticket {pos.ticket}. "
-                f"RetCode: {retcode}"
-            )
+            logger.error(f"  ❌ Failed #{pos.ticket} | RetCode: {retcode}")
 
-    logger.info(f"Basket close complete: {closed}/{len(positions)} closed.")
+    logger.info(f"Closed {closed}/{len(positions)}")
     return closed

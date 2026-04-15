@@ -2,17 +2,13 @@
 ============================================================
  DCA Forex Bot — Main Entry Point
 ============================================================
-Orchestrates the full trading lifecycle:
-
-  1. Connect to MT5 / Exness
-  2. Wait for a candlestick entry signal
-  3. Open the initial position
-  4. Monitor price and layer DCA orders when step distance is hit
-  5. Monitor basket profit → close all when target is reached
-  6. Monitor equity → emergency close on max drawdown
-
-The main loop is designed for speed: profit checks run every
-100ms, while signal checks only happen once per new candle.
+Fully automated:
+  1. Connect to MT5
+  2. Auto-calculate lot, steps, max orders from CAPITAL
+  3. Wait for candle signal → enter
+  4. Rapid-fire DCA when price moves against
+  5. Smart exit: close when price crosses break-even + EXIT_PIPS
+  6. Safety: drawdown guard + basket stop loss
 ============================================================
 """
 
@@ -25,32 +21,33 @@ from datetime import datetime, timezone
 import MetaTrader5 as mt5
 
 import config
+from auto_params import calculate_params, recalculate
 from execution import (
     close_all_positions,
     get_basket_positions,
     get_basket_profit,
+    get_basket_volume,
+    get_breakeven_price,
     place_dca_order,
     place_entry_order,
     _get_price,
-    _pip_size,
 )
 from mt5_connector import get_mt5_timeframe, initialize_mt5, shutdown_mt5
 from signal_engine import get_entry_signal
 
 logger = logging.getLogger("DCA_Bot")
 
-# ─── Global State ───────────────────────────────────────────
+# ─── State ──────────────────────────────────────────────────
 _running = True
-_current_direction: str | None = None  # "BUY" or "SELL" while in a basket
-_dca_layer: int = 0                     # Number of DCA layers placed
-_last_dca_price: float = 0.0           # Price at which last DCA was triggered
-_last_candle_time: int = 0             # Timestamp of the last processed candle
+_current_direction: str | None = None
+_dca_layer: int = 0
+_last_dca_price: float = 0.0
+_last_candle_time: int = 0
 
 
 def _signal_handler(sig, frame):
-    """Handle Ctrl+C gracefully."""
     global _running
-    logger.info("Interrupt received. Shutting down after current cycle...")
+    logger.info("Interrupt received. Shutting down...")
     _running = False
 
 
@@ -58,13 +55,8 @@ signal.signal(signal.SIGINT, _signal_handler)
 signal.signal(signal.SIGTERM, _signal_handler)
 
 
-# ─── Time Filter ────────────────────────────────────────────
+# ─── Trading Hours Check ───────────────────────────────────
 def _is_within_trading_hours() -> bool:
-    """
-    Check if the current server time falls within the configured
-    trading window. Uses MT5 server time to avoid timezone issues.
-    """
-    # Prefer MT5 server time; fallback to local UTC
     tick = mt5.symbol_info_tick(config.SYMBOL)
     if tick and tick.time:
         server_dt = datetime.fromtimestamp(tick.time, tz=timezone.utc)
@@ -73,298 +65,275 @@ def _is_within_trading_hours() -> bool:
 
     now_time = server_dt.time()
 
-    # Handle overnight windows (e.g., 22:00 → 06:00)
     if config.TRADING_START <= config.TRADING_END:
         return config.TRADING_START <= now_time <= config.TRADING_END
     else:
         return now_time >= config.TRADING_START or now_time <= config.TRADING_END
 
 
-# ─── Drawdown Guard ────────────────────────────────────────
+# ─── Drawdown Guard ───────────────────────────────────────
 def _check_drawdown_guard() -> bool:
-    """
-    Returns True if drawdown exceeds MAX_DRAWDOWN_PCT → trigger emergency close.
-    """
-    if config.SESSION_START_EQUITY <= 0:
-        return False
-
+    """Emergency stop if loss exceeds MAX_DRAWDOWN_PCT of CAPITAL."""
     account = mt5.account_info()
     if account is None:
         return False
 
-    drawdown_pct = (
-        (config.SESSION_START_EQUITY - account.equity)
-        / config.SESSION_START_EQUITY
-        * 100.0
-    )
+    loss = config.SESSION_START_EQUITY - account.equity
+    max_loss = config.CAPITAL * (config.MAX_DRAWDOWN_PCT / 100.0)
 
-    if drawdown_pct >= config.MAX_DRAWDOWN_PCT:
+    if loss >= max_loss:
         logger.critical(
-            f"🚨 DRAWDOWN GUARD TRIGGERED! "
-            f"Drawdown: {drawdown_pct:.2f}% ≥ {config.MAX_DRAWDOWN_PCT}% limit. "
-            f"Equity: {account.equity:.2f} (Session Start: {config.SESSION_START_EQUITY:.2f})"
+            f"🚨 DRAWDOWN GUARD! Loss: ${loss:.2f} ≥ ${max_loss:.2f} "
+            f"({config.MAX_DRAWDOWN_PCT}% of ${config.CAPITAL} capital)"
         )
+        return True
+    return False
+
+
+# ─── Smart Exit Check ─────────────────────────────────────
+def _check_smart_exit() -> bool:
+    """
+    Close basket when price crosses break-even by EXIT_PIPS.
+    No fixed dollar target — exit distance is auto-calculated
+    from the symbol's spread.
+    """
+    if _current_direction is None:
+        return False
+
+    positions = get_basket_positions()
+    if not positions:
+        return False
+
+    breakeven = get_breakeven_price()
+    if breakeven <= 0:
+        return False
+
+    current_price = _get_price(config.SYMBOL, _current_direction)
+    if current_price <= 0:
+        return False
+
+    exit_distance = config.EXIT_PIPS * config.PIP_SIZE
+
+    if _current_direction == "BUY":
+        # Price needs to be EXIT_PIPS above break-even
+        pips_above = (current_price - breakeven) / config.PIP_SIZE
+        if current_price >= breakeven + exit_distance:
+            profit = get_basket_profit()
+            logger.info(
+                f"🎯 SMART EXIT! Price {pips_above:+.1f} pips above break-even | "
+                f"P/L: ${profit:+.2f} | BE: {breakeven:.5f} → Price: {current_price:.5f}"
+            )
+            close_all_positions(reason="SMART_EXIT")
+            return True
+    else:
+        # For SELL, price needs to be EXIT_PIPS below break-even
+        pips_below = (breakeven - current_price) / config.PIP_SIZE
+        if current_price <= breakeven - exit_distance:
+            profit = get_basket_profit()
+            logger.info(
+                f"🎯 SMART EXIT! Price {pips_below:+.1f} pips below break-even | "
+                f"P/L: ${profit:+.2f} | BE: {breakeven:.5f} → Price: {current_price:.5f}"
+            )
+            close_all_positions(reason="SMART_EXIT")
+            return True
+
+    return False
+
+
+# ─── Basket Stop Loss ─────────────────────────────────────
+def _check_basket_stop_loss() -> bool:
+    """
+    When all DCA layers are exhausted and basket is in loss,
+    cut losses at 50% of remaining capital safety buffer.
+    """
+    if _current_direction is None:
+        return False
+
+    positions = get_basket_positions()
+    if len(positions) < config.MAX_ORDERS:
+        return False  # Still have DCA layers available
+
+    profit = get_basket_profit()
+    # Max basket loss = 30% of capital
+    max_basket_loss = config.CAPITAL * 0.30
+
+    if profit <= -max_basket_loss:
+        logger.warning(
+            f"🛑 BASKET STOP LOSS! All {config.MAX_ORDERS} DCA layers used. "
+            f"Loss: ${profit:.2f} exceeds -${max_basket_loss:.2f} limit."
+        )
+        close_all_positions(reason="BASKET_SL")
         return True
 
     return False
 
 
-# ─── DCA Monitor ───────────────────────────────────────────
+# ─── DCA Trigger ──────────────────────────────────────────
 def _check_dca_trigger():
-    """
-    If we have an active basket and price has moved STEP_DISTANCE_PIPS
-    against us since the last entry, place the next DCA layer.
-    """
-    global _dca_layer, _last_dca_price, _current_direction
+    """Place next DCA layer when price moves STEP_PIPS against us."""
+    global _dca_layer, _last_dca_price
 
     if _current_direction is None:
         return
 
     positions = get_basket_positions()
-    if not positions:
-        # Basket was externally closed or lost
-        _reset_state()
+    if not positions or len(positions) >= config.MAX_ORDERS:
         return
 
-    # Check if we've hit the max order cap
-    total_orders = len(positions)
-    if total_orders >= config.MAX_ORDERS:
-        return
-
-    # Get current price
     current_price = _get_price(config.SYMBOL, _current_direction)
     if current_price <= 0:
         return
 
-    pip = _pip_size(config.SYMBOL)
-    step_distance = config.STEP_DISTANCE_PIPS * pip
+    step_distance = config.STEP_PIPS * config.PIP_SIZE
 
-    # Determine if price moved against us by step distance
     if _current_direction == "BUY":
-        # For BUY basket, price must DROP by step_distance from last DCA entry
         price_delta = _last_dca_price - current_price
     else:
-        # For SELL basket, price must RISE by step_distance from last DCA entry
         price_delta = current_price - _last_dca_price
 
     if price_delta >= step_distance:
         _dca_layer += 1
+        pips_moved = price_delta / config.PIP_SIZE
+
         logger.info(
-            f"📉 DCA Trigger! Price moved {price_delta / pip:.1f} pips against us. "
-            f"Placing Layer {_dca_layer} (total orders will be {total_orders + 1})"
+            f"📉 DCA Trigger! {pips_moved:.1f} pips against. "
+            f"Layer {_dca_layer} → total will be {len(positions) + 1} orders"
         )
 
         if place_dca_order(_current_direction, _dca_layer):
             _last_dca_price = current_price
-            logger.info(f"DCA Layer {_dca_layer} placed ✓ | New anchor: {current_price}")
         else:
-            _dca_layer -= 1  # Rollback on failure
-            logger.error(f"DCA Layer {_dca_layer + 1} FAILED to place.")
+            _dca_layer -= 1
 
 
-# ─── Dynamic Target Calculator ─────────────────────────────
-def _get_dynamic_target(total_volume: float) -> float:
-    """
-    Scale the profit target based on TOTAL BASKET VOLUME,
-    not just order count. This correctly handles any lot multiplier.
-
-    Formula: target = base × (total_volume / initial_lot)
-
-    Examples (base=$2, initial=0.01):
-      0.01 lots (1 order)  → $2 × 1   = $2
-      0.05 lots (5 orders) → $2 × 5   = $10
-      0.15 lots (15 orders)→ $2 × 15  = $30
-
-    With 2.0x multiplier:
-      0.01 + 0.02 + 0.04 = 0.07 lots (3 orders) → $2 × 7 = $14
-    """
-    if config.INITIAL_LOT <= 0:
-        return config.TARGET_PROFIT_USD
-
-    risk_ratio = total_volume / config.INITIAL_LOT
-    return config.TARGET_PROFIT_USD * risk_ratio
-
-
-# ─── Basket Profit Monitor ─────────────────────────────────
-def _check_basket_target() -> bool:
-    """
-    Check if the aggregate basket profit has reached the
-    dynamic target (scales with number of DCA layers).
-    Returns True if basket was closed.
-    """
-    if _current_direction is None:
-        return False
-
-    positions = get_basket_positions()
-    num_pos = len(positions)
-    if num_pos == 0:
-        return False
-
-    total_volume = sum(p.volume for p in positions)
-    profit = get_basket_profit()
-    target = _get_dynamic_target(total_volume)
-
-    if profit >= target:
-        logger.info(
-            f"🎯 TARGET PROFIT REACHED! "
-            f"Basket P/L: ${profit:+.2f} ≥ ${target:.2f} "
-            f"({num_pos} orders, {total_volume:.2f} lots)"
-        )
-        close_all_positions(reason="TARGET_HIT")
-        return True
-
-    return False
-
-
-# ─── State Management ──────────────────────────────────────
+# ─── State Reset ─────────────────────────────────────────
 def _reset_state():
-    """Clear all basket state after positions are closed."""
     global _current_direction, _dca_layer, _last_dca_price, _last_candle_time
     _current_direction = None
     _dca_layer = 0
     _last_dca_price = 0.0
     _last_candle_time = 0
-    logger.info("Bot state reset — ready for next signal.")
+    logger.info("State reset — ready for next signal.")
 
 
-# ─── New Candle Detector ───────────────────────────────────
+# ─── New Candle Check ────────────────────────────────────
 def _is_new_candle() -> bool:
-    """
-    Check if a new candle has formed since the last check.
-    Prevents scanning the same bar multiple times.
-    """
     global _last_candle_time
-
     tf = get_mt5_timeframe()
     rates = mt5.copy_rates_from_pos(config.SYMBOL, tf, 0, 1)
-
     if rates is None or len(rates) == 0:
         return False
-
     candle_time = int(rates[0]["time"])
-
     if candle_time != _last_candle_time:
         _last_candle_time = candle_time
         return True
-
     return False
 
 
-# ─── Main Loop ─────────────────────────────────────────────
+# ─── Main Loop ───────────────────────────────────────────
 def main():
     global _current_direction, _last_dca_price
 
     # ── Startup ──
-    config.print_config()
     initialize_mt5()
 
+    # Auto-calculate all parameters
+    if not calculate_params():
+        logger.critical("Auto-parameter calculation failed. Exiting.")
+        shutdown_mt5()
+        sys.exit(1)
+
     logger.info("═" * 60)
-    logger.info("  DCA FOREX BOT — LIVE")
+    logger.info("  DCA FOREX BOT — LIVE (AUTO MODE)")
     logger.info("═" * 60)
-    logger.info(f"Session Start Equity: ${config.SESSION_START_EQUITY:.2f}")
-    logger.info(
-        f"Emergency Stop: ${config.SESSION_START_EQUITY * (1 - config.MAX_DRAWDOWN_PCT / 100):.2f} "
-        f"({config.MAX_DRAWDOWN_PCT}% drawdown)"
-    )
+    logger.info(f"  Capital: ${config.CAPITAL} | Symbol: {config.SYMBOL}")
+    logger.info(f"  Lot: {config.LOT_SIZE} | Step: {config.STEP_PIPS} pips | Max: {config.MAX_ORDERS} orders")
+    logger.info(f"  Exit: {config.EXIT_PIPS} pips above break-even")
+    logger.info(f"  Session Equity: ${config.SESSION_START_EQUITY:.2f}")
+    logger.info("═" * 60)
 
     profit_log_counter = 0
 
     try:
         while _running:
-            # ──────────────────────────────────────────────
-            # PHASE 0: Drawdown Guard (runs EVERY cycle)
-            # ──────────────────────────────────────────────
+            # ── Drawdown Guard (every cycle) ──
             if _check_drawdown_guard():
                 close_all_positions(reason="DRAWDOWN_GUARD")
                 _reset_state()
-                logger.critical(
-                    "🛑 Bot halted due to max drawdown. "
-                    "Manual restart required."
-                )
+                logger.critical("🛑 Bot halted — max drawdown hit.")
                 break
 
-            # ──────────────────────────────────────────────
-            # PHASE 1: Active Basket Management
-            # ──────────────────────────────────────────────
+            # ── Active Basket Management ──
             if _current_direction is not None:
-                # Check basket positions still exist
                 positions = get_basket_positions()
                 if not positions:
-                    logger.info("Basket positions no longer exist (closed externally?).")
                     _reset_state()
                     time.sleep(0.01)
                     continue
 
-                # Fast profit check (every 10ms)
-                if _check_basket_target():
+                # Smart exit (break-even + EXIT_PIPS)
+                if _check_smart_exit():
                     _reset_state()
-                    time.sleep(0.1)  # Minimal pause before next cycle
+                    time.sleep(0.1)
                     continue
 
-                # Basket Stop Loss: all DCA layers used + loss exceeds limit
-                if config.BASKET_STOP_LOSS_USD > 0:
-                    num_pos = len(positions)
-                    basket_pnl = get_basket_profit()
-                    if num_pos >= config.MAX_ORDERS and basket_pnl <= -config.BASKET_STOP_LOSS_USD:
-                        logger.warning(
-                            f"🛑 BASKET STOP LOSS! All {config.MAX_ORDERS} DCA layers used. "
-                            f"Loss: ${basket_pnl:.2f} exceeds -${config.BASKET_STOP_LOSS_USD} limit."
-                        )
-                        close_all_positions(reason="BASKET_SL")
-                        _reset_state()
-                        time.sleep(0.1)
-                        continue
+                # Basket stop loss (all DCA used + deep loss)
+                if _check_basket_stop_loss():
+                    _reset_state()
+                    time.sleep(0.1)
+                    continue
 
-                # DCA trigger check
+                # DCA trigger
                 _check_dca_trigger()
 
-                # Periodic status log (every ~5 seconds)
+                # Status log every ~5 seconds
                 profit_log_counter += 1
-                if profit_log_counter >= 500:  # ~5 seconds at 10ms loop
+                if profit_log_counter >= 500:
                     profit = get_basket_profit()
                     num_pos = len(positions)
-                    total_vol = sum(p.volume for p in positions)
-                    target = _get_dynamic_target(total_vol)
+                    total_vol = get_basket_volume()
+                    breakeven = get_breakeven_price()
+                    current = _get_price(config.SYMBOL, _current_direction)
                     account = mt5.account_info()
                     eq = account.equity if account else 0
+
+                    if _current_direction == "BUY":
+                        pips_from_be = (current - breakeven) / config.PIP_SIZE if config.PIP_SIZE > 0 else 0
+                    else:
+                        pips_from_be = (breakeven - current) / config.PIP_SIZE if config.PIP_SIZE > 0 else 0
+
                     logger.info(
-                        f"📊 Basket: {num_pos} orders ({total_vol:.2f} lots) | "
-                        f"P/L: ${profit:+.2f} / ${target:.2f} target | "
-                        f"Equity: ${eq:.2f}"
+                        f"📊 {num_pos} orders ({total_vol:.2f} lots) | "
+                        f"P/L: ${profit:+.2f} | "
+                        f"BE: {breakeven:.5f} ({pips_from_be:+.1f} pips) | "
+                        f"Exit at: {config.EXIT_PIPS:+.1f} pips | "
+                        f"Eq: ${eq:.2f}"
                     )
                     profit_log_counter = 0
 
-                # Ultra-fast loop: 10ms for maximum responsiveness
+                # 10ms ultra-fast loop
                 time.sleep(0.01)
                 continue
 
-            # ──────────────────────────────────────────────
-            # PHASE 2: Wait for Entry Signal (no active basket)
-            # ──────────────────────────────────────────────
-
-            # Only scan on new candle formation
+            # ── Wait for Entry Signal ──
             if not _is_new_candle():
-                time.sleep(1.0)  # Slower loop when waiting for signals
+                time.sleep(1.0)
                 continue
 
-            # Trading hours filter
+            # New candle confirmed — recalculate params from live spread + ATR
+            # This adapts step pips, exit pips, and max orders to current conditions
+            recalculate()
+
             if not _is_within_trading_hours():
-                logger.debug(
-                    f"Outside trading hours ({config.TRADING_START}-{config.TRADING_END}). Waiting..."
-                )
                 time.sleep(5.0)
                 continue
 
-            # Scan for candlestick pattern
             direction = get_entry_signal()
             if direction is None:
-                logger.debug("No entry pattern on latest closed candle.")
                 continue
 
-            # ──────────────────────────────────────────────
-            # PHASE 3: Execute Initial Entry
-            # ──────────────────────────────────────────────
-            logger.info(f"🚀 ENTRY SIGNAL: {direction} on {config.SYMBOL}")
+            # ── Execute Entry ──
+            logger.info(f"🚀 ENTRY: {direction} {config.SYMBOL}")
 
             if place_entry_order(direction):
                 _current_direction = direction
@@ -372,24 +341,22 @@ def main():
                 _dca_layer = 0
                 profit_log_counter = 0
                 logger.info(
-                    f"✅ Basket initiated: {direction} @ {_last_dca_price} | "
-                    f"DCA step: {config.STEP_DISTANCE_PIPS} pips | "
-                    f"Target: ${config.TARGET_PROFIT_USD}"
+                    f"✅ Basket started: {direction} @ {_last_dca_price} | "
+                    f"DCA every {config.STEP_PIPS} pips | "
+                    f"Exit at +{config.EXIT_PIPS} pips from BE"
                 )
             else:
-                logger.error("Entry order FAILED. Will retry on next signal.")
+                logger.error("Entry FAILED. Waiting for next signal.")
 
     except Exception as e:
-        logger.exception(f"Unhandled exception in main loop: {e}")
-        # Emergency close on crash
+        logger.exception(f"Unhandled exception: {e}")
         try:
             close_all_positions(reason="BOT_CRASH")
         except Exception:
-            logger.exception("Failed to emergency-close positions during crash handler.")
-
+            logger.exception("Failed emergency close during crash.")
     finally:
         shutdown_mt5()
-        logger.info("DCA Forex Bot terminated.")
+        logger.info("DCA Bot terminated.")
 
 
 if __name__ == "__main__":
