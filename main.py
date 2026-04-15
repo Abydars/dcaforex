@@ -41,8 +41,12 @@ logger = logging.getLogger("DCA_Bot")
 _running = True
 _current_direction: str | None = None
 _dca_layer: int = 0
+_pyramid_layer: int = 0
 _last_dca_price: float = 0.0
+_last_pyramid_price: float = 0.0
 _last_candle_time: int = 0
+_trailing_active: bool = False
+_trailing_extreme_price: float = 0.0
 
 
 def _signal_handler(sig, frame):
@@ -93,10 +97,13 @@ def _check_drawdown_guard() -> bool:
 # ─── Smart Exit Check ─────────────────────────────────────
 def _check_smart_exit() -> bool:
     """
-    Close basket when price crosses break-even by EXIT_PIPS.
-    No fixed dollar target — exit distance is auto-calculated
-    from the symbol's spread.
+    Close basket with a Trailing Stop.
+    First, wait for price to cross break-even + EXIT_PIPS.
+    Once crossed, activate trailing mode and track peak price.
+    If price pulls back by TRAIL_PIPS from peak, close all.
     """
+    global _trailing_active, _trailing_extreme_price
+
     if _current_direction is None:
         return False
 
@@ -113,29 +120,48 @@ def _check_smart_exit() -> bool:
         return False
 
     exit_distance = config.EXIT_PIPS * config.PIP_SIZE
+    trail_distance = getattr(config, 'TRAIL_PIPS', 1.5) * config.PIP_SIZE
 
     if _current_direction == "BUY":
-        # Price needs to be EXIT_PIPS above break-even
-        pips_above = (current_price - breakeven) / config.PIP_SIZE
-        if current_price >= breakeven + exit_distance:
-            profit = get_basket_profit()
-            logger.info(
-                f"🎯 SMART EXIT! Price {pips_above:+.1f} pips above break-even | "
-                f"P/L: ${profit:+.2f} | BE: {breakeven:.5f} → Price: {current_price:.5f}"
-            )
-            close_all_positions(reason="SMART_EXIT")
-            return True
+        # 1. Check if we reached activation point
+        if not _trailing_active and current_price >= breakeven + exit_distance:
+            _trailing_active = True
+            _trailing_extreme_price = current_price
+            logger.info(f"🟢 Trailing Stop ACTIVATED! Peak: {current_price:.5f}")
+
+        # 2. Trail the stop
+        if _trailing_active:
+            if current_price > _trailing_extreme_price:
+                _trailing_extreme_price = current_price  # Update peak
+
+            if current_price <= _trailing_extreme_price - trail_distance:
+                profit = get_basket_profit()
+                logger.info(
+                    f"🎯 TRAILING EXIT! Pulled back from {_trailing_extreme_price:.5f} "
+                    f"to {current_price:.5f} | P/L: ${profit:+.2f}"
+                )
+                close_all_positions(reason="TRAIL_EXIT")
+                return True
+
     else:
-        # For SELL, price needs to be EXIT_PIPS below break-even
-        pips_below = (breakeven - current_price) / config.PIP_SIZE
-        if current_price <= breakeven - exit_distance:
-            profit = get_basket_profit()
-            logger.info(
-                f"🎯 SMART EXIT! Price {pips_below:+.1f} pips below break-even | "
-                f"P/L: ${profit:+.2f} | BE: {breakeven:.5f} → Price: {current_price:.5f}"
-            )
-            close_all_positions(reason="SMART_EXIT")
-            return True
+        # For SELL
+        if not _trailing_active and current_price <= breakeven - exit_distance:
+            _trailing_active = True
+            _trailing_extreme_price = current_price
+            logger.info(f"🔴 Trailing Stop ACTIVATED! Peak: {current_price:.5f}")
+
+        if _trailing_active:
+            if current_price < _trailing_extreme_price:
+                _trailing_extreme_price = current_price  # Update peak
+
+            if current_price >= _trailing_extreme_price + trail_distance:
+                profit = get_basket_profit()
+                logger.info(
+                    f"🎯 TRAILING EXIT! Pulled back from {_trailing_extreme_price:.5f} "
+                    f"to {current_price:.5f} | P/L: ${profit:+.2f}"
+                )
+                close_all_positions(reason="TRAIL_EXIT")
+                return True
 
     return False
 
@@ -168,10 +194,13 @@ def _check_basket_stop_loss() -> bool:
     return False
 
 
-# ─── DCA Trigger ──────────────────────────────────────────
-def _check_dca_trigger():
-    """Place next DCA layer when price moves STEP_PIPS against us."""
-    global _dca_layer, _last_dca_price
+# ─── DCA & Pyramid Trigger ─────────────────────────────────
+def _check_order_triggers():
+    """
+    Check if price moved STEP_PIPS against us (DCA)
+    or STEP_PIPS in our favor (Pyramid).
+    """
+    global _dca_layer, _pyramid_layer, _last_dca_price, _last_pyramid_price
 
     if _current_direction is None:
         return
@@ -187,32 +216,53 @@ def _check_dca_trigger():
     step_distance = config.STEP_PIPS * config.PIP_SIZE
 
     if _current_direction == "BUY":
-        price_delta = _last_dca_price - current_price
+        dca_delta = _last_dca_price - current_price
+        pyr_delta = current_price - _last_pyramid_price
     else:
-        price_delta = current_price - _last_dca_price
+        dca_delta = current_price - _last_dca_price
+        pyr_delta = _last_pyramid_price - current_price
 
-    if price_delta >= step_distance:
+    # 1. DCA (Against us)
+    if dca_delta >= step_distance:
         _dca_layer += 1
-        pips_moved = price_delta / config.PIP_SIZE
-
+        pips_moved = dca_delta / config.PIP_SIZE
         logger.info(
-            f"📉 DCA Trigger! {pips_moved:.1f} pips against. "
-            f"Layer {_dca_layer} → total will be {len(positions) + 1} orders"
+            f"📉 DCA Trigger! {pips_moved:.1f} pips against "
+            f"(Layer {_dca_layer} / Total {len(positions) + 1})"
         )
-
         if place_dca_order(_current_direction, _dca_layer):
             _last_dca_price = current_price
         else:
             _dca_layer -= 1
 
+    # 2. Pyramid (In our favor)
+    elif pyr_delta >= step_distance:
+        _pyramid_layer += 1
+        pips_moved = pyr_delta / config.PIP_SIZE
+        logger.info(
+            f"🚀 PYRAMID Trigger! {pips_moved:.1f} pips in favor "
+            f"(Layer {_pyramid_layer} / Total {len(positions) + 1})"
+        )
+        if place_dca_order(_current_direction, _dca_layer + _pyramid_layer):
+            _last_pyramid_price = current_price
+        else:
+            _pyramid_layer -= 1
+
 
 # ─── State Reset ─────────────────────────────────────────
 def _reset_state():
-    global _current_direction, _dca_layer, _last_dca_price, _last_candle_time
+    global _current_direction, _dca_layer, _pyramid_layer
+    global _last_dca_price, _last_pyramid_price, _last_candle_time
+    global _trailing_active, _trailing_extreme_price
+
     _current_direction = None
     _dca_layer = 0
+    _pyramid_layer = 0
     _last_dca_price = 0.0
+    _last_pyramid_price = 0.0
     _last_candle_time = 0
+    _trailing_active = False
+    _trailing_extreme_price = 0.0
     logger.info("State reset — ready for next signal.")
 
 
@@ -306,7 +356,7 @@ def main():
                         f"📊 {num_pos} orders ({total_vol:.2f} lots) | "
                         f"P/L: ${profit:+.2f} | "
                         f"BE: {breakeven:.5f} ({pips_from_be:+.1f} pips) | "
-                        f"Exit at: {config.EXIT_PIPS:+.1f} pips | "
+                        f"{'TRAIL ACTIVE Peak: ' + f'{_trailing_extreme_price:.5f}' if _trailing_active else f'Exit at: +{config.EXIT_PIPS:.1f} pips'} | "
                         f"Eq: ${eq:.2f}"
                     )
                     profit_log_counter = 0
@@ -338,12 +388,15 @@ def main():
             if place_entry_order(direction):
                 _current_direction = direction
                 _last_dca_price = _get_price(config.SYMBOL, direction)
+                _last_pyramid_price = _last_dca_price
                 _dca_layer = 0
+                _pyramid_layer = 0
+                _trailing_active = False
                 profit_log_counter = 0
                 logger.info(
                     f"✅ Basket started: {direction} @ {_last_dca_price} | "
-                    f"DCA every {config.STEP_PIPS} pips | "
-                    f"Exit at +{config.EXIT_PIPS} pips from BE"
+                    f"Layer gap: {config.STEP_PIPS} pips | "
+                    f"Trail mode: +{config.EXIT_PIPS} pips from BE"
                 )
             else:
                 logger.error("Entry FAILED. Waiting for next signal.")

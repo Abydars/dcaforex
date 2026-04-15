@@ -150,6 +150,10 @@ def recalculate() -> bool:
     exit_pips        = max(exit_from_spread, exit_from_atr)
     exit_pips        = round(max(exit_pips, 2.0), 1)
 
+    # ── Trailing Stop (activated after exit_pips) ─────────
+    # Allows pyramiding to ride the trend until a pullback
+    trail_pips = round(max(spread_pips * 2.0, 1.5), 1)
+
     # ── Check if anything changed significantly ───────────
     prev_step = getattr(config, "STEP_PIPS", 0)
     prev_exit = getattr(config, "EXIT_PIPS", 0)
@@ -166,6 +170,7 @@ def recalculate() -> bool:
     config.STEP_PIPS   = step_pips
     config.MAX_ORDERS  = max_orders
     config.EXIT_PIPS   = exit_pips
+    config.TRAIL_PIPS  = trail_pips
     config.PIP_SIZE    = pip_size
     config.PIP_VALUE   = pip_value
     config.SPREAD_PIPS = round(spread_pips, 1)
@@ -178,7 +183,7 @@ def recalculate() -> bool:
             f"ATR: {atr_pips:.1f}p | "
             f"Step: {step_pips:.1f}p | "
             f"Max: {max_orders} orders | "
-            f"Exit: +{exit_pips:.1f}p from BE"
+            f"Exit: +{exit_pips:.1f}p from BE (Trail: {trail_pips:.1f}p)"
         )
     else:
         logger.debug(
