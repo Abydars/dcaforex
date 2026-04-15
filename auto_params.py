@@ -90,9 +90,33 @@ def recalculate(target_symbol: str = None) -> dict | None:
     # ── Base Properties ──────────────────────────────────
     pip_size  = _get_pip_size(info)
     
-    # Auto-Scaling Volume (1 step per $500 of capital)
-    risk_factor = 200.0
-    raw_lot = (capital / risk_factor) * info.volume_step
+    # ── Auto-Scaling Volume based on Coin Price / Margin ──
+    # Request MT5 to calculate margin required for exactly 1.0 lot.
+    # This automatically accounts for asset price, contract size, and user leverage.
+    margin_for_one_lot = mt5.order_calc_margin(mt5.ORDER_TYPE_BUY, symbol, 1.0, tick.ask)
+    
+    if margin_for_one_lot and margin_for_one_lot > 0:
+        # ── Dynamic Budget Allocation ──
+        # Total margin budget allowed for the entire account is 40% (60% saved for floating drawdown)
+        total_margin_budget = capital * 0.40
+        
+        # Split budget across baskets if parallel trading is enabled
+        is_parallel = getattr(config, "PARALLEL_TRADING", False)
+        if is_parallel:
+            num_symbols = max(1, len(getattr(config, "SYMBOLS", [symbol])))
+            basket_budget = total_margin_budget / num_symbols
+        else:
+            basket_budget = total_margin_budget
+            
+        # We assume an average of 10-12 DCA orders per basket to distribute this basket budget safely
+        expected_dca_layers = 12.0
+        target_margin_per_order = basket_budget / expected_dca_layers
+        
+        raw_lot = target_margin_per_order / margin_for_one_lot
+    else:
+        # Fallback if broker fails to provide margin calculation
+        risk_factor = 200.0
+        raw_lot = (capital / risk_factor) * info.volume_step
     
     # Apply broker limits
     bounded_lot = max(info.volume_min, min(info.volume_max, raw_lot))
