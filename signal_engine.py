@@ -69,12 +69,23 @@ def get_entry_signal() -> str | None:
         logger.debug("Zero-range candle (doji), skipping.")
         return None
 
-    # ─── MODE: Simple Candle Color ───────────────────────
+    # ─── MODE: Simple Candle Color (With Wick Rejection) ─
+    upper_wick = curr_high - max(curr_open, curr_close)
+    lower_wick = min(curr_open, curr_close) - curr_low
+
     if SIGNAL_MODE == "candle":
         if curr_close > curr_open:
+            # Check for massive upper wick (Bearish rejection trap)
+            if upper_wick >= body * 1.5:
+                logger.info(f"🟢 GREEN candle, but HUGE upper wick (rejection). Skipping BUY.")
+                return None
             logger.info(f"🟢 GREEN candle → BUY signal on {symbol}")
             return "BUY"
         elif curr_close < curr_open:
+            # Check for massive lower wick (Bullish rejection trap)
+            if lower_wick >= body * 1.5:
+                logger.info(f"🔴 RED candle, but HUGE lower wick (rejection). Skipping SELL.")
+                return None
             logger.info(f"🔴 RED candle → SELL signal on {symbol}")
             return "SELL"
         else:

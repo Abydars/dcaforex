@@ -3,7 +3,7 @@
  DCA Forex Bot — Auto Parameter Engine
 ============================================================
 Calculates ALL trading parameters dynamically from:
-  • CAPITAL (user input)
+  • CAPITAL (auto-fetched from MT5 wallet balance)
   • Live spread (from MT5 tick)
   • Live volatility (from recent candles ATR)
 
@@ -75,7 +75,14 @@ def recalculate() -> bool:
       EXIT_PIPS   — pips above break-even to close (spread×3 or ATR×0.2)
     """
     symbol = config.SYMBOL
-    capital = config.CAPITAL
+    
+    account = mt5.account_info()
+    if account is None:
+        logger.warning("Cannot get account info. Skipping recalculate.")
+        return False
+        
+    capital = account.balance
+    config.CAPITAL = capital  # Store for logging and other specific uses
 
     info = mt5.symbol_info(symbol)
     if info is None:

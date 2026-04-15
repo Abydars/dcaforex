@@ -40,7 +40,6 @@ MT5_SERVER: str = _get_env("MT5_SERVER")
 
 # ─── User Inputs (only these matter) ────────────────────────
 SYMBOL: str = _get_env("SYMBOL", default="EURUSDm")
-CAPITAL: float = float(_get_env("CAPITAL", default="50"))
 TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()
 SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
 
@@ -56,6 +55,7 @@ TRADING_END: dtime = _parse_time(_get_env("TRADING_END_HOUR", default="20:00"))
 MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="550055"))
 
 # ─── Auto-Calculated (filled at runtime by auto_params) ─────
+CAPITAL: float = 0.0
 SESSION_START_EQUITY: float = 0.0
 LOT_SIZE: float = 0.0
 STEP_PIPS: float = 0.0
