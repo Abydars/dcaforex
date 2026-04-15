@@ -20,7 +20,7 @@ import logging
 import signal
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import MetaTrader5 as mt5
 
@@ -67,9 +67,9 @@ def _is_within_trading_hours() -> bool:
     # Prefer MT5 server time; fallback to local UTC
     tick = mt5.symbol_info_tick(config.SYMBOL)
     if tick and tick.time:
-        server_dt = datetime.utcfromtimestamp(tick.time)
+        server_dt = datetime.fromtimestamp(tick.time, tz=timezone.utc)
     else:
-        server_dt = datetime.utcnow()
+        server_dt = datetime.now(tz=timezone.utc)
 
     now_time = server_dt.time()
 
