@@ -114,51 +114,51 @@ def _send_order(
 
 
 # ─── Place Entry Order ──────────────────────────────────────
-def place_entry_order(direction: str) -> bool:
+def place_entry_order(symbol: str, direction: str, volume: float) -> bool:
     """Place initial entry with auto-calculated lot size."""
-    logger.info(f"📍 ENTRY {direction} {config.SYMBOL} × {config.LOT_SIZE} lots")
+    logger.info(f"📍 ENTRY {direction} {symbol} × {volume} lots")
     return _send_order(
-        symbol=config.SYMBOL,
+        symbol=symbol,
         direction=direction,
-        volume=config.LOT_SIZE,
+        volume=volume,
         comment="DCA_ENTRY",
     )
 
 
 # ─── Place DCA Order ────────────────────────────────────────
-def place_dca_order(direction: str, layer: int) -> bool:
+def place_dca_order(symbol: str, direction: str, layer: int, volume: float) -> bool:
     """Place DCA layer (same lot size every time — rapid fire)."""
-    logger.info(f"📍 DCA Layer {layer} — {direction} {config.SYMBOL} × {config.LOT_SIZE} lots")
+    logger.info(f"📍 DCA Layer {layer} — {direction} {symbol} × {volume} lots")
     return _send_order(
-        symbol=config.SYMBOL,
+        symbol=symbol,
         direction=direction,
-        volume=config.LOT_SIZE,
+        volume=volume,
         comment=f"DCA_L{layer}",
     )
 
 
 # ─── Basket Helpers ─────────────────────────────────────────
-def get_basket_positions() -> list:
+def get_basket_positions(symbol: str) -> list:
     """Get all open positions with our magic number."""
-    positions = mt5.positions_get(symbol=config.SYMBOL)
+    positions = mt5.positions_get(symbol=symbol)
     if positions is None:
         return []
     return [p for p in positions if p.magic == config.MAGIC_NUMBER]
 
 
-def get_basket_profit() -> float:
+def get_basket_profit(symbol: str) -> float:
     """Total floating profit of our basket."""
-    return sum(p.profit for p in get_basket_positions())
+    return sum(p.profit for p in get_basket_positions(symbol))
 
 
-def get_basket_volume() -> float:
+def get_basket_volume(symbol: str) -> float:
     """Total volume of all basket positions."""
-    return sum(p.volume for p in get_basket_positions())
+    return sum(p.volume for p in get_basket_positions(symbol))
 
 
-def get_breakeven_price() -> float:
+def get_breakeven_price(symbol: str) -> float:
     """Volume-weighted average entry price (break-even level)."""
-    positions = get_basket_positions()
+    positions = get_basket_positions(symbol)
     if not positions:
         return 0.0
     total_vol = sum(p.volume for p in positions)
@@ -168,9 +168,9 @@ def get_breakeven_price() -> float:
 
 
 # ─── Close All ──────────────────────────────────────────────
-def close_all_positions(reason: str = "BASKET_CLOSE") -> int:
+def close_all_positions(symbol: str, reason: str = "BASKET_CLOSE") -> int:
     """Close every position in the basket. Returns count closed."""
-    positions = get_basket_positions()
+    positions = get_basket_positions(symbol)
     if not positions:
         return 0
 

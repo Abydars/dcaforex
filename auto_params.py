@@ -61,26 +61,18 @@ def _calc_atr(rates, period: int = 10) -> float:
     return float(np.mean(trs))
 
 
-def recalculate() -> bool:
+def recalculate(target_symbol: str = None) -> dict | None:
     """
     Recalculate all trading parameters from live market data.
     Called at startup AND on every new candle.
-    Writes results directly into config module globals.
-
-    Parameters auto-derived:
-      PIP_SIZE    — symbol property
-      PIP_VALUE   — symbol property × lot
-      SPREAD_PIPS — live bid/ask spread
-      STEP_PIPS   — max(spread×5, ATR×0.3 in pips, 2 pips min)
-      MAX_ORDERS  — how many orders CAPITAL can safely support
-      EXIT_PIPS   — pips above break-even to close (spread×3 or ATR×0.2)
+    Returns a dict of parameters.
     """
-    symbol = config.SYMBOL
+    symbol = target_symbol if target_symbol else getattr(config, "SYMBOL", None)
     
     account = mt5.account_info()
     if account is None:
         logger.warning("Cannot get account info. Skipping recalculate.")
-        return False
+        return None
         
     capital = account.balance
     config.CAPITAL = capital  # Store for logging and other specific uses
@@ -88,12 +80,12 @@ def recalculate() -> bool:
     info = mt5.symbol_info(symbol)
     if info is None:
         logger.warning(f"Cannot get symbol info for {symbol}. Skipping recalculate.")
-        return False
+        return None
 
     tick = mt5.symbol_info_tick(symbol)
     if tick is None:
         logger.warning(f"Cannot get tick for {symbol}. Skipping recalculate.")
-        return False
+        return None
 
     # ── Base Properties ──────────────────────────────────
     pip_size  = _get_pip_size(info)
@@ -120,7 +112,7 @@ def recalculate() -> bool:
 
     if pip_size <= 0 or pip_value <= 0:
         logger.warning("Invalid pip size/value. Skipping recalculate.")
-        return False
+        return None
 
     # ── Live Spread ───────────────────────────────────────
     spread_price = tick.ask - tick.bid
@@ -151,7 +143,7 @@ def recalculate() -> bool:
     )
     if margin_per_lot is None or margin_per_lot <= 0:
         logger.warning("Cannot calculate margin. Skipping recalculate.")
-        return False
+        return None
 
     # ── Max Orders Calculation ────────────────────────────
     # Budget:
@@ -188,13 +180,19 @@ def recalculate() -> bool:
     prev_exit = getattr(config, "EXIT_PIPS", 0)
     prev_max  = getattr(config, "MAX_ORDERS", 0)
 
-    params_changed = (
-        abs(step_pips - prev_step) >= 0.5
-        or abs(exit_pips - prev_exit) >= 0.5
-        or max_orders != prev_max
-    )
+    # ── Create Params Dictionary ──────────────────────────
+    params = {
+        "LOT_SIZE": base_lot,
+        "STEP_PIPS": step_pips,
+        "MAX_ORDERS": max_orders,
+        "EXIT_PIPS": exit_pips,
+        "TRAIL_PIPS": trail_pips,
+        "PIP_SIZE": pip_size,
+        "PIP_VALUE": pip_value,
+        "SPREAD_PIPS": round(spread_pips, 1)
+    }
 
-    # ── Write to Config ───────────────────────────────────
+    # ── Write to Config (Legacy Fallback) ──────────────────
     config.LOT_SIZE    = base_lot
     config.STEP_PIPS   = step_pips
     config.MAX_ORDERS  = max_orders
@@ -204,42 +202,32 @@ def recalculate() -> bool:
     config.PIP_VALUE   = pip_value
     config.SPREAD_PIPS = round(spread_pips, 1)
 
-    # ── Log (always on first run, then only if changed) ───
-    if prev_step == 0 or params_changed:
-        logger.info(
-            f"⚙️  Params updated | "
-            f"Spread: {spread_pips:.1f}p | "
-            f"ATR: {atr_pips:.1f}p | "
-            f"Step: {step_pips:.1f}p | "
-            f"Max: {max_orders} orders | "
-            f"Exit: +{exit_pips:.1f}p from BE (Trail: {trail_pips:.1f}p)"
-        )
-    else:
-        logger.debug(
-            f"Params stable | Spread: {spread_pips:.1f}p | ATR: {atr_pips:.1f}p"
-        )
+    logger.debug(
+        f"Params returned for {symbol} | Spread: {spread_pips:.1f}p | "
+        f"ATR: {atr_pips:.1f}p | Step: {step_pips:.1f}p | Exit: {exit_pips:.1f}p"
+    )
 
-    return True
+    return params
 
 
 # Keep backward-compat alias
-def calculate_params() -> bool:
-    """Alias for first-run calculation."""
+def calculate_params(target_symbol: str = None) -> dict | None:
+    """Alias for first-run calculation returning a dict."""
     logger.info("═" * 60)
-    logger.info("  INITIAL PARAMETER CALCULATION")
+    logger.info(f"  INITIAL PARAM CALCULATION: {target_symbol or config.SYMBOL}")
     logger.info("═" * 60)
-    result = recalculate()
+    result = recalculate(target_symbol)
     if result:
         logger.info(f"  Capital      : ${config.CAPITAL}")
-        logger.info(f"  Lot Size     : {config.LOT_SIZE}")
-        logger.info(f"  Step Pips    : {config.STEP_PIPS}")
-        logger.info(f"  Max Orders   : {config.MAX_ORDERS}")
-        logger.info(f"  Exit Pips    : {config.EXIT_PIPS}")
-        logger.info(f"  Pip Value    : ${config.PIP_VALUE:.4f}/pip")
-        worst = config.PIP_VALUE * config.STEP_PIPS * config.MAX_ORDERS * (config.MAX_ORDERS - 1) / 2
-        margin_total = config.MAX_ORDERS * (mt5.order_calc_margin(
-            mt5.ORDER_TYPE_BUY, config.SYMBOL, config.LOT_SIZE,
-            mt5.symbol_info_tick(config.SYMBOL).ask
+        logger.info(f"  Lot Size     : {result['LOT_SIZE']}")
+        logger.info(f"  Step Pips    : {result['STEP_PIPS']}")
+        logger.info(f"  Max Orders   : {result['MAX_ORDERS']}")
+        logger.info(f"  Exit Pips    : {result['EXIT_PIPS']}")
+        logger.info(f"  Pip Value    : ${result['PIP_VALUE']:.4f}/pip")
+        worst = result['PIP_VALUE'] * result['STEP_PIPS'] * result['MAX_ORDERS'] * (result['MAX_ORDERS'] - 1) / 2
+        margin_total = result['MAX_ORDERS'] * (mt5.order_calc_margin(
+            mt5.ORDER_TYPE_BUY, target_symbol or config.SYMBOL, result['LOT_SIZE'],
+            mt5.symbol_info_tick(target_symbol or config.SYMBOL).ask
         ) or 0)
         logger.info(f"  Worst Exposure: ${worst + margin_total:.2f} / ${config.CAPITAL}")
     logger.info("═" * 60)
