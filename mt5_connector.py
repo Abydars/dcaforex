@@ -1,0 +1,127 @@
+"""
+============================================================
+ DCA Forex Bot — MT5 Connector
+============================================================
+Handles initialization, authentication, and graceful shutdown
+of the MetaTrader5 terminal connection for Exness accounts.
+"""
+
+import logging
+import sys
+
+try:
+    import MetaTrader5 as mt5
+except ImportError:
+    logging.critical("MetaTrader5 package missing. Install: pip install MetaTrader5")
+    sys.exit(1)
+
+import config
+
+logger = logging.getLogger("MT5_Connector")
+
+# ─── Timeframe Mapping ──────────────────────────────────────
+_TF_MAP = {
+    "M1": mt5.TIMEFRAME_M1,
+    "M5": mt5.TIMEFRAME_M5,
+    "M15": mt5.TIMEFRAME_M15,
+    "M30": mt5.TIMEFRAME_M30,
+    "H1": mt5.TIMEFRAME_H1,
+    "H4": mt5.TIMEFRAME_H4,
+    "D1": mt5.TIMEFRAME_D1,
+}
+
+
+def get_mt5_timeframe() -> int:
+    """Resolve the string timeframe from config to an MT5 constant."""
+    tf = _TF_MAP.get(config.TIMEFRAME_STR)
+    if tf is None:
+        logger.critical(
+            f"Unsupported TIMEFRAME '{config.TIMEFRAME_STR}'. "
+            f"Use one of: {list(_TF_MAP.keys())}"
+        )
+        sys.exit(1)
+    return tf
+
+
+def initialize_mt5():
+    """
+    Starts the MT5 terminal and authenticates headlessly
+    against the configured Exness account.
+    """
+    logger.info("Initializing MetaTrader5 connection...")
+
+    authorized = mt5.initialize(
+        login=config.MT5_LOGIN,
+        password=config.MT5_PASS,
+        server=config.MT5_SERVER,
+    )
+
+    if not authorized:
+        logger.critical(
+            f"MT5 initialization / authorization failed. Error: {mt5.last_error()}"
+        )
+        mt5.shutdown()
+        sys.exit(1)
+
+    logger.info("MT5 initialized ✓")
+
+    # ── Account Verification ──
+    account = mt5.account_info()
+    if account is None:
+        logger.critical(f"Cannot retrieve account info. Error: {mt5.last_error()}")
+        mt5.shutdown()
+        sys.exit(1)
+
+    logger.info(
+        f"Account {account.login} @ {account.company} | "
+        f"Balance: {account.balance:.2f} {account.currency} | "
+        f"Equity: {account.equity:.2f}"
+    )
+
+    # Capture session start equity for drawdown protection
+    config.SESSION_START_EQUITY = account.equity
+
+    # ── Algo Trading Check ──
+    terminal = mt5.terminal_info()
+    if terminal is None or not terminal.trade_allowed:
+        logger.critical(
+            "Algo trading is disabled in MT5 Terminal. "
+            "Enable it via Tools → Options → Expert Advisors."
+        )
+        mt5.shutdown()
+        sys.exit(1)
+
+    # ── Symbol Registration ──
+    _register_symbol(config.SYMBOL)
+
+    logger.info("MT5 connection fully established ✓")
+
+
+def _register_symbol(symbol: str):
+    """Ensure the trading symbol is visible in Market Watch."""
+    info = mt5.symbol_info(symbol)
+    if info is None:
+        logger.critical(
+            f"Symbol '{symbol}' not found on broker server. "
+            f"Check the Exness suffix (e.g., EURUSDm, XAUUSDm)."
+        )
+        mt5.shutdown()
+        sys.exit(1)
+
+    if not info.visible:
+        if not mt5.symbol_select(symbol, True):
+            logger.critical(
+                f"Cannot add '{symbol}' to Market Watch. Error: {mt5.last_error()}"
+            )
+            mt5.shutdown()
+            sys.exit(1)
+        logger.info(f"Symbol '{symbol}' added to Market Watch.")
+    else:
+        logger.debug(f"Symbol '{symbol}' already visible.")
+
+
+def shutdown_mt5():
+    """Gracefully close the MT5 connection."""
+    logger.info("Shutting down MT5 connection...")
+    mt5.shutdown()
+    logger.info("MT5 shutdown complete ✓")

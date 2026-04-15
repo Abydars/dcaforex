@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+.ruff_cache/
+*.log
+bot_state.json
