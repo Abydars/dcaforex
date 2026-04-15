@@ -46,6 +46,11 @@ SYMBOL: str = _get_env("SYMBOL", default="EURUSDm")
 # Map string timeframe name → MT5 constant (resolved at runtime in connector)
 TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()
 
+# ─── Signal Mode ────────────────────────────────────────────
+# "candle"  = Simple green/red candle direction (fast entry, good for DCA)
+# "pattern" = Strict candlestick patterns like Engulfing/Hammer (selective)
+SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
+
 # ─── Lot Sizing ─────────────────────────────────────────────
 # Initial lot size for the first entry order
 INITIAL_LOT: float = float(_get_env("INITIAL_LOT", default="0.01"))
@@ -93,6 +98,7 @@ def print_config():
     logger.info(f"  Server         : {MT5_SERVER}")
     logger.info(f"  Symbol         : {SYMBOL}")
     logger.info(f"  Timeframe      : {TIMEFRAME_STR}")
+    logger.info(f"  Signal Mode    : {SIGNAL_MODE}")
     logger.info(f"  Initial Lot    : {INITIAL_LOT}")
     logger.info(f"  Step Distance  : {STEP_DISTANCE_PIPS} pips")
     logger.info(f"  Lot Multiplier : {LOT_MULTIPLIER}x")
