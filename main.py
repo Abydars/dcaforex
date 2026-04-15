@@ -377,13 +377,16 @@ def main():
             # Scan all symbols for an entry signal
             best_direction = None
             best_symbol = None
+            highest_surge = 0.0
 
             for sym in config.SYMBOLS:
-                direction = get_entry_signal(target_symbol=sym)
-                if direction is not None:
-                    best_direction = direction
-                    best_symbol = sym
-                    break  # Lock onto the first valid setup found
+                signal_data = get_entry_signal(target_symbol=sym)
+                if signal_data is not None:
+                    surge = signal_data.get("surge_ratio", 1.0)
+                    if surge > highest_surge:
+                        highest_surge = surge
+                        best_direction = signal_data.get("direction")
+                        best_symbol = sym
 
             if best_direction is None:
                 continue

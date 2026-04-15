@@ -27,12 +27,12 @@ logger = logging.getLogger("SignalEngine")
 SIGNAL_MODE = getattr(config, "SIGNAL_MODE", "candle")
 
 
-def get_entry_signal(target_symbol: str = None) -> str | None:
+def get_entry_signal(target_symbol: str = None) -> dict | None:
     """
     Fetch the last few candles and detect an entry signal
     on the most recently CLOSED candle (index -2).
 
-    Returns: "BUY", "SELL", or None
+    Returns: {"direction": "BUY"|"SELL", "surge_ratio": float} or None
     """
     symbol = target_symbol if target_symbol else config.SYMBOL
     tf = get_mt5_timeframe()
@@ -51,10 +51,10 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
         logger.warning(f"Could not fetch enough HTF candles for {symbol}. Proceeding without trend filter.")
 
     # ─── 2. Fetch Lower Timeframe Context ───
-    # Fetch 10 candles
-    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 10)
+    # Fetch 20 candles for ATR computation
+    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 20)
 
-    if rates is None or len(rates) < 7:
+    if rates is None or len(rates) < 18:
         logger.warning(f"Insufficient candle data for {symbol}. Received: {rates}")
         return None
 
@@ -83,17 +83,36 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
         logger.debug("Zero-range candle (doji), skipping.")
         return None
 
+    # Calculate Tick Volume Surge globally
+    recent_vols = [r['tick_volume'] for r in rates[-12:-2]]
+    avg_vol = sum(recent_vols) / len(recent_vols) if len(recent_vols) > 0 else 1
+    curr_vol = curr['tick_volume']
+    surge_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
+
     # ─── MODE: Smart Candle Color (Trend + Momentum + Wick Rejection) ─
     upper_wick = curr_high - max(curr_open, curr_close)
     lower_wick = min(curr_open, curr_close) - curr_low
 
     if SIGNAL_MODE == "candle":
+        # Calculate ATR (Average True Range) for recent 14 candles to detect FLAT markets
+        trs = []
+        for i in range(2, 16):
+            idx = -i
+            h = rates[idx]["high"]
+            l = rates[idx]["low"]
+            pc = rates[idx - 1]["close"]
+            tr = max(h - l, abs(h - pc), abs(l - pc))
+            trs.append(tr)
+        atr = sum(trs) / len(trs) if len(trs) > 0 else 0
+
         # Calculate recent average body (momentum filter)
-        # using the 5 candles right before our signal candle (indices -7 to -3)
         recent_bodies = [abs(r['close'] - r['open']) for r in rates[-7:-2]]
         avg_body = sum(recent_bodies) / len(recent_bodies) if len(recent_bodies) > 0 else 0
 
         if curr_close > curr_open:
+            if body < (atr * 0.5):
+                logger.info(f"🟢 GREEN candle, but market is FLAT (Body {body:.5f} < 50% ATR {atr:.5f}). Skipping.")
+                return None
             if trend == "DOWN":
                 logger.info("🟢 GREEN candle, but HTF trend is DOWN. Skipping BUY to align with trend.")
                 return None
@@ -104,9 +123,12 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
             if upper_wick >= body * 1.5:
                 logger.info(f"🟢 GREEN candle, but HUGE upper wick (rejection). Skipping BUY.")
                 return None
-            logger.info(f"🟢 GREEN candle (Trend: {trend}, Momentum: High) → BUY signal on {symbol}")
-            return "BUY"
+            logger.info(f"🟢 GREEN candle (Trend: {trend}, Momentum: High) → BUY signal on {symbol} (Surge: {surge_ratio:.2f}x)")
+            return {"direction": "BUY", "surge_ratio": surge_ratio}
         elif curr_close < curr_open:
+            if body < (atr * 0.5):
+                logger.info(f"🔴 RED candle, but market is FLAT (Body {body:.5f} < 50% ATR {atr:.5f}). Skipping.")
+                return None
             if trend == "UP":
                 logger.info("🔴 RED candle, but HTF trend is UP. Skipping SELL to align with trend.")
                 return None
@@ -117,8 +139,8 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
             if lower_wick >= body * 1.5:
                 logger.info(f"🔴 RED candle, but HUGE lower wick (rejection). Skipping SELL.")
                 return None
-            logger.info(f"🔴 RED candle (Trend: {trend}, Momentum: High) → SELL signal on {symbol}")
-            return "SELL"
+            logger.info(f"🔴 RED candle (Trend: {trend}, Momentum: High) → SELL signal on {symbol} (Surge: {surge_ratio:.2f}x)")
+            return {"direction": "SELL", "surge_ratio": surge_ratio}
         else:
             logger.debug("Doji candle, no signal.")
             return None
@@ -134,8 +156,8 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
         and curr_close > prev_open
         and curr_open <= prev_close
     ):
-        logger.info(f"🟢 BULLISH ENGULFING detected on {symbol}")
-        return "BUY"
+        logger.info(f"🟢 BULLISH ENGULFING detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        return {"direction": "BUY", "surge_ratio": surge_ratio}
 
     # Bearish Engulfing
     if (
@@ -144,8 +166,8 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
         and curr_close < prev_open
         and curr_open >= prev_close
     ):
-        logger.info(f"🔴 BEARISH ENGULFING detected on {symbol}")
-        return "SELL"
+        logger.info(f"🔴 BEARISH ENGULFING detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        return {"direction": "SELL", "surge_ratio": surge_ratio}
 
     # Hammer (Bullish)
     upper_wick = curr_high - max(curr_open, curr_close)
@@ -156,8 +178,8 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
         and lower_wick >= 2.0 * body
         and upper_wick <= body * 0.5
     ):
-        logger.info(f"🟢 HAMMER detected on {symbol}")
-        return "BUY"
+        logger.info(f"🟢 HAMMER detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        return {"direction": "BUY", "surge_ratio": surge_ratio}
 
     # Shooting Star (Bearish)
     if (
@@ -165,8 +187,8 @@ def get_entry_signal(target_symbol: str = None) -> str | None:
         and upper_wick >= 2.0 * body
         and lower_wick <= body * 0.5
     ):
-        logger.info(f"🔴 SHOOTING STAR detected on {symbol}")
-        return "SELL"
+        logger.info(f"🔴 SHOOTING STAR detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        return {"direction": "SELL", "surge_ratio": surge_ratio}
 
     logger.info(f"No pattern matched on {symbol}. Waiting for next candle...")
     return None
