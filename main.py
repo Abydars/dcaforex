@@ -162,24 +162,50 @@ def _check_dca_trigger():
             logger.error(f"DCA Layer {_dca_layer + 1} FAILED to place.")
 
 
+# ─── Dynamic Target Calculator ─────────────────────────────
+def _get_dynamic_target(num_positions: int) -> float:
+    """
+    Scale the profit target based on how many DCA layers are active.
+    More layers = more risk taken = bigger target required.
+
+    Tiers (configurable via config):
+      Low risk  (1-3 orders):  TARGET_PROFIT_USD      (e.g., $2)
+      Med risk  (4-7 orders):  TARGET_PROFIT_USD × 2.5 (e.g., $5)
+      High risk (8+ orders):   TARGET_PROFIT_USD × 5   (e.g., $10)
+    """
+    base = config.TARGET_PROFIT_USD
+
+    if num_positions <= 3:
+        return base
+    elif num_positions <= 7:
+        return base * 2.5
+    else:
+        return base * 5.0
+
+
 # ─── Basket Profit Monitor ─────────────────────────────────
 def _check_basket_target() -> bool:
     """
-    Check if the aggregate basket profit has reached the target.
+    Check if the aggregate basket profit has reached the
+    dynamic target (scales with number of DCA layers).
     Returns True if basket was closed.
     """
     if _current_direction is None:
         return False
 
+    positions = get_basket_positions()
+    num_pos = len(positions)
+    if num_pos == 0:
+        return False
+
     profit = get_basket_profit()
+    target = _get_dynamic_target(num_pos)
 
-    # Log periodically (every ~5 seconds, based on 100ms loop = every 50 cycles)
-    # This is handled in the main loop via a counter
-
-    if profit >= config.TARGET_PROFIT_USD:
+    if profit >= target:
         logger.info(
             f"🎯 TARGET PROFIT REACHED! "
-            f"Basket P/L: ${profit:+.2f} ≥ ${config.TARGET_PROFIT_USD}"
+            f"Basket P/L: ${profit:+.2f} ≥ ${target:.2f} "
+            f"(dynamic target for {num_pos} orders)"
         )
         close_all_positions(reason="TARGET_HIT")
         return True
@@ -266,11 +292,25 @@ def main():
                     time.sleep(0.01)
                     continue
 
-                # Fast profit check (every 100ms)
+                # Fast profit check (every 10ms)
                 if _check_basket_target():
                     _reset_state()
                     time.sleep(0.1)  # Minimal pause before next cycle
                     continue
+
+                # Basket Stop Loss: all DCA layers used + loss exceeds limit
+                if config.BASKET_STOP_LOSS_USD > 0:
+                    num_pos = len(positions)
+                    basket_pnl = get_basket_profit()
+                    if num_pos >= config.MAX_ORDERS and basket_pnl <= -config.BASKET_STOP_LOSS_USD:
+                        logger.warning(
+                            f"🛑 BASKET STOP LOSS! All {config.MAX_ORDERS} DCA layers used. "
+                            f"Loss: ${basket_pnl:.2f} exceeds -${config.BASKET_STOP_LOSS_USD} limit."
+                        )
+                        close_all_positions(reason="BASKET_SL")
+                        _reset_state()
+                        time.sleep(0.1)
+                        continue
 
                 # DCA trigger check
                 _check_dca_trigger()
@@ -280,11 +320,12 @@ def main():
                 if profit_log_counter >= 500:  # ~5 seconds at 10ms loop
                     profit = get_basket_profit()
                     num_pos = len(positions)
+                    target = _get_dynamic_target(num_pos)
                     account = mt5.account_info()
                     eq = account.equity if account else 0
                     logger.info(
                         f"📊 Basket: {num_pos} orders | "
-                        f"P/L: ${profit:+.2f} / ${config.TARGET_PROFIT_USD} target | "
+                        f"P/L: ${profit:+.2f} / ${target:.2f} target | "
                         f"Equity: ${eq:.2f}"
                     )
                     profit_log_counter = 0

@@ -69,6 +69,9 @@ MAX_ORDERS: int = int(_get_env("MAX_ORDERS", default="15"))
 # Close all positions when combined floating profit ≥ this value (account currency)
 TARGET_PROFIT_USD: float = float(_get_env("TARGET_PROFIT_USD", default="2.0"))
 
+# Max loss per basket when all DCA layers exhausted (0 = disabled)
+BASKET_STOP_LOSS_USD: float = float(_get_env("BASKET_STOP_LOSS_USD", default="10.0"))
+
 # ─── Safety ─────────────────────────────────────────────────
 # Emergency close if drawdown from session equity exceeds this %
 MAX_DRAWDOWN_PCT: float = float(_get_env("MAX_DRAWDOWN_PCT", default="10.0"))
@@ -104,6 +107,7 @@ def print_config():
     logger.info(f"  Lot Multiplier : {LOT_MULTIPLIER}x")
     logger.info(f"  Max Orders     : {MAX_ORDERS}")
     logger.info(f"  Target Profit  : ${TARGET_PROFIT_USD}")
+    logger.info(f"  Basket SL      : ${BASKET_STOP_LOSS_USD} (0=disabled)")
     logger.info(f"  Max Drawdown   : {MAX_DRAWDOWN_PCT}%")
     logger.info(f"  Trading Window : {TRADING_START} → {TRADING_END}")
     logger.info(f"  Magic Number   : {MAGIC_NUMBER}")
