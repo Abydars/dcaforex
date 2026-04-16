@@ -226,11 +226,26 @@ def _check_order_triggers(symbol: str, state: BasketState):
 
     # 1. DCA (Against us)
     if dca_delta >= step_distance:
+        # ─── Smart DCA Reversal Filter ───
+        # Don't catch a falling knife: ensure the last closed candle shows a sign of pause/reversal
+        tf = get_mt5_timeframe()
+        rates = mt5.copy_rates_from_pos(symbol, tf, 0, 2)
+        if rates is not None and len(rates) >= 2:
+            last_closed = rates[-2]
+            
+            if state.direction == "BUY" and last_closed['close'] <= last_closed['open']:
+                # The market is still dumping. Delay DCA until a Green candle closes.
+                return
+                
+            if state.direction == "SELL" and last_closed['close'] >= last_closed['open']:
+                # The market is still pumping. Delay DCA until a Red candle closes.
+                return
+
         state.dca_layer += 1
         pips_moved = dca_delta / pip_size
         logger.info(
             f"📉 [{symbol}] DCA Trigger! {pips_moved:.1f} pips against "
-            f"(Layer {state.dca_layer} / Total {len(positions) + 1})"
+            f"(Layer {state.dca_layer} / Total {len(positions) + 1}). Smart Reversal Confirmed."
         )
         if place_dca_order(symbol, state.direction, state.dca_layer, lot_size):
             state.last_dca_price = current_price
