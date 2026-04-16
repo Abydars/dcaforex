@@ -44,7 +44,7 @@ SYMBOLS: list = [s.strip() for s in SYMBOLS_RAW.split(",") if s.strip()]
 SYMBOL: str = SYMBOLS[0] if len(SYMBOLS) > 0 else "EURUSDm"  # Dynamic active tracker (legacy support context)
 TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()
 SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
-PARALLEL_TRADING: bool = _get_env("PARALLEL_TRADING", default="True").lower() == "true"
+MAX_OPEN_SYMBOLS: int = int(_get_env("MAX_OPEN_SYMBOLS", default="2"))
 
 # ─── Safety ─────────────────────────────────────────────────
 MAX_DRAWDOWN_PCT: float = float(_get_env("MAX_DRAWDOWN_PCT", default="15.0"))

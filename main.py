@@ -350,7 +350,7 @@ def main():
         sys.exit(1)
 
     logger.info("═" * 60)
-    logger.info("  DCA FOREX BOT STARTED (PARALLEL MODE: %s)", config.PARALLEL_TRADING)
+    logger.info(f"  DCA FOREX BOT STARTED (MAX OPEN SYMBOLS: {config.MAX_OPEN_SYMBOLS})")
     logger.info("═" * 60)
     
     # Start Dashboard Server in background
@@ -500,8 +500,8 @@ def main():
                 signal_state.total_pnl = total_bot_profit
 
             # ── 3. Scan for New Entries ──
-            # Only scan if parallel trading allows it, OR if NO baskets are currently active
-            if active_baskets_count == 0 or config.PARALLEL_TRADING:
+            # Only scan if we are under the maximum concurrent symbols limit
+            if active_baskets_count < config.MAX_OPEN_SYMBOLS:
                 best_direction = None
                 best_symbol = None
                 highest_surge = 0.0
