@@ -356,25 +356,24 @@ def main():
     # Start Dashboard Server in background
     threading.Thread(target=dashboard.run_dashboard_server, daemon=True).start()
     
-    account = mt5.account_info()
-    if account:
-        config.SESSION_START_EQUITY = account.equity
-    else:
-        logger.error("Could not fetch account equity. Exiting.")
-        sys.exit(1)
-
     for sym in config.SYMBOLS:
         signal_state.latest_signal_status[sym] = {
             "status": "Bot Started... Waiting for next candle.",
             "color": "gray",
-            "time": ""
+            "time": time.time()
         }
-        params = calculate_params(sym)
-        if not params:
-            logger.error(f"Failed to calculate initial params for {sym}")
-
+        
     # ── State Recovery ──
     _adopt_orphan_baskets()
+
+    account = mt5.account_info()
+    if account:
+        total_adopted_pnl = sum(get_basket_profit(sym) for sym in basket_states.keys())
+        config.SESSION_START_EQUITY = account.equity - total_adopted_pnl
+        logger.info(f"🔄 True Session Baseline Equity established at: ${config.SESSION_START_EQUITY:.2f} (Neutralizing {total_adopted_pnl:+.2f} floating PnL)")
+    else:
+        logger.error("Could not fetch account equity. Exiting.")
+        sys.exit(1)
 
     logger.info("Bot is active and scanning...")
     last_log_time = time.time()
