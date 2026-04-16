@@ -18,6 +18,8 @@ import MetaTrader5 as mt5
 
 import config
 from mt5_connector import get_mt5_timeframe, get_mt5_htf
+import signal_state
+from datetime import datetime
 
 logger = logging.getLogger("SignalEngine")
 
@@ -90,6 +92,13 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
     """
     symbol = target_symbol if target_symbol else config.SYMBOL
     tf = get_mt5_timeframe()
+    
+    def _set(msg: str, color: str = "gray"):
+        signal_state.latest_signal_status[symbol] = {
+            "status": msg,
+            "color": color,
+            "time": datetime.now().strftime("%H:%M:%S")
+        }
 
     # ─── 1. Fetch Higher Timeframe Context ───
     htf = get_mt5_htf(tf)
@@ -155,6 +164,7 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         # If Current spread is more than double the normal historical spread
         if avg_spread_pts > 0 and live_spread_pts > avg_spread_pts * 2.5:
             logger.debug(f"[{symbol}] Spread Filter Block: Live={live_spread_pts:.1f}pts > Avg={avg_spread_pts:.1f}pts")
+            _set(f"Blocked: High Spread ({live_spread_pts:.1f} > Avg {avg_spread_pts:.1f})", "orange")
             return None
 
     # ─── 3. Strong Trend / Momentum Filters (EMA 200 + ADX) ───
@@ -254,9 +264,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and curr_open <= prev_close
     ):
         if is_strong_downtrend:
-            logger.info(f"🚫 BULLISH ENGULFING BLOCKED! Strong Downtrend (ADX={adx_value:.1f}, Price < EMA200).")
+            _set("Pattern Blocked: Bullish Engulfing in strong Downtrend", "red")
             return None
-        logger.info(f"🟢 BULLISH ENGULFING detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        _set("✅ BUllish Engulfing Pattern Detected!", "green")
         return {"direction": "BUY", "surge_ratio": surge_ratio}
 
     # Bearish Engulfing
@@ -267,9 +277,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and curr_open >= prev_close
     ):
         if is_strong_uptrend:
-            logger.info(f"🚫 BEARISH ENGULFING BLOCKED! Strong Uptrend (ADX={adx_value:.1f}, Price > EMA200).")
+            _set("Pattern Blocked: Bearish Engulfing in strong Uptrend", "red")
             return None
-        logger.info(f"🔴 BEARISH ENGULFING detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        _set("✅ Bearish Engulfing Pattern Detected!", "green")
         return {"direction": "SELL", "surge_ratio": surge_ratio}
 
     # Hammer (Bullish)
@@ -282,9 +292,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and upper_wick <= body * 0.5
     ):
         if is_strong_downtrend:
-            logger.info(f"🚫 HAMMER BLOCKED! Strong Downtrend (ADX={adx_value:.1f}, Price < EMA200).")
+            _set("Pattern Blocked: Bullish Hammer in strong Downtrend", "red")
             return None
-        logger.info(f"🟢 HAMMER detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        _set("✅ Bullish Hammer Pattern Detected!", "green")
         return {"direction": "BUY", "surge_ratio": surge_ratio}
 
     # Shooting Star (Bearish)
@@ -294,11 +304,11 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and lower_wick <= body * 0.5
     ):
         if is_strong_uptrend:
-            logger.info(f"🚫 SHOOTING STAR BLOCKED! Strong Uptrend (ADX={adx_value:.1f}, Price > EMA200).")
+            _set("Pattern Blocked: Shooting Star in strong Uptrend", "red")
             return None
-        logger.info(f"🔴 SHOOTING STAR detected on {symbol} (Surge: {surge_ratio:.2f}x)")
+        _set("✅ Shooting Star Pattern Detected!", "green")
         return {"direction": "SELL", "surge_ratio": surge_ratio}
 
-    logger.info(f"No pattern matched on {symbol}. Waiting for next candle...")
+    _set("Scanning...", "gray")
     return None
 

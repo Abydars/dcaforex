@@ -35,6 +35,8 @@ from execution import (
 )
 from mt5_connector import get_mt5_timeframe, initialize_mt5, shutdown_mt5
 from signal_engine import get_entry_signal
+import dashboard
+import threading
 
 logger = logging.getLogger("DCA_Bot")
 
@@ -297,6 +299,9 @@ def main():
     logger.info("═" * 60)
     logger.info("  DCA FOREX BOT STARTED (PARALLEL MODE: %s)", config.PARALLEL_TRADING)
     logger.info("═" * 60)
+    
+    # Start Dashboard Server in background
+    threading.Thread(target=dashboard.run_dashboard_server, daemon=True).start()
     
     account = mt5.account_info()
     if account:
