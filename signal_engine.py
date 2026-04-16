@@ -143,6 +143,20 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
     curr_vol = curr['tick_volume']
     surge_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
 
+    # ─── 2.5 Dynamic Spread Filter ───
+    # Prevent entries when the spread is anomalously high for the specific symbol (e.g., during news)
+    symbol_info = mt5.symbol_info(symbol)
+    tick = mt5.symbol_info_tick(symbol)
+    if symbol_info and tick:
+        live_spread_pts = (tick.ask - tick.bid) / symbol_info.point
+        historical_spreads = [r['spread'] for r in rates[-20:-1] if r['spread'] > 0]
+        avg_spread_pts = sum(historical_spreads) / len(historical_spreads) if historical_spreads else live_spread_pts
+        
+        # If Current spread is more than double the normal historical spread
+        if avg_spread_pts > 0 and live_spread_pts > avg_spread_pts * 2.5:
+            logger.debug(f"[{symbol}] Spread Filter Block: Live={live_spread_pts:.1f}pts > Avg={avg_spread_pts:.1f}pts")
+            return None
+
     # ─── 3. Strong Trend / Momentum Filters (EMA 200 + ADX) ───
     # We pass up to -1 to evaluate based on all closed candles
     ema200 = _calc_ema(rates[:-1], period=200)
