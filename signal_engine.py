@@ -204,52 +204,52 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
 
         if curr_close > curr_open:
             if body < (atr * 0.5):
-                logger.info(f"🟢 GREEN candle, but market is FLAT (Body {body:.5f} < 50% ATR {atr:.5f}). Skipping.")
+                _set("Green Candle: Market Flat (Low Volatility)", "gray")
                 return None
             if trend == "DOWN":
-                logger.info("🟢 GREEN candle, but HTF trend is DOWN. Skipping BUY to align with trend.")
+                _set("Green Candle: Blocked by HTF DOWN Trend", "orange")
                 return None
             if body <= avg_body:
-                logger.info(f"🟢 GREEN candle, but low momentum (Body: {body:.5f} <= Avg: {avg_body:.5f}). Skipping BUY.")
+                _set("Green Candle: Weak Momentum (Small Body)", "gray")
                 return None
             # Strict momentum continuation: candle MUST break previous high
             if curr_close <= prev["high"]:
-                logger.info(f"🟢 GREEN candle, but failed to break previous High ({prev['high']}). Weak bullish momentum. Skipping BUY.")
+                _set("Green Candle: Failed to break Prev High", "gray")
                 return None
             # Reject if there is noticeable selling pressure at the top
             if upper_wick >= body * 0.5:
-                logger.info(f"🟢 GREEN candle, but noticeable upper wick rejection. Buyers lost control at the top. Skipping BUY.")
+                _set("Green Candle: Upper Wick Rejection", "orange")
                 return None
             if is_strong_downtrend:
-                logger.info(f"🚫 BUY Signal BLOCKED by Momentum Filter! Strong Downtrend detected (ADX={adx_value:.1f}, Price < EMA200).")
+                _set("🚫 Blocked: Strong Downtrend Filter (ADX>25)", "red")
                 return None
-            logger.info(f"🟢 GREEN candle (Trend: {trend}, Momentum: Strong Breakout) → BUY signal on {symbol} (Surge: {surge_ratio:.2f}x)")
+            _set(f"🚀 BUY Signal Triggered! (Surge: {surge_ratio:.2f}x)", "green")
             return {"direction": "BUY", "surge_ratio": surge_ratio}
         elif curr_close < curr_open:
             if body < (atr * 0.5):
-                logger.info(f"🔴 RED candle, but market is FLAT (Body {body:.5f} < 50% ATR {atr:.5f}). Skipping.")
+                _set("Red Candle: Market Flat (Low Volatility)", "gray")
                 return None
             if trend == "UP":
-                logger.info("🔴 RED candle, but HTF trend is UP. Skipping SELL to align with trend.")
+                _set("Red Candle: Blocked by HTF UP Trend", "orange")
                 return None
             if body <= avg_body:
-                logger.info(f"🔴 RED candle, but low momentum (Body: {body:.5f} <= Avg: {avg_body:.5f}). Skipping SELL.")
+                _set("Red Candle: Weak Momentum (Small Body)", "gray")
                 return None
             # Strict momentum continuation: candle MUST break previous low
             if curr_close >= prev["low"]:
-                logger.info(f"🔴 RED candle, but failed to break previous Low ({prev['low']}). Weak bearish momentum. Skipping SELL.")
+                _set("Red Candle: Failed to break Prev Low", "gray")
                 return None
             # Reject if there is noticeable buying pressure at the bottom
             if lower_wick >= body * 0.5:
-                logger.info(f"🔴 RED candle, but noticeable lower wick rejection. Sellers lost control at the bottom. Skipping SELL.")
+                _set("Red Candle: Lower Wick Rejection", "orange")
                 return None
             if is_strong_uptrend:
-                logger.info(f"🚫 SELL Signal BLOCKED by Momentum Filter! Strong Uptrend detected (ADX={adx_value:.1f}, Price > EMA200).")
+                _set("🚫 Blocked: Strong Uptrend Filter (ADX>25)", "red")
                 return None
-            logger.info(f"🔴 RED candle (Trend: {trend}, Momentum: Strong Breakout) → SELL signal on {symbol} (Surge: {surge_ratio:.2f}x)")
+            _set(f"🚀 SELL Signal Triggered! (Surge: {surge_ratio:.2f}x)", "green")
             return {"direction": "SELL", "surge_ratio": surge_ratio}
         else:
-            logger.debug("Doji candle, no signal.")
+            _set("Waiting: Doji", "gray")
             return None
 
     # ─── MODE: Candlestick Patterns ──────────────────────
