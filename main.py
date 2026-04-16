@@ -360,7 +360,7 @@ def main():
         signal_state.latest_signal_status[sym] = {
             "status": "Bot Started... Waiting for next candle.",
             "color": "gray",
-            "time": time.time()
+            "time": None
         }
         
     # ── State Recovery ──
@@ -397,7 +397,7 @@ def main():
                         signal_state.latest_signal_status[req_sym] = {
                             "status": "Closed Manually. Waiting for next candle...",
                             "color": "gray",
-                            "time": time.time()
+                            "time": None
                         }
                 signal_state.manual_close_requests.clear()
 
@@ -437,7 +437,7 @@ def main():
                 signal_state.latest_signal_status[sym] = {
                     "status": "Basket Closed. Waiting for next candle...",
                     "color": "gray",
-                    "time": time.time()
+                    "time": None
                 }
                 
             active_baskets_count -= len(symbols_to_remove)
@@ -482,7 +482,8 @@ def main():
                             entry_time = min([p.time for p in positions]) if positions else time.time()
                             
                             signal_state.latest_signal_status[sym] = {
-                                "status": f"Holding {state.direction} | Layers: {num_pos}/{max_orders} | P/L: ${profit:+.2f}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>{reason_html}",
+                                "status": f"Holding {state.direction} | Layers: {num_pos}/{max_orders}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>{reason_html}",
+                                "pnl": profit,
                                 "color": "green" if profit >= 0 else "orange",
                                 "time": entry_time
                             }

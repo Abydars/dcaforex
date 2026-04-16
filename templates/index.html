@@ -241,7 +241,8 @@
                     <th>Symbol</th>
                     <th>State</th>
                     <th>Details</th>
-                    <th>Time</th>
+                    <th>PnL</th>
+                    <th>Entry Time</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -276,9 +277,20 @@
             const dd = apiData.max_dd || 0;
             statsEl.innerHTML = `Bal: <span style="color:#fff">$${bal.toFixed(2)}</span> &nbsp;|&nbsp; Max DD: <span style="color:#f87171">$${dd.toFixed(2)}</span>`;
             
-            const symbols = Object.keys(data).sort();
+            const symbols = Object.keys(data).sort((a, b) => {
+                const infoA = data[a];
+                const infoB = data[b];
+                const isAHolding = infoA.status.includes('Holding');
+                const isBHolding = infoB.status.includes('Holding');
+                
+                if (isAHolding && !isBHolding) return -1;
+                if (!isAHolding && isBHolding) return 1;
+                
+                return a.localeCompare(b);
+            });
+            
             if (symbols.length === 0) {
-                tbody.innerHTML = '<tr id="waiting-row"><td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
+                tbody.innerHTML = '<tr id="waiting-row"><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
                 return;
             }
 
@@ -305,6 +317,13 @@
                     formattedTime = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 }
 
+                let pnlText = "--";
+                if (info.pnl !== undefined && info.status.includes("Holding")) {
+                    const sign = info.pnl >= 0 ? '+' : '';
+                    const color = info.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+                    pnlText = `<span style="color: ${color}; font-weight: 600;">${sign}$${info.pnl.toFixed(2)}</span>`;
+                }
+
                 let row = document.getElementById('row-' + sym);
                 
                 if (!row) {
@@ -323,7 +342,8 @@
                         <span class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</span>
                     </td>
                     <td class="status-col">${info.status}</td>
-                    <td class="time-col">${formattedTime}</td>
+                    <td style="white-space: nowrap;">${pnlText}</td>
+                    <td class="time-col">${info.time ? formattedTime : '--:--:--'}</td>
                     <td>
                         ${info.status.includes('Holding') ? `<button class="btn-close" onclick="closeSymbol('${sym}')">Close</button>` : ''}
                     </td>

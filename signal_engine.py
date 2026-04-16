@@ -97,7 +97,7 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         signal_state.latest_signal_status[symbol] = {
             "status": msg,
             "color": color,
-            "time": time.time()
+            "time": None
         }
 
     # ─── 1. Fetch Higher Timeframe Context ───
