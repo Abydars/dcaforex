@@ -12,3 +12,7 @@ Holds the latest signal parsing state for each symbol.
 # }
 latest_signal_status = {}
 total_pnl = 0.0
+current_balance = 0.0
+max_drawdown_usd = 0.0
+manual_close_requests = set()
+dca_rejection_statuses = {}

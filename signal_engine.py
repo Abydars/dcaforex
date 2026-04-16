@@ -13,13 +13,13 @@ the goal is to get in quickly and let DCA handle the rest.
 """
 
 import logging
+import time
 
 import MetaTrader5 as mt5
 
 import config
 from mt5_connector import get_mt5_timeframe, get_mt5_htf
 import signal_state
-from datetime import datetime
 
 logger = logging.getLogger("SignalEngine")
 
@@ -97,7 +97,7 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         signal_state.latest_signal_status[symbol] = {
             "status": msg,
             "color": color,
-            "time": datetime.now().strftime("%H:%M:%S")
+            "time": time.time()
         }
 
     # ─── 1. Fetch Higher Timeframe Context ───

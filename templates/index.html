@@ -65,6 +65,45 @@
             backdrop-filter: blur(8px);
         }
 
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-close {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-close:hover {
+            background-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-close-all {
+            background-color: rgba(239, 68, 68, 0.9);
+            color: #fff;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        .btn-close-all:hover {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+        }
+
         .table-container {
             max-width: 1200px;
             margin: 0 auto;
@@ -73,7 +112,8 @@
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
             border-radius: 16px;
-            overflow: hidden; /* rounds the table corners */
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
         }
 
@@ -81,6 +121,7 @@
             width: 100%;
             border-collapse: collapse;
             text-align: left;
+            min-width: 800px; /* Forces table not to crush on mobile */
         }
 
         th, td {
@@ -170,7 +211,13 @@
 
         @media (max-width: 768px) {
             th, td { padding: 0.75rem 1rem; }
-            .status-col { font-size: 0.85rem; }
+            .status-col { 
+                font-size: 0.85rem; 
+                min-width: 250px; 
+                white-space: normal;
+            }
+            .header-container { flex-direction: column; align-items: stretch; text-align: center; }
+            .header-right { justify-content: center; width: 100%; }
         }
     </style>
 </head>
@@ -178,7 +225,13 @@
 
     <div class="header-container">
         <h1>DCA Market Scanner</h1>
-        <div class="pnl-pill" id="total-pnl">Total P/L: $0.00</div>
+        <div class="header-right">
+            <button class="btn-close-all" onclick="closeAll()">Close All Active Trades</button>
+            <div class="pnl-pill" id="account-stats" style="font-size: 0.95rem; color: var(--text-secondary);">
+                Bal: $0.00 | Max DD: $0.00
+            </div>
+            <div class="pnl-pill" id="total-pnl">Total P/L: $0.00</div>
+        </div>
     </div>
     
     <div class="table-container">
@@ -189,6 +242,7 @@
                     <th>State</th>
                     <th>Details</th>
                     <th>Time</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="dashboard">
@@ -217,9 +271,14 @@
             const isProfit = pnl >= 0;
             pnlEl.innerHTML = `Running PnL: <span style="color: ${isProfit ? 'var(--green)' : 'var(--red)'}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span>`;
             
+            const statsEl = document.getElementById('account-stats');
+            const bal = apiData.balance || 0;
+            const dd = apiData.max_dd || 0;
+            statsEl.innerHTML = `Bal: <span style="color:#fff">$${bal.toFixed(2)}</span> &nbsp;|&nbsp; Max DD: <span style="color:#f87171">$${dd.toFixed(2)}</span>`;
+            
             const symbols = Object.keys(data).sort();
             if (symbols.length === 0) {
-                tbody.innerHTML = '<tr id="waiting-row"><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
+                tbody.innerHTML = '<tr id="waiting-row"><td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
                 return;
             }
 
@@ -233,6 +292,12 @@
                 if (info.color === "green") stateLabel = "Active";
                 if (info.color === "red") stateLabel = "Blocked";
                 if (info.color === "orange") stateLabel = "Delayed";
+
+                let formattedTime = '--:--:--';
+                if (info.time) {
+                    const d = new Date(info.time * 1000);
+                    formattedTime = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
 
                 let row = document.getElementById('row-' + sym);
                 
@@ -252,9 +317,30 @@
                         <span class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</span>
                     </td>
                     <td class="status-col">${info.status}</td>
-                    <td class="time-col">${info.time || '--:--:--'}</td>
+                    <td class="time-col">${formattedTime}</td>
+                    <td>
+                        ${info.color !== 'gray' ? `<button class="btn-close" onclick="closeSymbol('${sym}')">Close</button>` : ''}
+                    </td>
                 `;
             });
+        }
+
+        async function closeSymbol(sym) {
+            if (!confirm(`Are you sure you want to CLOSE ALL ACTIVE TRADES for ${sym}?`)) return;
+            try {
+                await fetch(`/api/close/${sym}`, { method: 'POST' });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function closeAll() {
+            if (!confirm(`🚨 WARNING: Are you sure you want to PANIC CLOSE ALL trades?`)) return;
+            try {
+                await fetch(`/api/close_all`, { method: 'POST' });
+            } catch (err) {
+                console.error(err);
+            }
         }
 
         // Fetch immediately and then every 1 second

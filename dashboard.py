@@ -16,8 +16,20 @@ def index():
 def get_signals():
     return jsonify({
         "signals": signal_state.latest_signal_status,
-        "total_pnl": signal_state.total_pnl
+        "total_pnl": signal_state.total_pnl,
+        "balance": signal_state.current_balance,
+        "max_dd": signal_state.max_drawdown_usd
     })
+
+@app.route('/api/close/<symbol>', methods=['POST'])
+def close_symbol(symbol):
+    signal_state.manual_close_requests.add(symbol)
+    return jsonify({"success": True})
+
+@app.route('/api/close_all', methods=['POST'])
+def close_all():
+    signal_state.manual_close_requests.add("ALL")
+    return jsonify({"success": True})
 
 def run_dashboard_server():
     print("\n" + "="*50)

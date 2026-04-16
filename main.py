@@ -285,11 +285,16 @@ def _check_order_triggers(symbol: str, state: BasketState):
             
             if state.direction == "BUY" and last_closed['close'] <= last_closed['open']:
                 # The market is still dumping. Delay DCA until a Green candle closes.
+                signal_state.dca_rejection_statuses[symbol] = "Awaiting 🟢 Candle confirmation"
                 return
                 
             if state.direction == "SELL" and last_closed['close'] >= last_closed['open']:
                 # The market is still pumping. Delay DCA until a Red candle closes.
+                signal_state.dca_rejection_statuses[symbol] = "Awaiting 🔴 Candle confirmation"
                 return
+
+        if symbol in signal_state.dca_rejection_statuses:
+            del signal_state.dca_rejection_statuses[symbol]
 
         state.dca_layer += 1
         pips_moved = dca_delta / pip_size
@@ -376,6 +381,27 @@ def main():
 
     try:
         while _running:
+            # ── 0. Manual Closures from Dashboard ──
+            if "ALL" in signal_state.manual_close_requests:
+                logger.warning("🚨 MANUAL UI TRIGGER: Closing ALL active baskets!")
+                for sym in list(basket_states.keys()):
+                    close_all_positions(sym, reason="MANUAL_UI_CLOSE")
+                    del basket_states[sym]
+                signal_state.manual_close_requests.clear()
+            else:
+                for req_sym in list(signal_state.manual_close_requests):
+                    if req_sym in basket_states:
+                        logger.warning(f"🚨 MANUAL UI TRIGGER: Closing basket {req_sym}!")
+                        close_all_positions(req_sym, reason="MANUAL_UI_CLOSE")
+                        del basket_states[req_sym]
+                        
+                        signal_state.latest_signal_status[req_sym] = {
+                            "status": "Closed Manually. Waiting for next candle...",
+                            "color": "gray",
+                            "time": time.time()
+                        }
+                signal_state.manual_close_requests.clear()
+
             # ── 1. Drawdown Guard (Global) ──
             if _check_drawdown_guard():
                 for sym in list(basket_states.keys()):
@@ -412,7 +438,7 @@ def main():
                 signal_state.latest_signal_status[sym] = {
                     "status": "Basket Closed. Waiting for next candle...",
                     "color": "gray",
-                    "time": datetime.now().strftime("%H:%M:%S")
+                    "time": time.time()
                 }
                 
             active_baskets_count -= len(symbols_to_remove)
@@ -450,16 +476,24 @@ def main():
                                 f"{trail_text}"
                             )
                             
+                            max_orders = state.params.get('MAX_ORDERS', config.MAX_ORDERS)
+                            dca_reason = signal_state.dca_rejection_statuses.get(sym, "")
+                            reason_html = f"<br><small style='color: #f59e0b; font-weight: 500;'>{dca_reason}</small>" if dca_reason else ""
+                            
                             signal_state.latest_signal_status[sym] = {
-                                "status": f"Holding {state.direction} | Layers: {num_pos} | P/L: ${profit:+.2f}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>",
+                                "status": f"Holding {state.direction} | Layers: {num_pos}/{max_orders} | P/L: ${profit:+.2f}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>{reason_html}",
                                 "color": "green" if profit >= 0 else "orange",
-                                "time": datetime.now().strftime("%H:%M:%S")
+                                "time": time.time()
                             }
                     
-                    account = mt5.account_info()
-                    eq = account.equity if account else 0
-                    logger.info(f"💰 Global Equity: ${eq:.2f} (Active Bot PnL: ${total_bot_profit:+.2f})")
+                    logger.info(f"💰 Bot Portfolio PnL: ${total_bot_profit:+.2f}")
                 
+                # Fetch global account metrics every second independently
+                account = mt5.account_info()
+                if account:
+                    signal_state.current_balance = account.balance
+                    signal_state.max_drawdown_usd = config.CAPITAL * (config.MAX_DRAWDOWN_PCT / 100.0)
+
                 # Push true floating PnL of all bot baskets to the UI
                 signal_state.total_pnl = total_bot_profit
 
