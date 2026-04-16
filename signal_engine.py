@@ -28,7 +28,7 @@ SIGNAL_MODE = getattr(config, "SIGNAL_MODE", "candle")
 
 
 def _calc_ema(rates, period: int) -> float:
-    if not rates or len(rates) < period:
+    if rates is None or len(rates) < period:
         return 0.0
     closes = [r['close'] for r in rates]
     sma = sum(closes[:period]) / period
@@ -40,7 +40,7 @@ def _calc_ema(rates, period: int) -> float:
 
 
 def _calc_adx(rates, period: int = 14) -> float:
-    if not rates or len(rates) < period * 2:
+    if rates is None or len(rates) < period * 2:
         return 0.0
     trs, pos_dm, neg_dm = [], [], []
     for i in range(1, len(rates)):
