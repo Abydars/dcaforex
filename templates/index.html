@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DCA Signal Monitor</title>
+    <!-- Modern Font Option -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --card-border: rgba(255, 255, 255, 0.1);
+            --table-bg: rgba(30, 41, 59, 0.6);
+            --border-color: rgba(248, 250, 252, 0.08);
+            --hover-bg: rgba(51, 65, 85, 0.5);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --green: #10b981;
@@ -21,113 +24,154 @@
             margin: 0;
             padding: 2rem;
             background: var(--bg-color);
-            background-image: radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
-                              radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.15), transparent 25%);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.1), transparent 25%);
+            background-attachment: fixed;
             color: var(--text-primary);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
         }
 
         h1 {
             text-align: center;
-            font-size: 2.5rem;
-            font-weight: 800;
+            font-size: 2.2rem;
+            font-weight: 700;
             margin-bottom: 2rem;
-            background: linear-gradient(to right, #60a5fa, #34d399);
+            background: linear-gradient(135deg, #60a5fa, #34d399);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
         }
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1.5rem;
+        .table-container {
             max-width: 1200px;
             margin: 0 auto;
-        }
-
-        .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--card-border);
+            background: var(--table-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 1.5rem;
-            transition: transform 0.2s, box-shadow 0.2s;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 4px;
-            background: var(--gray);
-            border-radius: 4px 4px 0 0;
-            transition: background-color 0.3s ease;
+            overflow: hidden; /* rounds the table corners */
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
         }
 
-        .card[data-color="green"]::before { background: var(--green); }
-        .card[data-color="red"]::before { background: var(--red); }
-        .card[data-color="orange"]::before { background: var(--orange); }
-
-        .symbol-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin: 0 0 0.5rem 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
         }
 
-        .time {
-            font-size: 0.8rem;
+        th, td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.6);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
             color: var(--text-secondary);
-            font-weight: 400;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
-        .status {
+        tr {
+            transition: all 0.2s ease;
+        }
+
+        tr:hover {
+            background: var(--hover-bg);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Symbol Name styling */
+        .symbol-col {
+            font-weight: 600;
             font-size: 1rem;
-            line-height: 1.5;
-            color: var(--text-secondary);
-            min-height: 3rem;
             display: flex;
             align-items: center;
+            gap: 0.75rem;
         }
 
-        .badge {
+        /* Color Dot next to symbol */
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
             display: inline-block;
-            padding: 0.25rem 0.5rem;
+        }
+        tr[data-color="green"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        tr[data-color="red"] .dot { background: var(--red); }
+        tr[data-color="orange"] .dot { background: var(--orange); }
+        tr[data-color="gray"] .dot { background: var(--gray); }
+
+        /* Badge Styling */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.6rem;
             border-radius: 6px;
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-            background: rgba(100, 116, 139, 0.2);
-            color: var(--gray);
+            white-space: nowrap;
         }
 
-        .card[data-color="green"] .badge { background: rgba(16, 185, 129, 0.2); color: var(--green); }
-        .card[data-color="red"] .badge { background: rgba(239, 68, 68, 0.2); color: var(--red); }
-        .card[data-color="orange"] .badge { background: rgba(245, 158, 11, 0.2); color: var(--orange); }
+        tr[data-color="green"] .badge { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        tr[data-color="red"] .badge { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        tr[data-color="orange"] .badge { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        tr[data-color="gray"] .badge { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+
+        .time-col {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-col {
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            line-height: 1.4;
+        }
 
         /* Smooth pulse animation for active scanning */
         @keyframes pulse {
-            0% { opacity: 0.6; }
+            0% { opacity: 0.5; }
             50% { opacity: 1; }
-            100% { opacity: 0.6; }
+            100% { opacity: 0.5; }
         }
         .scanning { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+        @media (max-width: 768px) {
+            th, td { padding: 0.75rem 1rem; }
+            .status-col { font-size: 0.85rem; }
+        }
     </style>
 </head>
 <body>
 
     <h1>DCA Market Scanner</h1>
     
-    <div class="grid" id="dashboard">
-        <!-- Cards will be injected here -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>State</th>
+                    <th>Details</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody id="dashboard">
+                <!-- Rows injected here -->
+            </tbody>
+        </table>
     </div>
 
     <script>
@@ -142,40 +186,41 @@
         }
 
         function renderDashboard(data) {
-            const grid = document.getElementById('dashboard');
+            const tbody = document.getElementById('dashboard');
             
             const symbols = Object.keys(data).sort();
             if (symbols.length === 0) {
-                grid.innerHTML = '<div style="text-align: center; grid-column: 1/-1; color: #64748b;">Waiting for signal engine...</div>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
                 return;
             }
 
-            // We update DOM efficiently to avoid flickering
             symbols.forEach(sym => {
                 const info = data[sym];
                 let stateLabel = "Scanning";
-                if (info.color === "green") stateLabel = "Signal Triggered";
+                if (info.color === "green") stateLabel = "Active";
                 if (info.color === "red") stateLabel = "Blocked";
                 if (info.color === "orange") stateLabel = "Delayed";
 
-                let card = document.getElementById('card-' + sym);
+                let row = document.getElementById('row-' + sym);
                 
-                if (!card) {
-                    card = document.createElement('div');
-                    card.id = 'card-' + sym;
-                    card.className = 'card';
-                    grid.appendChild(card);
+                if (!row) {
+                    row = document.createElement('tr');
+                    row.id = 'row-' + sym;
+                    tbody.appendChild(row);
                 }
 
-                card.setAttribute('data-color', info.color);
+                row.setAttribute('data-color', info.color);
                 
-                card.innerHTML = `
-                    <div class="symbol-name">
+                row.innerHTML = `
+                    <td class="symbol-col">
+                        <span class="dot"></span>
                         ${sym}
-                        <span class="time">${info.time || ''}</span>
-                    </div>
-                    <div class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</div>
-                    <div class="status">${info.status}</div>
+                    </td>
+                    <td>
+                        <span class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</span>
+                    </td>
+                    <td class="status-col">${info.status}</td>
+                    <td class="time-col">${info.time || '--:--:--'}</td>
                 `;
             });
         }
