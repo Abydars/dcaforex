@@ -31,6 +31,15 @@ def _get_price(symbol: str, direction: str) -> float:
     return tick.ask if direction == "BUY" else tick.bid
 
 
+def _get_close_price(symbol: str, direction: str) -> float:
+    """Get closing price (BUY→bid, SELL→ask)."""
+    tick = mt5.symbol_info_tick(symbol)
+    if tick is None:
+        logger.error(f"Cannot get tick for {symbol}. Error: {mt5.last_error()}")
+        return 0.0
+    return tick.bid if direction == "BUY" else tick.ask
+
+
 def _send_order(
     symbol: str,
     direction: str,

@@ -31,6 +31,7 @@ from execution import (
     place_dca_order,
     place_entry_order,
     _get_price,
+    _get_close_price,
 )
 from mt5_connector import get_mt5_timeframe, initialize_mt5, shutdown_mt5
 from signal_engine import get_entry_signal
@@ -115,7 +116,7 @@ def _check_smart_exit(symbol: str, state: BasketState) -> bool:
     if breakeven <= 0:
         return False
 
-    current_price = _get_price(symbol, state.direction)
+    current_price = _get_close_price(symbol, state.direction)
     if current_price <= 0:
         return False
 
@@ -295,7 +296,7 @@ def main():
         if not params:
             logger.error(f"Failed to calculate initial params for {sym}")
 
-    profit_log_counter = 0
+    last_log_time = time.time()
 
     try:
         while _running:
@@ -335,9 +336,9 @@ def main():
                 
             active_baskets_count -= len(symbols_to_remove)
 
-            # Logging active states every ~5 seconds
-            profit_log_counter += 1
-            if profit_log_counter >= 500 and active_baskets_count > 0:
+            # Logging active states every 1 second for real-time feel
+            current_time = time.time()
+            if current_time - last_log_time >= 1.0 and active_baskets_count > 0:
                 for sym, state in basket_states.items():
                     positions = get_basket_positions(sym)
                     if positions:
@@ -345,7 +346,7 @@ def main():
                         num_pos = len(positions)
                         total_vol = get_basket_volume(sym)
                         breakeven = get_breakeven_price(sym)
-                        current = _get_price(sym, state.direction)
+                        current = _get_close_price(sym, state.direction)
                         pip_size = state.params.get('PIP_SIZE', config.PIP_SIZE)
                         exit_pips = state.params.get('EXIT_PIPS', config.EXIT_PIPS)
 
@@ -365,7 +366,7 @@ def main():
                 account = mt5.account_info()
                 eq = account.equity if account else 0
                 logger.info(f"💰 Global Equity: ${eq:.2f}")
-                profit_log_counter = 0
+                last_log_time = current_time
 
             # ── 3. Scan for New Entries ──
             # Only scan if parallel trading allows it, OR if NO baskets are currently active
