@@ -58,6 +58,53 @@ class BasketState:
 
 basket_states: dict[str, BasketState] = {}
 _last_candle_times: dict[str, int] = {}
+_last_log_time = 0.0
+
+def _adopt_orphan_baskets():
+    """
+    Search MT5 for existing open positions that match our MAGIC_NUMBER.
+    If found, reconstruct the BasketState so the bot can continue managing them.
+    """
+    from auto_params import calculate_params
+    
+    positions = mt5.positions_get(magic=config.MAGIC_NUMBER)
+    if not positions:
+        return
+
+    # Group by symbol
+    grouped = {}
+    for pos in positions:
+        if pos.symbol not in grouped:
+            grouped[pos.symbol] = []
+        grouped[pos.symbol].append(pos)
+
+    adoptions = 0
+    for sym, pos_list in grouped.items():
+        if sym not in config.SYMBOLS:
+            continue
+            
+        direction = "BUY" if pos_list[0].type == mt5.ORDER_TYPE_BUY else "SELL"
+        
+        # Sort positions chronologically to identify the most recent / worst entry
+        sorted_pos = sorted(pos_list, key=lambda x: x.ticket)
+        last_pos = sorted_pos[-1]
+        
+        state = BasketState()
+        state.direction = direction
+        state.dca_layer = len(pos_list) - 1 # e.g. 1 position = layer 0, 3 positions = 2 layers
+        state.last_dca_price = last_pos.price_open
+        state.params = calculate_params(sym)
+        
+        basket_states[sym] = state
+        adoptions += 1
+        
+        logger.info(
+            f"♻️ [State Recovery] Adopted {sym} {direction} basket | "
+            f"DCA Layers: {state.dca_layer} | Total Positions: {len(pos_list)}"
+        )
+        
+    if adoptions > 0:
+        logger.info(f"✅ Successfully reclaimed {adoptions} active baskets from previous sessions.")
 
 
 def _signal_handler(sig, frame):
@@ -321,6 +368,10 @@ def main():
         if not params:
             logger.error(f"Failed to calculate initial params for {sym}")
 
+    # ── State Recovery ──
+    _adopt_orphan_baskets()
+
+    logger.info("Bot is active and scanning...")
     last_log_time = time.time()
 
     try:
