@@ -328,7 +328,7 @@ def _is_new_candle(symbol: str) -> bool:
     
     if last_time is None:
         _last_candle_times[symbol] = current_time
-        return True
+        return False # Skip initial startup candle so it waits for the next one
         
     if current_time > last_time:
         _last_candle_times[symbol] = current_time
@@ -419,43 +419,49 @@ def main():
 
             # Logging active states every 1 second for real-time feel
             current_time = time.time()
-            if current_time - last_log_time >= 1.0 and active_baskets_count > 0:
-                for sym, state in basket_states.items():
-                    positions = get_basket_positions(sym)
-                    if positions:
-                        profit = get_basket_profit(sym)
-                        num_pos = len(positions)
-                        total_vol = get_basket_volume(sym)
-                        breakeven = get_breakeven_price(sym)
-                        current = _get_close_price(sym, state.direction)
-                        pip_size = state.params.get('PIP_SIZE', config.PIP_SIZE)
-                        exit_pips = state.params.get('EXIT_PIPS', config.EXIT_PIPS)
-
-                        if state.direction == "BUY":
-                            pips_from_be = (current - breakeven) / pip_size if pip_size > 0 else 0
-                        else:
-                            pips_from_be = (breakeven - current) / pip_size if pip_size > 0 else 0
-
-                        trail_text = f"TRAIL Peak: {state.trailing_extreme_price:.5f}" if state.trailing_active else f"Exit at: +{exit_pips:.1f}p"
-                        logger.info(
-                            f"📊 [{sym}] {num_pos} orders ({total_vol:.2f} lots) | "
-                            f"P/L: ${profit:+.2f} | "
-                            f"BE: {breakeven:.5f} ({pips_from_be:+.1f} p) | "
-                            f"{trail_text}"
-                        )
-                        
-                        signal_state.latest_signal_status[sym] = {
-                            "status": f"Holding {state.direction} | Layers: {num_pos} | P/L: ${profit:+.2f}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>",
-                            "color": "green" if profit >= 0 else "orange",
-                            "time": datetime.now().strftime("%H:%M:%S")
-                        }
-                
-                account = mt5.account_info()
-                eq = account.equity if account else 0
-                total_pl = eq - config.SESSION_START_EQUITY
-                signal_state.total_pnl = total_pl
-                logger.info(f"💰 Global Equity: ${eq:.2f} (Session PnL: ${total_pl:+.2f})")
+            if current_time - last_log_time >= 1.0:
                 last_log_time = current_time
+                total_bot_profit = 0.0
+                
+                if active_baskets_count > 0:
+                    for sym, state in basket_states.items():
+                        positions = get_basket_positions(sym)
+                        if positions:
+                            profit = get_basket_profit(sym)
+                            total_bot_profit += profit
+                            
+                            total_vol = get_basket_volume(sym)
+                            num_pos = len(positions)
+                            breakeven = get_breakeven_price(sym)
+                            current = _get_close_price(sym, state.direction)
+                            pip_size = state.params.get('PIP_SIZE', config.PIP_SIZE)
+                            exit_pips = state.params.get('EXIT_PIPS', config.EXIT_PIPS)
+
+                            if state.direction == "BUY":
+                                pips_from_be = (current - breakeven) / pip_size if pip_size > 0 else 0
+                            else:
+                                pips_from_be = (breakeven - current) / pip_size if pip_size > 0 else 0
+
+                            trail_text = f"TRAIL Peak: {state.trailing_extreme_price:.5f}" if state.trailing_active else f"Exit at: +{exit_pips:.1f}p"
+                            logger.info(
+                                f"📊 [{sym}] {num_pos} orders ({total_vol:.2f} lots) | "
+                                f"P/L: ${profit:+.2f} | "
+                                f"BE: {breakeven:.5f} ({pips_from_be:+.1f} p) | "
+                                f"{trail_text}"
+                            )
+                            
+                            signal_state.latest_signal_status[sym] = {
+                                "status": f"Holding {state.direction} | Layers: {num_pos} | P/L: ${profit:+.2f}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>",
+                                "color": "green" if profit >= 0 else "orange",
+                                "time": datetime.now().strftime("%H:%M:%S")
+                            }
+                    
+                    account = mt5.account_info()
+                    eq = account.equity if account else 0
+                    logger.info(f"💰 Global Equity: ${eq:.2f} (Active Bot PnL: ${total_bot_profit:+.2f})")
+                
+                # Push true floating PnL of all bot baskets to the UI
+                signal_state.total_pnl = total_bot_profit
 
             # ── 3. Scan for New Entries ──
             # Only scan if parallel trading allows it, OR if NO baskets are currently active
