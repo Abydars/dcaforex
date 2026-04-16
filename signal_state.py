@@ -11,3 +11,4 @@ Holds the latest signal parsing state for each symbol.
 #     "time": "...timestamp..."
 # }
 latest_signal_status = {}
+total_pnl = 0.0

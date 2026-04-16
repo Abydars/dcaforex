@@ -401,7 +401,9 @@ def main():
                 
                 account = mt5.account_info()
                 eq = account.equity if account else 0
-                logger.info(f"💰 Global Equity: ${eq:.2f}")
+                total_pl = eq - config.SESSION_START_EQUITY
+                signal_state.total_pnl = total_pl
+                logger.info(f"💰 Global Equity: ${eq:.2f} (Session PnL: ${total_pl:+.2f})")
                 last_log_time = current_time
 
             # ── 3. Scan for New Entries ──

@@ -37,11 +37,32 @@
             text-align: center;
             font-size: 2.2rem;
             font-weight: 700;
-            margin-bottom: 2rem;
+            margin: 0;
             background: linear-gradient(135deg, #60a5fa, #34d399);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.02em;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto 2rem auto;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .pnl-pill {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 9999px;
+            padding: 0.5rem 1.25rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            backdrop-filter: blur(8px);
         }
 
         .table-container {
@@ -93,9 +114,7 @@
         .symbol-col {
             font-weight: 600;
             font-size: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+            white-space: nowrap;
         }
 
         /* Color Dot next to symbol */
@@ -104,6 +123,7 @@
             height: 8px;
             border-radius: 50%;
             display: inline-block;
+            margin-right: 0.75rem;
         }
         tr[data-color="green"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
         tr[data-color="red"] .dot { background: var(--red); }
@@ -156,7 +176,10 @@
 </head>
 <body>
 
-    <h1>DCA Market Scanner</h1>
+    <div class="header-container">
+        <h1>DCA Market Scanner</h1>
+        <div class="pnl-pill" id="total-pnl">Total P/L: $0.00</div>
+    </div>
     
     <div class="table-container">
         <table>
@@ -178,21 +201,31 @@
         async function fetchSignals() {
             try {
                 const res = await fetch('/api/signals');
-                const data = await res.json();
-                renderDashboard(data);
+                const apiData = await res.json();
+                renderDashboard(apiData);
             } catch (err) {
                 console.error("Failed to fetch signals", err);
             }
         }
 
-        function renderDashboard(data) {
+        function renderDashboard(apiData) {
             const tbody = document.getElementById('dashboard');
+            const data = apiData.signals || {};
+            const pnl = apiData.total_pnl || 0;
+
+            const pnlEl = document.getElementById('total-pnl');
+            const isProfit = pnl >= 0;
+            pnlEl.innerHTML = `Running PnL: <span style="color: ${isProfit ? 'var(--green)' : 'var(--red)'}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span>`;
             
             const symbols = Object.keys(data).sort();
             if (symbols.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
+                tbody.innerHTML = '<tr id="waiting-row"><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
                 return;
             }
+
+            // Remove waiting row if data arrives
+            const wRow = document.getElementById('waiting-row');
+            if (wRow) wRow.remove();
 
             symbols.forEach(sym => {
                 const info = data[sym];
@@ -213,8 +246,7 @@
                 
                 row.innerHTML = `
                     <td class="symbol-col">
-                        <span class="dot"></span>
-                        ${sym}
+                        <span class="dot"></span>${sym}
                     </td>
                     <td>
                         <span class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</span>

@@ -14,7 +14,10 @@ def index():
 
 @app.route('/api/signals')
 def get_signals():
-    return jsonify(signal_state.latest_signal_status)
+    return jsonify({
+        "signals": signal_state.latest_signal_status,
+        "total_pnl": signal_state.total_pnl
+    })
 
 def run_dashboard_server():
     print("\n" + "="*50)
