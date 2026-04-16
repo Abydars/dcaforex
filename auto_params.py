@@ -101,9 +101,12 @@ def recalculate(target_symbol: str = None) -> dict | None:
         total_margin_budget = capital * 0.40
         
         # Split budget across baskets if parallel trading is enabled
+        # We cap the assumed concurrent baskets to 3. If a user configures 15 symbols, 
+        # it's statistically unlikely they will all hit Max DCA layers at the exact same time.
+        # This prevents the lot size from becoming microscopically small.
         is_parallel = getattr(config, "PARALLEL_TRADING", False)
         if is_parallel:
-            num_symbols = max(1, len(getattr(config, "SYMBOLS", [symbol])))
+            num_symbols = min(3, max(1, len(getattr(config, "SYMBOLS", [symbol]))))
             basket_budget = total_margin_budget / num_symbols
         else:
             basket_budget = total_margin_budget
@@ -118,6 +121,7 @@ def recalculate(target_symbol: str = None) -> dict | None:
         risk_factor = 200.0
         raw_lot = (capital / risk_factor) * info.volume_step
     
+    logger.info(f"[{symbol}] Margin/Lot: {margin_for_one_lot} | RawLot: {raw_lot:.4f}")
     # Apply broker limits
     bounded_lot = max(info.volume_min, min(info.volume_max, raw_lot))
     
