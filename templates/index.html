@@ -289,9 +289,15 @@
             symbols.forEach(sym => {
                 const info = data[sym];
                 let stateLabel = "Scanning";
-                if (info.color === "green") stateLabel = "Active";
-                if (info.color === "red") stateLabel = "Blocked";
-                if (info.color === "orange") stateLabel = "Delayed";
+                if (info.status.includes("Holding")) {
+                    stateLabel = info.color === "green" ? "Profit" : "Drawdown";
+                } else if (info.color === "green") {
+                    stateLabel = "Active";
+                } else if (info.color === "red") {
+                    stateLabel = "Blocked";
+                } else if (info.color === "orange") {
+                    stateLabel = "Delayed";
+                }
 
                 let formattedTime = '--:--:--';
                 if (info.time) {
@@ -319,7 +325,7 @@
                     <td class="status-col">${info.status}</td>
                     <td class="time-col">${formattedTime}</td>
                     <td>
-                        ${info.color !== 'gray' ? `<button class="btn-close" onclick="closeSymbol('${sym}')">Close</button>` : ''}
+                        ${info.status.includes('Holding') ? `<button class="btn-close" onclick="closeSymbol('${sym}')">Close</button>` : ''}
                     </td>
                 `;
             });

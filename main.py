@@ -480,10 +480,12 @@ def main():
                             dca_reason = signal_state.dca_rejection_statuses.get(sym, "")
                             reason_html = f"<br><small style='color: #f59e0b; font-weight: 500;'>{dca_reason}</small>" if dca_reason else ""
                             
+                            entry_time = min([p.time for p in positions]) if positions else time.time()
+                            
                             signal_state.latest_signal_status[sym] = {
                                 "status": f"Holding {state.direction} | Layers: {num_pos}/{max_orders} | P/L: ${profit:+.2f}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>{reason_html}",
                                 "color": "green" if profit >= 0 else "orange",
-                                "time": time.time()
+                                "time": entry_time
                             }
                     
                     logger.info(f"💰 Bot Portfolio PnL: ${total_bot_profit:+.2f}")
