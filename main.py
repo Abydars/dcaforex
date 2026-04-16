@@ -237,18 +237,18 @@ def _check_order_triggers(symbol: str, state: BasketState):
         else:
             state.dca_layer -= 1
 
-    # 2. Pyramid (In our favor)
-    elif pyr_delta >= step_distance:
-        state.pyramid_layer += 1
-        pips_moved = pyr_delta / pip_size
-        logger.info(
-            f"🚀 [{symbol}] PYRAMID Trigger! {pips_moved:.1f} pips in favor "
-            f"(Layer {state.pyramid_layer} / Total {len(positions) + 1})"
-        )
-        if place_dca_order(symbol, state.direction, state.dca_layer + state.pyramid_layer, lot_size):
-            state.last_pyramid_price = current_price
-        else:
-            state.pyramid_layer -= 1
+    # 2. Pyramid (In our favor) - DISABLED to prevent halving profit right before trail
+    # elif pyr_delta >= step_distance:
+    #     state.pyramid_layer += 1
+    #     pips_moved = pyr_delta / pip_size
+    #     logger.info(
+    #         f"🚀 [{symbol}] PYRAMID Trigger! {pips_moved:.1f} pips in favor "
+    #         f"(Layer {state.pyramid_layer} / Total {len(positions) + 1})"
+    #     )
+    #     if place_dca_order(symbol, state.direction, state.dca_layer + state.pyramid_layer, lot_size):
+    #         state.last_pyramid_price = current_price
+    #     else:
+    #         state.pyramid_layer -= 1
 
 
 def _is_new_candle(symbol: str) -> bool:
