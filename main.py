@@ -37,6 +37,7 @@ from mt5_connector import get_mt5_timeframe, initialize_mt5, shutdown_mt5
 from signal_engine import get_entry_signal
 import dashboard
 import threading
+import signal_state
 
 logger = logging.getLogger("DCA_Bot")
 
@@ -310,8 +311,12 @@ def main():
         logger.error("Could not fetch account equity. Exiting.")
         sys.exit(1)
 
-    # Initialize parameters for all symbols just to ensure we have them
     for sym in config.SYMBOLS:
+        signal_state.latest_signal_status[sym] = {
+            "status": "Bot Started... Waiting for next candle.",
+            "color": "gray",
+            "time": ""
+        }
         params = calculate_params(sym)
         if not params:
             logger.error(f"Failed to calculate initial params for {sym}")
@@ -353,6 +358,11 @@ def main():
 
             for sym in symbols_to_remove:
                 del basket_states[sym]
+                signal_state.latest_signal_status[sym] = {
+                    "status": "Basket Closed. Waiting for next candle...",
+                    "color": "gray",
+                    "time": datetime.now().strftime("%H:%M:%S")
+                }
                 
             active_baskets_count -= len(symbols_to_remove)
 
@@ -382,6 +392,12 @@ def main():
                             f"BE: {breakeven:.5f} ({pips_from_be:+.1f} p) | "
                             f"{trail_text}"
                         )
+                        
+                        signal_state.latest_signal_status[sym] = {
+                            "status": f"Holding {state.direction} | Layers: {num_pos} | P/L: ${profit:+.2f}<br><small style='color:#94a3b8'>BE: {breakeven:.5f} ({pips_from_be:+.1f} pips)</small>",
+                            "color": "green" if profit >= 0 else "orange",
+                            "time": datetime.now().strftime("%H:%M:%S")
+                        }
                 
                 account = mt5.account_info()
                 eq = account.equity if account else 0
