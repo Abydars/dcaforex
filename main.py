@@ -402,12 +402,12 @@ def main():
                 signal_state.manual_close_requests.clear()
 
             # ── 1. Drawdown Guard (Global) ──
-            if _check_drawdown_guard():
+            if signal_state.is_bot_active and _check_drawdown_guard():
                 for sym in list(basket_states.keys()):
                     close_all_positions(sym, reason="DRAWDOWN_GUARD")
                 basket_states.clear()
                 logger.critical("🛑 Bot halted — max drawdown hit.")
-                break
+                signal_state.is_bot_active = False
 
             # ── 2. Active Basket Management ──
             symbols_to_remove = []
@@ -500,8 +500,8 @@ def main():
                 signal_state.total_pnl = total_bot_profit
 
             # ── 3. Scan for New Entries ──
-            # Only scan if we are under the maximum concurrent symbols limit
-            if active_baskets_count < config.MAX_OPEN_SYMBOLS:
+            # Only scan if bot is active AND we are under the maximum concurrent symbols limit
+            if signal_state.is_bot_active and active_baskets_count < config.MAX_OPEN_SYMBOLS:
                 best_direction = None
                 best_symbol = None
                 highest_surge = 0.0

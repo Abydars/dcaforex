@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 import logging
 import signal_state
 
@@ -18,8 +18,16 @@ def get_signals():
         "signals": signal_state.latest_signal_status,
         "total_pnl": signal_state.total_pnl,
         "balance": signal_state.current_balance,
-        "max_dd": signal_state.max_drawdown_usd
+        "max_dd": signal_state.max_drawdown_usd,
+        "is_active": signal_state.is_bot_active
     })
+
+@app.route('/api/toggle', methods=['POST'])
+def toggle_bot():
+    data = request.json or {}
+    if "is_active" in data:
+        signal_state.is_bot_active = bool(data["is_active"])
+    return jsonify({"success": True})
 
 @app.route('/api/close/<symbol>', methods=['POST'])
 def close_symbol(symbol):

@@ -14,5 +14,6 @@ latest_signal_status = {}
 total_pnl = 0.0
 current_balance = 0.0
 max_drawdown_usd = 0.0
+is_bot_active = True
 manual_close_requests = set()
 dca_rejection_statuses = {}
