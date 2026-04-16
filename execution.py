@@ -48,10 +48,16 @@ def _send_order(
         logger.error(f"Symbol info unavailable for {symbol}")
         return False
 
-    # Clamp and snap volume
+    # Clamp and snap volume using strict integer arithmetic to avoid floating point drift
     volume = max(info.volume_min, min(volume, info.volume_max))
     step = info.volume_step
-    volume = round(volume - (volume % step), 8)
+    
+    factor = 100000000 # 1e8
+    vol_int = round(volume * factor)
+    step_int = round(step * factor)
+    if step_int > 0:
+        snapped_int = (vol_int // step_int) * step_int
+        volume = snapped_int / factor
 
     price = _get_price(symbol, direction)
     if price <= 0:
