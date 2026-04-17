@@ -39,9 +39,6 @@ MT5_PASS: str = _get_env("MT5_PASS")
 MT5_SERVER: str = _get_env("MT5_SERVER")
 
 # ─── User Inputs (only these matter) ────────────────────────
-SYMBOLS_RAW: str = _get_env("SYMBOLS", default="EURUSDm")
-SYMBOLS: list = [s.strip() for s in SYMBOLS_RAW.split(",") if s.strip()]
-SYMBOL: str = SYMBOLS[0] if len(SYMBOLS) > 0 else "EURUSDm"  # Dynamic active tracker (legacy support context)
 TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()
 SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
 SYNC_DELAY_SECONDS: float = float(_get_env("SYNC_DELAY_SECONDS", default="3.0"))
@@ -50,6 +47,34 @@ SYNC_DELAY_SECONDS: float = float(_get_env("SYNC_DELAY_SECONDS", default="3.0"))
 MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="550055"))
 # ─── Dashboard Protection ───────────────────────────────────
 DASHBOARD_PASSWORD: str = _get_env("DASHBOARD_PASSWORD", default="*&*&*&", required=False)
+
+# ─── Anti-Correlation Module ────────────────────────────────
+CORRELATION_GROUPS = {
+    # Major Pairs (USD Quote vs USD Base)
+    "USD_DIRECT": ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "EURUSDm", "GBPUSDm", "AUDUSDm", "NZDUSDm"],
+    "USD_INDIRECT": ["USDJPY", "USDCAD", "USDCHF", "USDJPYm", "USDCADm", "USDCHFm"],
+    
+    # Currency Crosses
+    "EUR_CROSS": ["EURGBP", "EURJPY", "EURCHF", "EURAUD", "EURNZD", "EURCAD", "EURGBPm", "EURJPYm", "EURCHFm", "EURAUDm", "EURNZDm", "EURCADm"],
+    "GBP_CROSS": ["GBPJPY", "GBPCHF", "GBPAUD", "GBPNZD", "GBPCAD", "GBPJPYm", "GBPCHFm", "GBPAUDm", "GBPNZDm", "GBPCADm"],
+    "JPY_CROSS": ["AUDJPY", "NZDJPY", "CADJPY", "CHFJPY", "AUDJPYm", "NZDJPYm", "CADJPYm", "CHFJPYm"],
+    
+    # Commodities / Metals
+    "METALS": ["XAUUSD", "XAGUSD", "XAUUSDm", "XAGUSDm", "GOLD", "SILVER"],
+    "OIL": ["USOIL", "UKOIL", "WTI", "BRENT", "USOILm", "UKOILm"],
+    
+    # Indices
+    "US_INDICES": ["US30", "USTEC", "US100", "SPX500", "NAS100", "DJI"],
+    "EU_INDICES": ["GER30", "GER40", "UK100", "FRA40", "DAX30", "DAX40"],
+    
+    # Crypto
+    "CRYPTO": ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "BTCUSDm", "ETHUSDm"]
+}
+
+# Auto-compute Master Available Symbols explicitly from our Correlation Groups dictionary
+SYMBOLS: list = list({sym for group in CORRELATION_GROUPS.values() for sym in group})
+SYMBOLS.sort()
+SYMBOL: str = SYMBOLS[0] if len(SYMBOLS) > 0 else "EURUSDm"
 
 # ─── Auto-Calculated (filled at runtime by auto_params) ─────
 CAPITAL: float = 0.0

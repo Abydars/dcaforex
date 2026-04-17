@@ -718,6 +718,45 @@ def main():
                     # 2. Sort Leaderboard by strongest momentum
                     valid_signals.sort(key=lambda x: x["surge"], reverse=True)
                     
+                    # 2.5 Anti-Correlation Matrix Filtering
+                    filtered_signals = []
+                    for sig in valid_signals:
+                        sym = sig["symbol"]
+                        
+                        sym_group = None
+                        for group_name, group_symbols in getattr(config, "CORRELATION_GROUPS", {}).items():
+                            if sym in group_symbols:
+                                sym_group = group_name
+                                break
+                                
+                        if sym_group:
+                            conflict_found = False
+                            group_symbols = getattr(config, "CORRELATION_GROUPS", {})[sym_group]
+                            # Check active baskets
+                            for active_sym in basket_states.keys():
+                                if active_sym in group_symbols:
+                                    conflict_found = True
+                                    break
+                                    
+                            # Check higher-priority new entries in this sweep
+                            for accepted_sig in filtered_signals:
+                                if accepted_sig["symbol"] in group_symbols:
+                                    conflict_found = True
+                                    break
+                                    
+                            if conflict_found:
+                                logger.warning(f"🚫 [CORRELATION BLOCK] Skipping {sym}. Correlated pair from {sym_group} is active or prioritized.")
+                                signal_state.latest_signal_status[sym] = {
+                                    "status": f"Blocked (Correlation: {sym_group})",
+                                    "color": "red",
+                                    "time": None
+                                }
+                                continue
+                                
+                        filtered_signals.append(sig)
+                    
+                    valid_signals = filtered_signals
+                    
                     # 3. Execute Top Trades
                     for candidate in valid_signals:
                         sym = candidate["symbol"]
