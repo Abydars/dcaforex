@@ -106,34 +106,39 @@ def initialize_mt5():
         sys.exit(1)
 
     # ─── Symbol Registration ──
+    valid_symbols = []
     for sym in config.SYMBOLS:
-        _register_symbol(sym)
+        if _register_symbol(sym):
+            valid_symbols.append(sym)
+            
+    config.SYMBOLS = valid_symbols
 
-    logger.info("MT5 connection fully established ✓")
+    logger.info(f"MT5 connection fully established ✓ ({len(valid_symbols)} Valid Symbols Registered)")
     return True
 
 
-def _register_symbol(symbol: str):
+def _register_symbol(symbol: str) -> bool:
     """Ensure the trading symbol is visible in Market Watch."""
     info = mt5.symbol_info(symbol)
     if info is None:
-        logger.critical(
+        logger.warning(
             f"Symbol '{symbol}' not found on broker server. "
-            f"Check the Exness suffix (e.g., EURUSDm, XAUUSDm)."
+            f"Skipping this symbol from the active pool."
         )
-        mt5.shutdown()
-        sys.exit(1)
+        return False
 
     if not info.visible:
         if not mt5.symbol_select(symbol, True):
-            logger.critical(
+            logger.error(
                 f"Cannot add '{symbol}' to Market Watch. Error: {mt5.last_error()}"
             )
-            mt5.shutdown()
-            sys.exit(1)
+            return False
         logger.info(f"Symbol '{symbol}' added to Market Watch.")
     else:
-        logger.debug(f"Symbol '{symbol}' already visible.")
+        # logger.debug(f"Symbol '{symbol}' already visible.")
+        pass
+        
+    return True
 
 
 def shutdown_mt5():
