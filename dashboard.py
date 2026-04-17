@@ -56,7 +56,8 @@ def get_signals():
         "session_flush_minutes": signal_state.session_flush_minutes,
         "session_flush_tolerance_pct": signal_state.session_flush_tolerance_pct,
         "session_auto_pause_minutes": signal_state.session_auto_pause_minutes,
-        "master_symbols": config.SYMBOLS
+        "master_symbols": config.SYMBOLS,
+        "correlation_groups": config.CORRELATION_GROUPS
     })
 
 @app.route('/api/session/history')

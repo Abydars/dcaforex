@@ -305,8 +305,8 @@
                 <input type="number" id="inp-max-sym" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="2" min="1" max="10">
             </div>
             <div style="margin-bottom:1.5rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Trading Pairs</label>
-                <div id="sym-checkboxes" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:0.5rem; max-height:100px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Trading Pairs (Grouped by Correlation)</label>
+                <div id="sym-checkboxes" style="display:block; max-height:160px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
                     <!-- Checkboxes injected via JS -->
                 </div>
             </div>
@@ -420,6 +420,7 @@
         let globalSessionFlushMins = 5;
         let globalSessionFlushTol = 10;
         let globalSessionAutoPauseMins = 15;
+        let globalCorrelationGroups = {};
 
         async function fetchSignals() {
             try {
@@ -432,6 +433,9 @@
                 
                 if (apiData.master_symbols) {
                     globalMasterSymbols = apiData.master_symbols;
+                }
+                if (apiData.correlation_groups) {
+                    globalCorrelationGroups = apiData.correlation_groups;
                 }
                 if (apiData.session_symbols) {
                     globalSessionSymbols = apiData.session_symbols;
@@ -831,33 +835,106 @@
         }
 
         function openSessionModal() {
-            // Populate Symbol Checkboxes
+            // Populate Symbol Checkboxes Grouped by Correlation
             const container = document.getElementById('sym-checkboxes');
             container.innerHTML = "";
-            globalMasterSymbols.forEach(sym => {
-                const label = document.createElement('label');
-                label.style.display = 'flex';
-                label.style.alignItems = 'center';
-                label.style.gap = '0.5rem';
-                label.style.color = '#fff';
-                label.style.fontSize = '0.85rem';
-                label.style.cursor = 'pointer';
+            
+            let renderedSymbols = new Set();
+            
+            for (const [groupName, groupSymbolsRaw] of Object.entries(globalCorrelationGroups)) {
+                const validGroupSymbols = groupSymbolsRaw.filter(sym => globalMasterSymbols.includes(sym));
                 
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.value = sym;
-                // Inherit existing if active, otherwise check all default
-                // Inherit existing globally saved setup
-                if (globalSessionSymbols.length > 0) {
-                    cb.checked = globalSessionSymbols.includes(sym);
-                } else {
-                    cb.checked = true;
+                if (validGroupSymbols.length > 0) {
+                    const groupTitle = document.createElement('div');
+                    groupTitle.style.color = '#3b82f6';
+                    groupTitle.style.fontSize = '0.75rem';
+                    groupTitle.style.fontWeight = 'bold';
+                    groupTitle.style.marginTop = '0.5rem';
+                    groupTitle.style.marginBottom = '0.25rem';
+                    groupTitle.style.textTransform = 'uppercase';
+                    groupTitle.innerText = groupName.replace("_", " ");
+                    container.appendChild(groupTitle);
+                    
+                    const groupGrid = document.createElement('div');
+                    groupGrid.style.display = 'grid';
+                    groupGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(90px, 1fr))';
+                    groupGrid.style.gap = '0.5rem';
+                    groupGrid.style.marginBottom = '0.5rem';
+                    
+                    validGroupSymbols.forEach(sym => {
+                        renderedSymbols.add(sym);
+                        const label = document.createElement('label');
+                        label.style.display = 'flex';
+                        label.style.alignItems = 'center';
+                        label.style.gap = '0.5rem';
+                        label.style.color = '#fff';
+                        label.style.fontSize = '0.80rem';
+                        label.style.cursor = 'pointer';
+                        
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.value = sym;
+                        cb.style.accentColor = '#3b82f6';
+                        
+                        if (globalSessionSymbols.length > 0) {
+                            cb.checked = globalSessionSymbols.includes(sym);
+                        } else {
+                            cb.checked = true;
+                        }
+                        
+                        label.appendChild(cb);
+                        label.appendChild(document.createTextNode(sym));
+                        groupGrid.appendChild(label);
+                    });
+                    
+                    container.appendChild(groupGrid);
                 }
+            }
+            
+            // Uncategorized Symbols (fallback)
+            const uncategorized = globalMasterSymbols.filter(sym => !renderedSymbols.has(sym));
+            if (uncategorized.length > 0) {
+                const groupTitle = document.createElement('div');
+                groupTitle.style.color = '#64748b';
+                groupTitle.style.fontSize = '0.75rem';
+                groupTitle.style.fontWeight = 'bold';
+                groupTitle.style.marginTop = '0.5rem';
+                groupTitle.style.marginBottom = '0.25rem';
+                groupTitle.innerText = "OTHER";
+                container.appendChild(groupTitle);
                 
-                label.appendChild(cb);
-                label.appendChild(document.createTextNode(sym));
-                container.appendChild(label);
-            });
+                const groupGrid = document.createElement('div');
+                groupGrid.style.display = 'grid';
+                groupGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(90px, 1fr))';
+                groupGrid.style.gap = '0.5rem';
+                groupGrid.style.marginBottom = '0.5rem';
+                
+                uncategorized.forEach(sym => {
+                    const label = document.createElement('label');
+                    label.style.display = 'flex';
+                    label.style.alignItems = 'center';
+                    label.style.gap = '0.5rem';
+                    label.style.color = '#fff';
+                    label.style.fontSize = '0.80rem';
+                    label.style.cursor = 'pointer';
+                    
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = sym;
+                    
+                    if (globalSessionSymbols.length > 0) {
+                        cb.checked = globalSessionSymbols.includes(sym);
+                    } else {
+                        cb.checked = true;
+                    }
+                    
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(sym));
+                    groupGrid.appendChild(label);
+                });
+                
+                container.appendChild(groupGrid);
+            }
 
             // Build Weekly Schedule Table
             const schedContainer = document.getElementById('schedule-container');
