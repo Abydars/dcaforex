@@ -100,16 +100,14 @@ def recalculate(target_symbol: str = None) -> dict | None:
         # Total margin budget allowed for the entire account is 40% (60% saved for floating drawdown)
         total_margin_budget = capital * 0.40
         
-        # Split budget across baskets if parallel trading is enabled
-        # We cap the assumed concurrent baskets to 3. If a user configures 15 symbols, 
+        import signal_state
+        
+        # Split budget across baskets depending on Session Settings Max Pairs.
+        # We cap the assumed concurrent baskets to 3. If a user sets Max Pairs to 10, 
         # it's statistically unlikely they will all hit Max DCA layers at the exact same time.
-        # This prevents the lot size from becoming microscopically small.
-        is_parallel = getattr(config, "PARALLEL_TRADING", False)
-        if is_parallel:
-            num_symbols = min(3, max(1, len(getattr(config, "SYMBOLS", [symbol]))))
-            basket_budget = total_margin_budget / num_symbols
-        else:
-            basket_budget = total_margin_budget
+        # This prevents the initial lot size from becoming microscopically small.
+        num_symbols = min(3, max(1, signal_state.session_max_symbols))
+        basket_budget = total_margin_budget / num_symbols
             
         # We assume an average of 10-12 DCA orders per basket to distribute this basket budget safely
         expected_dca_layers = 12.0
