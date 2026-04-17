@@ -499,7 +499,6 @@ def main():
                 account = mt5.account_info()
                 if account:
                     signal_state.current_balance = account.balance
-                    signal_state.max_drawdown_usd = config.CAPITAL * (config.MAX_DRAWDOWN_PCT / 100.0)
 
                 # Push true floating PnL of all bot baskets to the UI
                 signal_state.total_pnl = total_bot_profit
