@@ -263,7 +263,11 @@ def _check_smart_exit(symbol: str, state: BasketState) -> bool:
                     f"to {current_price:.5f} | P/L: ${profit:+.2f}"
                 )
                 close_all_positions(symbol, reason="TRAIL_EXIT")
-                return True
+                if not get_basket_positions(symbol):
+                    return True
+                else:
+                    logger.error(f"❌ Failed to Trail Exit [{symbol}]. Market closed or API error. Tracking remains active.")
+                    return False
 
     else:
         # For SELL
@@ -283,7 +287,11 @@ def _check_smart_exit(symbol: str, state: BasketState) -> bool:
                     f"to {current_price:.5f} | P/L: ${profit:+.2f}"
                 )
                 close_all_positions(symbol, reason="TRAIL_EXIT")
-                return True
+                if not get_basket_positions(symbol):
+                    return True
+                else:
+                    logger.error(f"❌ Failed to Trail Exit [{symbol}]. Market closed or API error. Tracking remains active.")
+                    return False
 
     return False
 
@@ -310,7 +318,11 @@ def _check_basket_stop_loss(symbol: str, state: BasketState) -> bool:
             f"Loss: ${profit:.2f} exceeds -${max_basket_loss:.2f} limit."
         )
         close_all_positions(symbol, reason="BASKET_SL")
-        return True
+        if not get_basket_positions(symbol):
+            return True
+        else:
+            logger.error(f"❌ Failed to hit Stop Loss for [{symbol}]. Market closed or API error. Tracking remains active.")
+            return False
 
     return False
 
@@ -478,12 +490,15 @@ def main():
                 logger.warning("🚨 MANUAL UI TRIGGER: Closing ALL active baskets!")
                 for sym in list(basket_states.keys()):
                     close_all_positions(sym, reason="MANUAL_UI_CLOSE")
-                    del basket_states[sym]
-                    signal_state.latest_signal_status[sym] = {
-                        "status": "Closed Manually. Waiting for next candle...",
-                        "color": "gray",
-                        "time": None
-                    }
+                    if not get_basket_positions(sym):
+                        del basket_states[sym]
+                        signal_state.latest_signal_status[sym] = {
+                            "status": "Closed Manually. Waiting for next candle...",
+                            "color": "gray",
+                            "time": None
+                        }
+                    else:
+                        logger.error(f"❌ Could not close [{sym}]: Broker rejected (Market Closed). Tracking is alive.")
                 
                 # Write history if session was deliberately ended by UI or "Close All"
                 time.sleep(1.5) # Wait for broker to settle trades
@@ -503,13 +518,15 @@ def main():
                     if req_sym in basket_states:
                         logger.warning(f"🚨 MANUAL UI TRIGGER: Closing basket {req_sym}!")
                         close_all_positions(req_sym, reason="MANUAL_UI_CLOSE")
-                        del basket_states[req_sym]
-                        
-                        signal_state.latest_signal_status[req_sym] = {
-                            "status": "Closed Manually. Waiting for next candle...",
-                            "color": "gray",
-                            "time": None
-                        }
+                        if not get_basket_positions(req_sym):
+                            del basket_states[req_sym]
+                            signal_state.latest_signal_status[req_sym] = {
+                                "status": "Closed Manually. Waiting for next candle...",
+                                "color": "gray",
+                                "time": None
+                            }
+                        else:
+                            logger.error(f"❌ Could not close [{req_sym}]: Broker rejected (Market Closed).")
                 signal_state.manual_close_requests.clear()
 
             # ── 1. Session Guard (Dynamic TP/SL) ──
@@ -517,12 +534,15 @@ def main():
             if limit_hit:
                 for sym in list(basket_states.keys()):
                     close_all_positions(sym, reason=limit_hit)
-                    signal_state.latest_signal_status[sym] = {
-                        "status": f"Session Ended ({limit_hit})",
-                        "color": "gray",
-                        "time": None
-                    }
-                basket_states.clear()
+                    if not get_basket_positions(sym):
+                        del basket_states[sym]
+                        signal_state.latest_signal_status[sym] = {
+                            "status": f"Session Ended ({limit_hit})",
+                            "color": "gray",
+                            "time": None
+                        }
+                    else:
+                        logger.error(f"❌ Could not close [{sym}]: Broker rejected (Market Closed).")
                 
                 logger.critical(f"🏆 SESSION ENDED ({limit_hit}). All trades closed.")
                 
@@ -601,7 +621,10 @@ def main():
                         if profit >= -max(0.01, flush_limit):
                             logger.warning(f"🧹 EOD FLUSH [{sym}]! Remaining time low. Cutting at P/L: ${profit:.2f} (Limit: -${flush_limit:.2f})")
                             close_all_positions(sym, reason="EOD_FLUSH")
-                            symbols_to_remove.append(sym)
+                            if not get_basket_positions(sym):
+                                symbols_to_remove.append(sym)
+                            else:
+                                logger.error(f"❌ Failed to EOD Flush [{sym}]. Market closed or API error.")
                             continue
 
                     if _check_smart_exit(sym, state):
