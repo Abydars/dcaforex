@@ -58,6 +58,7 @@ class BasketState:
 
 basket_states: dict[str, BasketState] = {}
 _last_candle_times: dict[str, int] = {}
+global_sweep_trigger_time: float = 0.0
 _last_log_time = 0.0
 
 def _adopt_orphan_baskets():
@@ -503,70 +504,90 @@ def main():
                 # Push true floating PnL of all bot baskets to the UI
                 signal_state.total_pnl = total_bot_profit
 
-            # ── 3. Scan for New Entries ──
-            # Only scan if bot is active AND we are under the maximum concurrent symbols limit
+            # ── 3. Scan for New Entries (Synchronized Leaderboard) ──
             if signal_state.is_bot_active and active_baskets_count < config.MAX_OPEN_SYMBOLS:
-                best_direction = None
-                best_symbol = None
-                highest_surge = 0.0
                 
-                # If we already have active baskets, a new parallel setup MUST beat their initial quality
-                surge_to_beat = 0.0
-                if active_baskets_count > 0:
-                    surge_to_beat = max([st.initial_surge for st in basket_states.values() if hasattr(st, 'initial_surge')] + [0.0])
-
+                # Check for candle boundary crossing
+                sweep_triggered = False
                 for sym in config.SYMBOLS:
-                    if sym in basket_states:
-                        continue # Already trading this!
-                        
-                    if not _is_new_candle(sym):
-                        continue
-                        
-                    if not _is_within_trading_hours(sym):
-                        continue
+                    if _is_new_candle(sym):
+                        sweep_triggered = True
+                
+                if sweep_triggered and global_sweep_trigger_time == 0.0:
+                    global_sweep_trigger_time = time.time()
+                    logger.info("⏱️ New candle detected across network. Entering 3s grace period for ticks to settle...")
+                
+                # Execute Leaderboard Sweep after dynamic grace period!
+                if global_sweep_trigger_time > 0 and (time.time() - global_sweep_trigger_time) >= config.SYNC_DELAY_SECONDS:
+                    surge_to_beat = 0.0
+                    if active_baskets_count > 0:
+                        surge_to_beat = max([st.initial_surge for st in basket_states.values() if hasattr(st, 'initial_surge')] + [0.0])
 
-                    signal_data = get_entry_signal(target_symbol=sym)
-                    if signal_data is not None:
-                        surge = signal_data.get("surge_ratio", 1.0)
-                        
-                        # Compare against active baskets
-                        if active_baskets_count > 0 and surge <= surge_to_beat:
-                            logger.debug(f"[{sym}] Parallel opportunity skipped. Surge ({surge:.2f}x) is lower than active trades ({surge_to_beat:.2f}x).")
+                    valid_signals = []
+                    
+                    # 1. Gather all signals concurrently
+                    for sym in config.SYMBOLS:
+                        if sym in basket_states:
+                            continue # Already trading this!
+                            
+                        if not _is_within_trading_hours(sym):
                             continue
 
-                        if surge > highest_surge:
-                            highest_surge = surge
-                            best_direction = signal_data.get("direction")
-                            best_symbol = sym
+                        signal_data = get_entry_signal(target_symbol=sym)
+                        if signal_data is not None:
+                            surge = signal_data.get("surge_ratio", 1.0)
+                            
+                            if active_baskets_count > 0 and surge <= surge_to_beat:
+                                logger.debug(f"[{sym}] Parallel opportunity dropped: Surge ({surge:.2f}x) doesn't beat active trades ({surge_to_beat:.2f}x).")
+                                continue
+                            
+                            valid_signals.append({
+                                "symbol": sym,
+                                "direction": signal_data.get("direction"),
+                                "surge": surge
+                            })
 
-                if best_direction is not None and best_symbol is not None:
-                    # Found a setup!
-                    params = recalculate(best_symbol)
-                    if params:
-                        logger.info(f"🚀 [{best_symbol}] ENTRY: {best_direction} Setup Detected")
-                        lot_size = params.get("LOT_SIZE", config.LOT_SIZE)
-                        if place_entry_order(best_symbol, best_direction, lot_size):
-                            new_state = BasketState()
-                            new_state.direction = best_direction
-                            new_state.params = params
-                            new_state.initial_surge = highest_surge
+                    # 2. Sort Leaderboard by strongest momentum
+                    valid_signals.sort(key=lambda x: x["surge"], reverse=True)
+                    
+                    # 3. Execute Top Trades
+                    for candidate in valid_signals:
+                        if active_baskets_count >= config.MAX_OPEN_SYMBOLS:
+                            break
                             
-                            entry_price = _get_price(best_symbol, best_direction)
-                            new_state.last_dca_price = entry_price
-                            new_state.last_pyramid_price = entry_price
-                            
-                            basket_states[best_symbol] = new_state
-                            
-                            step_pips = params.get("STEP_PIPS", config.STEP_PIPS)
-                            exit_pips = params.get("EXIT_PIPS", config.EXIT_PIPS)
-                            
-                            logger.info(
-                                f"✅ [{best_symbol}] Basket started: {best_direction} @ {entry_price} | "
-                                f"Gap: {step_pips} pips | "
-                                f"Target: +{exit_pips} pips"
-                            )
-                        else:
-                            logger.error(f"[{best_symbol}] Entry FAILED.")
+                        best_symbol = candidate["symbol"]
+                        best_direction = candidate["direction"]
+                        surge = candidate["surge"]
+
+                        params = recalculate(best_symbol)
+                        if params:
+                            logger.info(f"🏆 LEADERBOARD WINNER: [{best_symbol}] {best_direction} Surge Score: {surge:.2f}x")
+                            lot_size = params.get("LOT_SIZE", config.LOT_SIZE)
+                            if place_entry_order(best_symbol, best_direction, lot_size):
+                                new_state = BasketState()
+                                new_state.direction = best_direction
+                                new_state.params = params
+                                new_state.initial_surge = surge
+                                
+                                entry_price = _get_price(best_symbol, best_direction)
+                                new_state.last_dca_price = entry_price
+                                new_state.last_pyramid_price = entry_price
+                                
+                                basket_states[best_symbol] = new_state
+                                active_baskets_count += 1
+                                
+                                step_pips = params.get("STEP_PIPS", config.STEP_PIPS)
+                                exit_pips = params.get("EXIT_PIPS", config.EXIT_PIPS)
+                                logger.info(
+                                    f"✅ [{best_symbol}] Sync-Basket started: {best_direction} @ {entry_price} | "
+                                    f"Gap: {step_pips} pips | "
+                                    f"Target: +{exit_pips} pips"
+                                )
+                            else:
+                                logger.error(f"[{best_symbol}] Leaderboard Entry FAILED.")
+                    
+                    # Reset timer for next candle period
+                    global_sweep_trigger_time = 0.0
 
             # Ultra-fast loop constraint
             time.sleep(0.01)

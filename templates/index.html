@@ -4,30 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DCA Signal Monitor</title>
-    <!-- Modern Font Option -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Modern Tech Font Option -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f172a;
-            --table-bg: rgba(30, 41, 59, 0.6);
-            --border-color: rgba(248, 250, 252, 0.08);
-            --hover-bg: rgba(51, 65, 85, 0.5);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --green: #10b981;
-            --red: #ef4444;
-            --orange: #f59e0b;
-            --gray: #64748b;
+            --bg-color: #000000;
+            --table-bg: #0a0a0a;
+            --border-color: #1e1e1e;
+            --hover-bg: #111111;
+            --text-primary: #e5e5e5;
+            --text-secondary: #737373;
+            --green: #00ff00;
+            --red: #ff0000;
+            --orange: #ffb800;
+            --gray: #3f3f46;
+            --blue: #3b82f6;
         }
 
         body {
             margin: 0;
-            padding: 2rem;
+            padding: 1rem;
             background: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.1), transparent 25%);
-            background-attachment: fixed;
             color: var(--text-primary);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
@@ -40,20 +37,21 @@
             justify-content: space-between;
             align-items: center;
             max-width: 1200px;
-            margin: 0 auto 2rem auto;
+            margin: 0 auto 1rem auto;
             flex-wrap: wrap;
             gap: 1rem;
+            background: var(--table-bg);
+            padding: 1rem;
+            border: 1px solid var(--border-color);
         }
 
         .pnl-pill {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid var(--border-color);
-            border-radius: 9999px;
-            padding: 0.5rem 1.25rem;
-            font-size: 1.1rem;
+            background: transparent;
+            border-right: 1px solid var(--border-color);
+            padding: 0 1.25rem;
+            font-size: 1rem;
             font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            backdrop-filter: blur(8px);
+            font-family: 'Roboto Mono', monospace;
         }
 
         .header-right {
@@ -64,91 +62,95 @@
         }
 
         .btn-close {
-            background-color: rgba(239, 68, 68, 0.15);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            padding: 0.35rem 0.75rem;
-            border-radius: 6px;
+            background-color: transparent;
+            color: var(--red);
+            border: 1px solid var(--red);
+            padding: 0.25rem 0.6rem;
+            border-radius: 2px;
             font-size: 0.75rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.1s;
+            text-transform: uppercase;
         }
         .btn-close:hover {
-            background-color: rgba(239, 68, 68, 0.3);
+            background-color: var(--red);
+            color: #000;
         }
 
         .btn-close-all {
-            background-color: rgba(239, 68, 68, 0.9);
-            color: #fff;
-            border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 8px;
-            font-size: 0.95rem;
+            background-color: transparent;
+            color: var(--red);
+            border: 1px solid var(--red);
+            padding: 0.4rem 1rem;
+            border-radius: 2px;
+            font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            transition: all 0.1s;
+            text-transform: uppercase;
         }
         .btn-close-all:hover {
-            background-color: #dc2626;
-            transform: translateY(-1px);
+            background-color: var(--red);
+            color: #000;
         }
 
         .btn-toggle {
-            background-color: var(--green);
-            color: #111827;
-            border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 700;
+            background-color: transparent;
+            color: var(--green);
+            border: 1px solid var(--green);
+            padding: 0.4rem 1rem;
+            border-radius: 2px;
+            font-size: 0.85rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            transition: all 0.1s;
+            text-transform: uppercase;
         }
         .btn-toggle.off {
-            background-color: var(--gray);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+            color: var(--gray);
+            border: 1px solid var(--gray);
         }
         .btn-toggle:hover {
-            transform: translateY(-1px);
+            background-color: var(--green);
+            color: #000;
+        }
+        .btn-toggle.off:hover {
+            background-color: var(--gray);
+            color: #fff;
         }
 
         .table-container {
             max-width: 1200px;
             margin: 0 auto;
             background: var(--table-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
-            border-radius: 16px;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             text-align: left;
-            min-width: 800px; /* Forces table not to crush on mobile */
+            min-width: 800px; 
+            font-size: 0.85rem;
         }
 
         th, td {
-            padding: 1rem 1.5rem;
+            padding: 0.75rem 1rem;
             border-bottom: 1px solid var(--border-color);
         }
 
         th {
-            background: rgba(15, 23, 42, 0.6);
+            background: #000000;
             font-size: 0.75rem;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.05em;
             color: var(--text-secondary);
             font-weight: 600;
             white-space: nowrap;
+            border-bottom: 2px solid var(--border-color);
         }
 
         tr {
@@ -163,10 +165,15 @@
             border-bottom: none;
         }
 
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+            letter-spacing: -0.05em;
+        }
+
         /* Symbol Name styling */
         .symbol-col {
-            font-weight: 600;
-            font-size: 1rem;
+            font-weight: 700;
+            font-size: 0.95rem;
             white-space: nowrap;
         }
 
@@ -383,7 +390,7 @@
                 if (info.pnl !== undefined && info.status.includes("Holding")) {
                     const sign = info.pnl >= 0 ? '+' : '';
                     const color = info.pnl >= 0 ? 'var(--green)' : 'var(--red)';
-                    pnlText = `<span style="color: ${color}; font-weight: 600;">${sign}$${info.pnl.toFixed(2)}</span>`;
+                    pnlText = `<span class="mono" style="color: ${color}; font-weight: 600;">${sign}$${info.pnl.toFixed(2)}</span>`;
                 }
 
                 let row = document.getElementById('row-' + sym);
@@ -398,14 +405,15 @@
                 
                 row.innerHTML = `
                     <td class="symbol-col">
-                        <span class="dot"></span>${sym}
+                        <span class="dot" style="background-color: ${info.color === 'green' ? 'var(--green)' : (info.color === 'red' ? 'var(--red)' : (info.color === 'orange' ? 'var(--orange)' : 'var(--gray)'))}"></span>
+                        ${sym}
                     </td>
                     <td>
                         <span class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</span>
                     </td>
-                    <td class="status-col">${info.status}</td>
+                    <td class="status-col mono" style="color: #a1a1aa;">${info.status}</td>
                     <td style="white-space: nowrap;">${pnlText}</td>
-                    <td class="time-col">${info.time ? formattedTime : '--:--:--'}</td>
+                    <td class="time-col mono" style="color: #71717a;">${info.time ? formattedTime : '--:--:--'}</td>
                     <td>
                         ${info.status.includes('Holding') ? `<button class="btn-close" onclick="closeSymbol('${sym}')">Close</button>` : ''}
                     </td>
