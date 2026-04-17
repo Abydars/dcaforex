@@ -448,6 +448,7 @@
             let inTradingHours = true;
             const now = new Date();
             let pyDayStr = ((now.getUTCDay() + 6) % 7).toString(); 
+            let isEndingSoon = false;
             
             if (globalSessionSchedule && globalSessionSchedule[pyDayStr]) {
                 const dayConfig = globalSessionSchedule[pyDayStr];
@@ -463,9 +464,17 @@
                         let sMins = sH * 60 + sM;
                         let eMins = eH * 60 + eM;
                         if (sMins <= eMins) {
-                            if (currentMins >= sMins && currentMins < eMins) inTradingHours = true;
+                            if (currentMins >= sMins && currentMins < eMins) {
+                                inTradingHours = true;
+                                if ((eMins - currentMins) <= globalSessionAutoPauseMins && globalSessionAutoPauseMins > 0) isEndingSoon = true;
+                            }
                         } else {
-                            if (currentMins >= sMins || currentMins < eMins) inTradingHours = true;
+                            if (currentMins >= sMins || currentMins < eMins) {
+                                inTradingHours = true;
+                                let adjustedCurr = currentMins < eMins ? (currentMins + 24 * 60) : currentMins;
+                                let adjustedEnd = eMins + 24 * 60;
+                                if ((adjustedEnd - adjustedCurr) <= globalSessionAutoPauseMins && globalSessionAutoPauseMins > 0) isEndingSoon = true;
+                            }
                         }
                     }
                 }
@@ -483,6 +492,9 @@
                 warningBar.style.display = "block";
             } else if (!inTradingHours) {
                 warningBar.innerText = "TRADING PAUSED: OUT OF ACTIVE TRADING HOURS OR WEEKDAYS";
+                warningBar.style.display = "block";
+            } else if (isEndingSoon) {
+                warningBar.innerHTML = `TRADING PAUSED: NEARING SESSION END (AUTO-PAUSE ACTIVE, < ${globalSessionAutoPauseMins}m LEFT)`;
                 warningBar.style.display = "block";
             } else {
                 warningBar.style.display = "none";
