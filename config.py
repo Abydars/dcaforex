@@ -47,13 +47,6 @@ SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
 SYNC_DELAY_SECONDS: float = float(_get_env("SYNC_DELAY_SECONDS", default="3.0"))
 
 
-
-def _parse_time(raw: str) -> dtime:
-    parts = raw.split(":")
-    return dtime(hour=int(parts[0]), minute=int(parts[1]))
-
-TRADING_START: dtime = _parse_time(_get_env("TRADING_START_HOUR", default="08:00"))
-TRADING_END: dtime = _parse_time(_get_env("TRADING_END_HOUR", default="20:00"))
 MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="550055"))
 
 # ─── Auto-Calculated (filled at runtime by auto_params) ─────

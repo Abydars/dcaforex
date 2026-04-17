@@ -27,6 +27,7 @@ def get_signals():
         "session_sl": signal_state.session_stop_loss,
         "session_max_symbols": signal_state.session_max_symbols,
         "session_symbols": signal_state.session_symbols,
+        "session_time_ranges": signal_state.session_time_ranges,
         "master_symbols": config.SYMBOLS
     })
 
@@ -37,12 +38,14 @@ def start_session():
     sl = float(data.get("sl", 0))
     max_symbols = int(data.get("max_symbols", 2))
     session_syms = data.get("symbols", [])
+    time_ranges = data.get("time_ranges", [])
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0:
         signal_state.session_target_profit = tp
         signal_state.session_stop_loss = sl
         signal_state.session_max_symbols = max_symbols
         signal_state.session_symbols = session_syms
+        signal_state.session_time_ranges = time_ranges
         signal_state.session_start_equity = signal_state.current_balance
         signal_state.session_start_balance = signal_state.current_balance
         signal_state.session_active = True

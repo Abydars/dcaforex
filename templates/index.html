@@ -322,9 +322,19 @@
             </div>
             <div style="margin-bottom:1.5rem;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Trading Pairs</label>
-                <div id="sym-checkboxes" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; max-height:150px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
+                <div id="sym-checkboxes" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; max-height:100px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
                     <!-- Checkboxes injected via JS -->
                 </div>
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                    <label style="color:#cbd5e1; font-size:0.9rem; margin:0;">Active Time Ranges (Local Time)</label>
+                    <button onclick="addTimeRangeRow()" style="background:transparent; border:1px solid #3b82f6; color:#3b82f6; border-radius:4px; font-size:0.75rem; padding:0.2rem 0.5rem; cursor:pointer;">+ Add</button>
+                </div>
+                <div id="time-repeater" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <!-- Time inputs injected via JS -->
+                </div>
+                <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:0.25rem;">Leaves empty for 24/7 scanning</small>
             </div>
             <div style="display:flex; gap:1rem;">
                 <button onclick="closeSessionModal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
@@ -545,10 +555,40 @@
             }
         }
 
+        function addTimeRangeRow(start = "08:00", end = "20:00") {
+            const container = document.getElementById('time-repeater');
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.gap = '0.5rem';
+            row.style.alignItems = 'center';
+            
+            row.innerHTML = `
+                <input type="time" class="time-start" style="flex:1; padding:0.4rem; border-radius:4px; border:1px solid #334155; background:#0f172a; color:#fff;" value="${start}">
+                <span style="color:#94a3b8;">to</span>
+                <input type="time" class="time-end" style="flex:1; padding:0.4rem; border-radius:4px; border:1px solid #334155; background:#0f172a; color:#fff;" value="${end}">
+                <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:1.2rem; line-height:1;">&times;</button>
+            `;
+            container.appendChild(row);
+        }
+
+        // Helper to convert Local Time string (e.g. "08:00") to UTC string (e.g. "03:00")
+        function localToUtcStr(timeStr) {
+            if (!timeStr) return "00:00";
+            const today = new Date();
+            const [hh, mm] = timeStr.split(':');
+            today.setHours(parseInt(hh, 10));
+            today.setMinutes(parseInt(mm, 10));
+            today.setSeconds(0);
+            
+            const uH = today.getUTCHours().toString().padStart(2, '0');
+            const uM = today.getUTCMinutes().toString().padStart(2, '0');
+            return `${uH}:${uM}`;
+        }
+
         function openSessionModal() {
+            // Populate Symbol Checkboxes
             const container = document.getElementById('sym-checkboxes');
             container.innerHTML = "";
-            
             globalMasterSymbols.forEach(sym => {
                 const label = document.createElement('label');
                 label.style.display = 'flex';
@@ -587,6 +627,16 @@
             
             const checkboxes = document.querySelectorAll('#sym-checkboxes input[type="checkbox"]:checked');
             const selectedSymbols = Array.from(checkboxes).map(cb => cb.value);
+            
+            const timeRows = document.querySelectorAll('#time-repeater > div');
+            const timeRanges = Array.from(timeRows).map(row => {
+                const s = row.querySelector('.time-start').value;
+                const e = row.querySelector('.time-end').value;
+                return {
+                    "start": localToUtcStr(s),
+                    "end": localToUtcStr(e)
+                };
+            });
 
             if (isNaN(tp) || isNaN(sl) || isNaN(maxSym) || tp <= 0 || sl <= 0 || maxSym <= 0) {
                 alert("Please enter valid positive numbers for TP, SL, and Max Pairs.");
@@ -602,7 +652,7 @@
                 await fetch('/api/session/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols })
+                    body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols, time_ranges: timeRanges })
                 });
                 fetchSignals();
             } catch (e) {

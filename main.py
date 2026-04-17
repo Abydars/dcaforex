@@ -118,20 +118,29 @@ signal.signal(signal.SIGINT, _signal_handler)
 signal.signal(signal.SIGTERM, _signal_handler)
 
 
-# ─── Trading Hours Check ───────────────────────────────────
+def _parse_time(raw: str):
+    from datetime import time as dt_time
+    parts = raw.split(":")
+    return dt_time(hour=int(parts[0]), minute=int(parts[1]))
+
 def _is_within_trading_hours(symbol: str) -> bool:
-    tick = mt5.symbol_info_tick(symbol)
-    if tick and tick.time:
-        server_dt = datetime.fromtimestamp(tick.time, tz=timezone.utc)
-    else:
-        server_dt = datetime.now(tz=timezone.utc)
+    if not signal_state.session_time_ranges:
+        return True  # 24/7 if empty
 
-    now_time = server_dt.time()
+    now_time = datetime.now(tz=timezone.utc).time()
 
-    if config.TRADING_START <= config.TRADING_END:
-        return config.TRADING_START <= now_time <= config.TRADING_END
-    else:
-        return now_time >= config.TRADING_START or now_time <= config.TRADING_END
+    for tr in signal_state.session_time_ranges:
+        s_t = _parse_time(tr["start"])
+        e_t = _parse_time(tr["end"])
+        
+        if s_t <= e_t:
+            if s_t <= now_time <= e_t:
+                return True
+        else:
+            if now_time >= s_t or now_time <= e_t:
+                return True
+                
+    return False
 
 
 # ─── Session Guard ───────────────────────────────────────
