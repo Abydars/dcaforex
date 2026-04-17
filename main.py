@@ -123,24 +123,27 @@ def _parse_time(raw: str):
     parts = raw.split(":")
     return dt_time(hour=int(parts[0]), minute=int(parts[1]))
 
-def _is_within_trading_hours(symbol: str) -> bool:
+def _get_active_time_range_index() -> int:
     if not signal_state.session_time_ranges:
-        return True  # 24/7 if empty
+        return 0  # Dummy index for 24/7 if empty
 
     now_time = datetime.now(tz=timezone.utc).time()
 
-    for tr in signal_state.session_time_ranges:
+    for idx, tr in enumerate(signal_state.session_time_ranges):
         s_t = _parse_time(tr["start"])
         e_t = _parse_time(tr["end"])
         
         if s_t <= e_t:
             if s_t <= now_time <= e_t:
-                return True
+                return idx
         else:
             if now_time >= s_t or now_time <= e_t:
-                return True
+                return idx
                 
-    return False
+    return -1
+
+def _is_within_trading_hours(symbol: str) -> bool:
+    return _get_active_time_range_index() >= 0
 
 
 # ─── Session Guard ───────────────────────────────────────
@@ -431,6 +434,18 @@ def main():
                         "color": "gray",
                         "time": None
                     }
+                
+                # Write history if session was deliberately ended by UI or "Close All"
+                import db
+                act_account = mt5.account_info()
+                final_pnl = (act_account.balance - signal_state.session_start_balance) if act_account else signal_state.session_realized_pnl
+                db.insert_session(
+                    start_time=signal_state.session_start_time_stamp or time.time(),
+                    realized_pnl=final_pnl,
+                    reason="MANUAL_CLOSE",
+                    symbols=signal_state.session_symbols
+                )
+                    
                 signal_state.manual_close_requests.clear()
             else:
                 for req_sym in list(signal_state.manual_close_requests):
@@ -459,9 +474,52 @@ def main():
                 basket_states.clear()
                 
                 logger.critical(f"🏆 SESSION ENDED ({limit_hit}). All trades closed.")
+                
+                # Save into History DB
+                import db
+                db.insert_session(
+                    start_time=signal_state.session_start_time_stamp or time.time(),
+                    realized_pnl=signal_state.session_realized_pnl,
+                    reason=limit_hit,
+                    symbols=signal_state.session_symbols
+                )
+                
                 signal_state.session_active = False
-                signal_state.is_bot_active = False
+                
+                # Handle Auto Restart mechanism
+                if signal_state.session_auto_restart:
+                    signal_state.session_waiting_for_next_range = True
+                    signal_state.session_last_ended_range_idx = _get_active_time_range_index()
+                    logger.warning("⏳ Auto-Restart STANDBY: Waiting for next Schedule Range...")
+                else:
+                    signal_state.is_bot_active = False
+                    
                 signal_state.save_session()
+                
+            # ── 1.b. Auto Restart Guard ──
+            if not signal_state.session_active and signal_state.session_auto_restart and signal_state.session_waiting_for_next_range:
+                curr_idx = _get_active_time_range_index()
+                
+                # Drop tracking memory if time exits all schedules boundary entirely
+                if curr_idx == -1:
+                    signal_state.session_last_ended_range_idx = -1
+                
+                if curr_idx >= 0 and curr_idx != signal_state.session_last_ended_range_idx:
+                    # Time has entered a completely new valid block
+                    acc = mt5.account_info()
+                    if acc:
+                        signal_state.session_active = True
+                        signal_state.is_bot_active = True
+                        signal_state.session_waiting_for_next_range = False
+                        signal_state.session_last_ended_range_idx = -1
+                        signal_state.session_start_time_stamp = time.time()
+                        
+                        signal_state.session_start_equity = acc.equity
+                        signal_state.session_start_balance = acc.balance
+                        signal_state.session_current_pnl = 0.0
+                        signal_state.session_realized_pnl = 0.0
+                        signal_state.save_session()
+                        logger.critical("🚀 AUTO RESTART TRIGGERED! Next time range hit. New Session Active.")
 
             # ── 2. Active Basket Management ──
             symbols_to_remove = []

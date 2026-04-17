@@ -207,11 +207,39 @@
             .desktop-only { display: none !important; }
             .session-stats-grid { flex-direction: column; align-items: flex-start; gap: 0.25rem; font-size: 0.8rem; width: 100%; }
             .edit-btn { width: 100%; padding: 0.35rem !important; margin-top: 0.25rem; }
+            .edit-btn { width: 100%; padding: 0.35rem !important; margin-top: 0.25rem; }
+        }
+
+        /* Tabs Styling */
+        .tabs-header {
+            display: flex;
+            background: #0d1117;
+            border-bottom: 1px solid #1e293b;
+        }
+        .tab-btn {
+            background: transparent;
+            color: #64748b;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 0.85rem;
+            font-family: 'Roboto Mono', monospace;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: 600;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.active {
+            color: #00ff9d;
+            border-bottom: 2px solid #00ff9d;
         }
     </style>
 
 </head>
 <body>
+    <!-- Global Warning Bar -->
+    <div id="global-warning" style="display:none; background: #ff3355; color: #fff; text-align: center; padding: 0.5rem; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase;"></div>
 
     <!-- Tier 1: Global Controls -->
     <div class="header-container" style="border-bottom: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
@@ -269,6 +297,11 @@
                 </div>
                 <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:0.25rem;">Leaves empty for 24/7 scanning</small>
             </div>
+            
+            <div style="margin-bottom:1.5rem; display:flex; align-items:center; gap:0.5rem;">
+                <input type="checkbox" id="inp-auto-restart" style="accent-color: #3b82f6; width:16px; height:16px;">
+                <label for="inp-auto-restart" style="color:#cbd5e1; font-size:0.9rem; cursor:pointer;">Auto-Restart Next Time Range</label>
+            </div>
             <div style="display:flex; gap:1rem;">
                 <button onclick="closeSessionModal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
                 <button id="modal-submit-btn" onclick="submitSession()" style="flex:1; padding:0.5rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Start</button>
@@ -276,7 +309,13 @@
         </div>
     </div>
     
-    <div class="table-container">
+    <!-- Navigation Tabs -->
+    <div class="tabs-header">
+        <button class="tab-btn active" id="btn-tab-trading" onclick="switchTab('trading')">Trading View</button>
+        <button class="tab-btn" id="btn-tab-sessions" onclick="switchTab('sessions')">Session Logs</button>
+    </div>
+    
+    <div id="tab-trading" class="table-container" style="border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0;">
         <table>
             <thead>
                 <tr>
@@ -289,6 +328,24 @@
                 </tr>
             </thead>
             <tbody id="dashboard">
+                <!-- Rows injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="tab-sessions" class="table-container" style="display:none; border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Duration (Mins)</th>
+                    <th>Traded Pairs</th>
+                    <th>Reason</th>
+                    <th>Realized PnL</th>
+                </tr>
+            </thead>
+            <tbody id="session-history">
                 <!-- Rows injected here -->
             </tbody>
         </table>
@@ -345,6 +402,41 @@
                 toggleBtn.className = "btn-toggle off";
             }
 
+            // Check Trading Hours
+            let inTradingHours = true;
+            if (globalSessionTimeRanges && globalSessionTimeRanges.length > 0) {
+                inTradingHours = false;
+                const now = new Date();
+                const currentMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+                for (let r of globalSessionTimeRanges) {
+                    if (!r.start || !r.end) continue;
+                    let [sH, sM] = r.start.split(':').map(Number);
+                    let [eH, eM] = r.end.split(':').map(Number);
+                    let sMins = sH * 60 + sM;
+                    let eMins = eH * 60 + eM;
+                    if (sMins <= eMins) {
+                        if (currentMins >= sMins && currentMins < eMins) inTradingHours = true;
+                    } else {
+                        if (currentMins >= sMins || currentMins < eMins) inTradingHours = true;
+                    }
+                }
+            }
+
+            isSessionActive = apiData.session_active;
+            const warningBar = document.getElementById('global-warning');
+            if (!isBotActive) {
+                warningBar.innerText = "TRADING PAUSED: MASTER BOT SWITCH IS OFF";
+                warningBar.style.display = "block";
+            } else if (!isSessionActive) {
+                warningBar.innerText = "TRADING PAUSED: NO ACTIVE SESSION STARTED";
+                warningBar.style.display = "block";
+            } else if (!inTradingHours) {
+                warningBar.innerText = "TRADING PAUSED: OUT OF SPECIFIED TRADING HOURS";
+                warningBar.style.display = "block";
+            } else {
+                warningBar.style.display = "none";
+            }
+
             const pnlEl = document.getElementById('total-pnl');
             const isProfit = pnl >= 0;
             const glowClass = isProfit ? 'glow-green' : 'glow-red';
@@ -381,6 +473,8 @@
                                               <span>TP: $${apiData.session_tp} / SL: -$${apiData.session_sl}</span>
                                               <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
                                               <span>Max: ${sMax}</span>
+                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
+                                              <span>AUTO: ${apiData.session_auto_restart ? '<span style="color:#00ff9d">ON</span>' : '<span style="color:#64748b">OFF</span>'}</span>
                                               <span class="desktop-only">&nbsp;&nbsp;</span>
                                               <button onclick="openSessionModal()" style="background:transparent; color:#3b82f6; border:1px solid #3b82f6; padding:0 4px; border-radius:2px; font-size:0.7rem; cursor:pointer;" class="edit-btn">EDIT</button>
                                           </div>`;
@@ -509,6 +603,61 @@
             }
         }
 
+        let activeTab = 'trading';
+        function switchTab(tabId) {
+            document.getElementById('btn-tab-trading').classList.remove('active');
+            document.getElementById('btn-tab-sessions').classList.remove('active');
+            document.getElementById('tab-trading').style.display = 'none';
+            document.getElementById('tab-sessions').style.display = 'none';
+
+            document.getElementById('btn-tab-' + tabId).classList.add('active');
+            document.getElementById('tab-' + tabId).style.display = 'block';
+            activeTab = tabId;
+            if (tabId === 'sessions') {
+                fetchHistory();
+            }
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/api/session/history');
+                if (res.status === 401) return;
+                const data = await res.json();
+                
+                const tbody = document.getElementById('session-history');
+                tbody.innerHTML = '';
+                
+                if (!data.history || data.history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">No session history found.</td></tr>';
+                    return;
+                }
+                
+                data.history.forEach(row => {
+                    const tr = document.createElement('tr');
+                    const isProfit = row.realized_pnl >= 0;
+                    const pnlColor = isProfit ? 'var(--green)' : 'var(--red)';
+                    const sign = isProfit ? '+' : '';
+                    
+                    let sTime = new Date(row.start_time).getTime();
+                    let eTime = new Date(row.end_time).getTime();
+                    let durationMins = Math.max(0, Math.round((eTime - sTime) / 60000));
+                    
+                    tr.innerHTML = `
+                        <td class="mono" style="color:#cbd5e1;">${row.start_time}</td>
+                        <td class="mono" style="color:#cbd5e1;">${row.end_time}</td>
+                        <td class="mono" style="color:#71717a;">${durationMins}m</td>
+                        <td class="mono" style="color:#94a3b8; font-size:0.8rem;">${row.traded_symbols}</td>
+                        <td class="mono" style="color:#f59e0b;">${row.reason}</td>
+                        <td class="mono" style="color:${pnlColor}; font-weight:bold;">${sign}$${row.realized_pnl.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+            } catch (err) {
+                console.error("Failed to fetch history", err);
+            }
+        }
+
         function addTimeRangeRow(start = "08:00", end = "20:00") {
             const container = document.getElementById('time-repeater');
             const row = document.createElement('div');
@@ -590,6 +739,7 @@
                 document.getElementById('inp-tp').value = globalSessionTp;
                 document.getElementById('inp-sl').value = globalSessionSl;
                 document.getElementById('inp-max-sym').value = globalSessionMax;
+                // You can fetch the actual auto restart bool from global signals
                 document.getElementById('modal-title').innerText = "Edit Active Session";
                 btnSubmit.innerText = "Save Changes";
                 
@@ -601,6 +751,7 @@
             } else {
                 document.getElementById('modal-title').innerText = "Start New Session";
                 btnSubmit.innerText = "Start";
+                document.getElementById('inp-auto-restart').checked = false;
             }
 
             document.getElementById('session-modal').style.display = 'flex';
@@ -628,6 +779,8 @@
                 };
             });
 
+            const autoRestart = document.getElementById('inp-auto-restart').checked;
+
             if (isNaN(tp) || isNaN(sl) || isNaN(maxSym) || tp <= 0 || sl <= 0 || maxSym <= 0) {
                 alert("Please enter valid positive numbers for TP, SL, and Max Pairs.");
                 return;
@@ -643,7 +796,7 @@
                 await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols, time_ranges: timeRanges })
+                    body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols, time_ranges: timeRanges, auto_restart: autoRestart })
                 });
                 fetchSignals();
             } catch (e) {
@@ -661,9 +814,11 @@
             }
         }
 
-        // Fetch immediately and then every 1 second
+        // Fetch immediately and then every 1 second if on trading tab
         fetchSignals();
-        setInterval(fetchSignals, 1000);
+        setInterval(() => {
+            if (activeTab === 'trading') fetchSignals();
+        }, 1000);
     </script>
 </body>
 </html>

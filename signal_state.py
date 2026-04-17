@@ -35,6 +35,10 @@ session_realized_pnl = 0.0
 session_max_symbols = 2
 session_symbols = []
 session_time_ranges = []
+session_start_time_stamp = 0.0
+session_auto_restart = False
+session_waiting_for_next_range = False
+session_last_ended_range_idx = -1
 
 def save_session():
     try:
@@ -47,13 +51,17 @@ def save_session():
                 "session_stop_loss": session_stop_loss,
                 "session_max_symbols": session_max_symbols,
                 "session_symbols": session_symbols,
-                "session_time_ranges": session_time_ranges
+                "session_time_ranges": session_time_ranges,
+                "session_start_time_stamp": session_start_time_stamp,
+                "session_auto_restart": session_auto_restart,
+                "session_waiting_for_next_range": session_waiting_for_next_range,
+                "session_last_ended_range_idx": session_last_ended_range_idx
             }, f)
     except Exception as e:
         print(f"Error saving session: {e}")
 
 def load_session():
-    global session_active, session_start_equity, session_start_balance, session_target_profit, session_stop_loss, session_max_symbols, session_symbols, session_time_ranges
+    global session_active, session_start_equity, session_start_balance, session_target_profit, session_stop_loss, session_max_symbols, session_symbols, session_time_ranges, session_start_time_stamp, session_auto_restart, session_waiting_for_next_range, session_last_ended_range_idx
     if os.path.exists(SESSION_FILE):
         try:
             with open(SESSION_FILE, "r") as f:
@@ -66,6 +74,10 @@ def load_session():
             session_max_symbols = data.get("session_max_symbols", 2)
             session_symbols = data.get("session_symbols", [])
             session_time_ranges = data.get("session_time_ranges", [])
+            session_start_time_stamp = data.get("session_start_time_stamp", 0.0)
+            session_auto_restart = data.get("session_auto_restart", False)
+            session_waiting_for_next_range = data.get("session_waiting_for_next_range", False)
+            session_last_ended_range_idx = data.get("session_last_ended_range_idx", -1)
         except Exception as e:
             print(f"Error loading session: {e}")
 

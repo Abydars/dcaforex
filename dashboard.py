@@ -3,6 +3,8 @@ import logging
 import signal_state
 import config
 import os
+import db
+import time
 
 # Suppress noisy flask logs
 log = logging.getLogger('werkzeug')
@@ -49,8 +51,15 @@ def get_signals():
         "session_max_symbols": signal_state.session_max_symbols,
         "session_symbols": signal_state.session_symbols,
         "session_time_ranges": signal_state.session_time_ranges,
+        "session_auto_restart": signal_state.session_auto_restart,
         "master_symbols": config.SYMBOLS
     })
+
+@app.route('/api/session/history')
+def get_session_history():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
+    records = db.get_latest_sessions(50)
+    return jsonify({"history": records})
 
 @app.route('/api/session/start', methods=['POST'])
 def start_session():
@@ -61,6 +70,7 @@ def start_session():
     max_symbols = int(data.get("max_symbols", 2))
     session_syms = data.get("symbols", [])
     time_ranges = data.get("time_ranges", [])
+    auto_restart = bool(data.get("auto_restart", False))
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0:
         signal_state.session_target_profit = tp
@@ -68,9 +78,14 @@ def start_session():
         signal_state.session_max_symbols = max_symbols
         signal_state.session_symbols = session_syms
         signal_state.session_time_ranges = time_ranges
+        signal_state.session_auto_restart = auto_restart
+        signal_state.session_start_time_stamp = time.time()
+        
         signal_state.session_start_equity = signal_state.current_balance
         signal_state.session_start_balance = signal_state.current_balance
         signal_state.session_active = True
+        signal_state.session_waiting_for_next_range = False
+        signal_state.session_last_ended_range_idx = -1
         signal_state.is_bot_active = True
         
         # Clear out UI for symbols not in the session!
@@ -92,6 +107,7 @@ def update_session():
     max_symbols = int(data.get("max_symbols", 2))
     session_syms = data.get("symbols", [])
     time_ranges = data.get("time_ranges", [])
+    auto_restart = bool(data.get("auto_restart", False))
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0 and signal_state.session_active:
         signal_state.session_target_profit = tp
@@ -99,6 +115,7 @@ def update_session():
         signal_state.session_max_symbols = max_symbols
         signal_state.session_symbols = session_syms
         signal_state.session_time_ranges = time_ranges
+        signal_state.session_auto_restart = auto_restart
         signal_state.save_session()
         
     return jsonify({"success": True})
