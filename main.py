@@ -486,9 +486,10 @@ def main():
                     }
                 
                 # Write history if session was deliberately ended by UI or "Close All"
+                time.sleep(1.5) # Wait for broker to settle trades
                 import db
                 act_account = mt5.account_info()
-                final_pnl = (act_account.balance - signal_state.session_start_balance) if act_account else signal_state.session_realized_pnl
+                final_pnl = (act_account.balance - signal_state.session_start_balance) if act_account else signal_state.session_current_pnl
                 db.insert_session(
                     start_time=signal_state.session_start_time_stamp or time.time(),
                     realized_pnl=final_pnl,
@@ -525,11 +526,16 @@ def main():
                 
                 logger.critical(f"🏆 SESSION ENDED ({limit_hit}). All trades closed.")
                 
+                time.sleep(1.5) # Wait for broker to settle trades
+                
                 # Save into History DB
                 import db
+                act_account = mt5.account_info()
+                final_pnl = (act_account.balance - signal_state.session_start_balance) if act_account else signal_state.session_current_pnl
+                
                 db.insert_session(
                     start_time=signal_state.session_start_time_stamp or time.time(),
-                    realized_pnl=signal_state.session_realized_pnl,
+                    realized_pnl=final_pnl,
                     reason=limit_hit,
                     symbols=signal_state.session_symbols
                 )
