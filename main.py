@@ -347,7 +347,7 @@ def _is_new_candle(symbol: str) -> bool:
 
 # ─── Main Bot Loop ──────────────────────────────────────────
 def main():
-    global _running
+    global basket_states, _running, _last_log_time, global_sweep_trigger_time
 
     if not initialize_mt5():
         sys.exit(1)
