@@ -43,22 +43,60 @@
             background: var(--table-bg);
             padding: 1rem;
             border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .header-stats {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         .pnl-pill {
             background: transparent;
             border-right: 1px solid var(--border-color);
-            padding: 0 1.25rem;
+            padding: 0 1rem;
             font-size: 1rem;
             font-weight: 600;
             font-family: 'Roboto Mono', monospace;
         }
+        .pnl-pill:last-child {
+            border-right: none;
+        }
 
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            flex-wrap: wrap;
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .header-stats {
+                width: 100%;
+                justify-content: space-between;
+                gap: 0.5rem;
+            }
+            .pnl-pill {
+                border-right: none;
+                padding: 0.5rem 0;
+                width: 100%;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .pnl-pill:last-child {
+                border-bottom: none;
+            }
+            .header-buttons {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .btn-toggle, .btn-close-all {
+                flex: 1;
+                text-align: center;
+            }
         }
 
         .btn-close {
@@ -242,16 +280,18 @@
 </head>
 <body>
 
-    <div class="header-container" style="justify-content: flex-end;">
-        <div class="header-right">
+    <div class="header-container">
+        <div class="header-buttons">
             <button id="btn-toggle" class="btn-toggle" onclick="toggleBot()">BOT: ON</button>
             <button class="btn-close-all" onclick="closeAll()">Close All</button>
-            
             <button id="btn-session" class="btn-toggle" onclick="openSessionModal()" style="background-color: #3b82f6;">Start Session</button>
+        </div>
+        <div class="header-stats">
             <div class="pnl-pill" id="session-stats" style="font-size: 0.95rem; color: var(--text-secondary);">
                 Session Inactive
             </div>
             <div class="pnl-pill" id="total-pnl">Total P/L: $0.00</div>
+            <div class="pnl-pill" id="account-bal" style="color: var(--text-secondary);">Bal: $0.00</div>
         </div>
     </div>
 
@@ -325,6 +365,10 @@
             const isProfit = pnl >= 0;
             pnlEl.innerHTML = `Running PnL: <span style="color: ${isProfit ? 'var(--green)' : 'var(--red)'}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span>`;
             
+            const balEl = document.getElementById('account-bal');
+            const bal = apiData.balance || 0;
+            if (balEl) balEl.innerHTML = `Bal: <span style="color:#fff">$${bal.toFixed(2)}</span>`;
+
             isSessionActive = apiData.session_active;
             const sessionBtn = document.getElementById('btn-session');
             const sessionStats = document.getElementById('session-stats');
