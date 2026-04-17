@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCA Terminal | Access</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0A0C10;
+            color: #cbd5e1;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-box {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        .login-box h2 {
+            margin-top: 0;
+            font-family: 'Roboto Mono', monospace;
+            color: #fff;
+            letter-spacing: -0.05em;
+            margin-bottom: 2rem;
+            font-size: 1.25rem;
+            text-transform: uppercase;
+        }
+
+        .login-box input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #334155;
+            background: #0a0f18;
+            color: #fff;
+            border-radius: 2px;
+            font-family: 'Roboto Mono', monospace;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .login-box input[type="password"]:focus {
+            border-color: #3b82f6;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 0.75rem;
+            background: transparent;
+            color: #00ff9d;
+            border: 1px solid #00ff9d;
+            border-radius: 2px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .login-box button:hover {
+            background: rgba(0, 255, 157, 0.1);
+        }
+
+        .error-msg {
+            color: #ff3355;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>System Access</h2>
+        <form action="/login" method="POST">
+            {% if error %}
+                <span class="error-msg">{{ error }}</span>
+            {% endif %}
+            <input type="password" name="password" placeholder="PASSWORD" required autofocus>
+            <button type="submit">Authenticate</button>
+        </form>
+    </div>
+</body>
+</html>

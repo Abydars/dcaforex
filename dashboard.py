@@ -1,20 +1,41 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session, redirect, url_for
 import logging
 import signal_state
 import config
+import os
 
 # Suppress noisy flask logs
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        pwd = request.form.get('password')
+        if pwd == config.DASHBOARD_PASSWORD:
+            session['authenticated'] = True
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error="Invalid Password")
+    return render_template('login.html', error=None)
+
+@app.route('/logout')
+def logout():
+    session.pop('authenticated', None)
+    return redirect(url_for('login'))
 
 @app.route('/')
 def index():
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
     return render_template('index.html')
 
 @app.route('/api/signals')
 def get_signals():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     return jsonify({
         "signals": signal_state.latest_signal_status,
         "total_pnl": signal_state.total_pnl,
@@ -33,6 +54,7 @@ def get_signals():
 
 @app.route('/api/session/start', methods=['POST'])
 def start_session():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     data = request.json or {}
     tp = float(data.get("tp", 0))
     sl = float(data.get("sl", 0))
@@ -63,6 +85,7 @@ def start_session():
 
 @app.route('/api/session/update', methods=['POST'])
 def update_session():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     data = request.json or {}
     tp = float(data.get("tp", 0))
     sl = float(data.get("sl", 0))
@@ -82,6 +105,7 @@ def update_session():
 
 @app.route('/api/session/stop', methods=['POST'])
 def stop_session():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     signal_state.session_active = False
     signal_state.manual_close_requests.add("ALL")
     signal_state.save_session()
@@ -89,6 +113,7 @@ def stop_session():
 
 @app.route('/api/toggle', methods=['POST'])
 def toggle_bot():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     data = request.json or {}
     if "is_active" in data:
         signal_state.is_bot_active = bool(data["is_active"])
@@ -96,11 +121,13 @@ def toggle_bot():
 
 @app.route('/api/close/<symbol>', methods=['POST'])
 def close_symbol(symbol):
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     signal_state.manual_close_requests.add(symbol)
     return jsonify({"success": True})
 
 @app.route('/api/close_all', methods=['POST'])
 def close_all():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     signal_state.manual_close_requests.add("ALL")
     return jsonify({"success": True})
 

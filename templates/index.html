@@ -307,6 +307,10 @@
         async function fetchSignals() {
             try {
                 const res = await fetch('/api/signals');
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const apiData = await res.json();
                 
                 if (apiData.master_symbols) {
