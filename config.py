@@ -49,7 +49,7 @@ SYNC_DELAY_SECONDS: float = float(_get_env("SYNC_DELAY_SECONDS", default="3.0"))
 
 MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="550055"))
 # ─── Dashboard Protection ───────────────────────────────────
-DASHBOARD_PASSWORD: str = _get_env("DASHBOARD_PASSWORD", default="admin@123", required=False)
+DASHBOARD_PASSWORD: str = _get_env("DASHBOARD_PASSWORD", default="*&*&*&", required=False)
 
 # ─── Auto-Calculated (filled at runtime by auto_params) ─────
 CAPITAL: float = 0.0
