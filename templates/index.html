@@ -234,6 +234,29 @@
             color: #00ff9d;
             border-bottom: 2px solid #00ff9d;
         }
+        
+        /* Modal Responsiveness */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        .modal-inner {
+            background: #1e293b; padding: 2rem; border-radius: 12px; width: 500px; 
+            max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        .bulk-times-row {
+            display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; 
+            background: #0d1117; padding: 0.5rem; border-radius: 6px; border: 1px solid #334155;
+        }
+        
+        @media (max-width: 480px) {
+            .modal-inner { padding: 1rem; border-radius: 8px; }
+            .bulk-times-row { flex-wrap: wrap; }
+            .bulk-times-row input { flex: 1; min-width: 40%; }
+            .bulk-times-row button { flex: 1; min-width: 40%; padding: 0.5rem; }
+        }
     </style>
 
 </head>
@@ -266,35 +289,35 @@
     </div>
 
     <!-- Session Modal -->
-    <div id="session-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
-        <div style="background:#1e293b; padding:2rem; border-radius:12px; width:500px; max-width:90vw; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+    <div id="session-modal" class="modal-overlay">
+        <div class="modal-inner">
             <h3 id="modal-title" style="margin-top:0; color:#fff;">Start New Session</h3>
             <div style="margin-bottom:1rem;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Target Profit ($)</label>
-                <input type="number" id="inp-tp" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="100.00">
+                <input type="number" id="inp-tp" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="100.00">
             </div>
             <div style="margin-bottom:1rem;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Stop Loss ($)</label>
-                <input type="number" id="inp-sl" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="50.00">
+                <input type="number" id="inp-sl" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="50.00">
             </div>
             <div style="margin-bottom:1.5rem;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Max Open Pairs</label>
-                <input type="number" id="inp-max-sym" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="2" min="1" max="10">
+                <input type="number" id="inp-max-sym" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="2" min="1" max="10">
             </div>
             <div style="margin-bottom:1.5rem;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Trading Pairs</label>
-                <div id="sym-checkboxes" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; max-height:100px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
+                <div id="sym-checkboxes" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:0.5rem; max-height:100px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
                     <!-- Checkboxes injected via JS -->
                 </div>
             </div>
-            <div style="margin-bottom:1.5rem; max-height:280px; overflow-y:auto; padding-right:0.5rem;">
+            <div style="margin-bottom:1.5rem; max-height:280px; overflow-y:auto;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Weekly Schedule (Local Time)</label>
-                <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem; align-items:center; background:#0d1117; padding:0.5rem; border-radius:6px; border:1px solid #334155;">
-                    <input type="time" id="bulk-start" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="08:00">
-                    <span style="color:#64748b; font-size:0.8rem;">to</span>
-                    <input type="time" id="bulk-end" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="20:00">
-                    <button onclick="applyBulkTimes()" style="background:#3b82f6; color:#fff; border:none; border-radius:4px; font-size:0.7rem; padding:0.3rem 0.5rem; cursor:pointer; min-width:max-content;">Apply to Enabled</button>
-                    <button onclick="clearBulkTimes()" style="background:#dc2626; color:#fff; border:none; border-radius:4px; font-size:0.7rem; padding:0.3rem 0.4rem; cursor:pointer;">Clear All</button>
+                <div class="bulk-times-row">
+                    <input type="time" id="bulk-start" style="padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="08:00">
+                    <span style="color:#64748b; font-size:0.8rem; text-align:center;">to</span>
+                    <input type="time" id="bulk-end" style="padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="20:00">
+                    <button onclick="applyBulkTimes()" style="background:#3b82f6; color:#fff; border:none; border-radius:4px; font-size:0.7rem; padding:0.3rem 0.5rem; cursor:pointer;">Apply Config</button>
+                    <button onclick="clearBulkTimes()" style="background:#dc2626; color:#fff; border:none; border-radius:4px; font-size:0.7rem; padding:0.3rem 0.4rem; cursor:pointer;">Clear</button>
                 </div>
                 <div id="schedule-container" style="display:flex; flex-direction:column; gap:0.5rem; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
                     <!-- Javascript will inject 7 rows here -->
