@@ -679,14 +679,29 @@
                     const pnlColor = isProfit ? 'var(--green)' : 'var(--red)';
                     const sign = isProfit ? '+' : '';
                     
-                    let sTime = new Date(row.start_time).getTime();
-                    let eTime = new Date(row.end_time).getTime();
-                    let durationMins = Math.max(0, Math.round((eTime - sTime) / 60000));
+                    let startStr = row.start_time;
+                    let endStr = row.end_time;
+                    // Backward compatibility for old DB entries
+                    if (startStr && !startStr.includes('Z')) {
+                        startStr = startStr.replace(' ', 'T') + 'Z';
+                        endStr = endStr.replace(' ', 'T') + 'Z';
+                    }
+                    
+                    let sTime = new Date(startStr);
+                    let eTime = new Date(endStr);
+                    
+                    let diffMs = Math.max(0, eTime.getTime() - sTime.getTime());
+                    let durationMins = Math.floor(diffMs / 60000);
+                    let durationSecs = Math.floor((diffMs % 60000) / 1000);
+                    
+                    let durText = durationMins > 0 ? `${durationMins}m ${durationSecs}s` : `${durationSecs}s`;
+                    
+                    const opt = { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true };
                     
                     tr.innerHTML = `
-                        <td class="mono" style="color:#cbd5e1;">${row.start_time}</td>
-                        <td class="mono" style="color:#cbd5e1;">${row.end_time}</td>
-                        <td class="mono" style="color:#71717a;">${durationMins}m</td>
+                        <td class="mono" style="color:#cbd5e1;">${sTime.toLocaleString('en-US', opt)}</td>
+                        <td class="mono" style="color:#cbd5e1;">${eTime.toLocaleString('en-US', opt)}</td>
+                        <td class="mono" style="color:#71717a;">${durText}</td>
                         <td class="mono" style="color:#94a3b8; font-size:0.8rem;">${row.traded_symbols}</td>
                         <td class="mono" style="color:#f59e0b;">${row.reason}</td>
                         <td class="mono" style="color:${pnlColor}; font-weight:bold;">${sign}$${row.realized_pnl.toFixed(2)}</td>

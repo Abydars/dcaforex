@@ -1,7 +1,7 @@
 import sqlite3
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger("Database")
 
@@ -33,9 +33,9 @@ def initialize_database():
 def insert_session(start_time: float, realized_pnl: float, reason: str, symbols: list):
     """Insert a new completed session record."""
     try:
-        # Format timestamps nicely
-        start_str = datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')
-        end_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Format timestamps nicely as strict ISO UTC
+        start_str = datetime.fromtimestamp(start_time, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        end_str = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
         
         symbols_str = ",".join(symbols) if symbols else "NONE"
         pnl = round(realized_pnl, 2)
