@@ -845,15 +845,30 @@
                 const validGroupSymbols = groupSymbolsRaw.filter(sym => globalMasterSymbols.includes(sym));
                 
                 if (validGroupSymbols.length > 0) {
+                    const headerRow = document.createElement('div');
+                    headerRow.style.display = 'flex';
+                    headerRow.style.justifyContent = 'space-between';
+                    headerRow.style.alignItems = 'flex-end';
+                    headerRow.style.marginTop = '0.5rem';
+                    headerRow.style.marginBottom = '0.25rem';
+
                     const groupTitle = document.createElement('div');
                     groupTitle.style.color = '#3b82f6';
                     groupTitle.style.fontSize = '0.75rem';
                     groupTitle.style.fontWeight = 'bold';
-                    groupTitle.style.marginTop = '0.5rem';
-                    groupTitle.style.marginBottom = '0.25rem';
                     groupTitle.style.textTransform = 'uppercase';
                     groupTitle.innerText = groupName.replace("_", " ");
-                    container.appendChild(groupTitle);
+                    
+                    const toggleBtn = document.createElement('span');
+                    toggleBtn.style.color = '#64748b';
+                    toggleBtn.style.fontSize = '0.7rem';
+                    toggleBtn.style.cursor = 'pointer';
+                    toggleBtn.style.textDecoration = 'underline';
+                    toggleBtn.innerText = 'Toggle All';
+                    
+                    headerRow.appendChild(groupTitle);
+                    headerRow.appendChild(toggleBtn);
+                    container.appendChild(headerRow);
                     
                     const groupGrid = document.createElement('div');
                     groupGrid.style.display = 'grid';
@@ -886,22 +901,46 @@
                         label.appendChild(document.createTextNode(sym));
                         groupGrid.appendChild(label);
                     });
-                    
                     container.appendChild(groupGrid);
+                    
+                    toggleBtn.onclick = () => {
+                        const inputs = groupGrid.querySelectorAll('input[type="checkbox"]');
+                        if (inputs.length === 0) return;
+                        
+                        let allChecked = true;
+                        inputs.forEach(i => { if (!i.checked) allChecked = false; });
+                        
+                        inputs.forEach(i => i.checked = !allChecked);
+                    };
                 }
             }
             
             // Uncategorized Symbols (fallback)
             const uncategorized = globalMasterSymbols.filter(sym => !renderedSymbols.has(sym));
             if (uncategorized.length > 0) {
+                const headerRow = document.createElement('div');
+                headerRow.style.display = 'flex';
+                headerRow.style.justifyContent = 'space-between';
+                headerRow.style.alignItems = 'flex-end';
+                headerRow.style.marginTop = '0.5rem';
+                headerRow.style.marginBottom = '0.25rem';
+
                 const groupTitle = document.createElement('div');
                 groupTitle.style.color = '#64748b';
                 groupTitle.style.fontSize = '0.75rem';
                 groupTitle.style.fontWeight = 'bold';
-                groupTitle.style.marginTop = '0.5rem';
-                groupTitle.style.marginBottom = '0.25rem';
                 groupTitle.innerText = "OTHER";
-                container.appendChild(groupTitle);
+                
+                const toggleBtn = document.createElement('span');
+                toggleBtn.style.color = '#64748b';
+                toggleBtn.style.fontSize = '0.7rem';
+                toggleBtn.style.cursor = 'pointer';
+                toggleBtn.style.textDecoration = 'underline';
+                toggleBtn.innerText = 'Toggle All';
+                
+                headerRow.appendChild(groupTitle);
+                headerRow.appendChild(toggleBtn);
+                container.appendChild(headerRow);
                 
                 const groupGrid = document.createElement('div');
                 groupGrid.style.display = 'grid';
@@ -934,6 +973,14 @@
                 });
                 
                 container.appendChild(groupGrid);
+                
+                toggleBtn.onclick = () => {
+                    const inputs = groupGrid.querySelectorAll('input[type="checkbox"]');
+                    if (inputs.length === 0) return;
+                    let allChecked = true;
+                    inputs.forEach(i => { if (!i.checked) allChecked = false; });
+                    inputs.forEach(i => i.checked = !allChecked);
+                };
             }
 
             // Build Weekly Schedule Table
