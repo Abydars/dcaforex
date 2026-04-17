@@ -519,10 +519,6 @@ def main():
                 
                 # Execute Leaderboard Sweep after dynamic grace period!
                 if global_sweep_trigger_time > 0 and (time.time() - global_sweep_trigger_time) >= config.SYNC_DELAY_SECONDS:
-                    surge_to_beat = 0.0
-                    if active_baskets_count > 0:
-                        surge_to_beat = max([st.initial_surge for st in basket_states.values() if hasattr(st, 'initial_surge')] + [0.0])
-
                     valid_signals = []
                     
                     # 1. Gather all signals concurrently
@@ -537,10 +533,6 @@ def main():
                         if signal_data is not None:
                             surge = signal_data.get("surge_ratio", 1.0)
                             
-                            if active_baskets_count > 0 and surge <= surge_to_beat:
-                                logger.debug(f"[{sym}] Parallel opportunity dropped: Surge ({surge:.2f}x) doesn't beat active trades ({surge_to_beat:.2f}x).")
-                                continue
-                            
                             valid_signals.append({
                                 "symbol": sym,
                                 "direction": signal_data.get("direction"),
@@ -552,10 +544,17 @@ def main():
                     
                     # 3. Execute Top Trades
                     for candidate in valid_signals:
+                        sym = candidate["symbol"]
+                        
                         if active_baskets_count >= config.MAX_OPEN_SYMBOLS:
-                            break
+                            signal_state.latest_signal_status[sym] = {
+                                "status": "Skipped (Portfolio Limit Full)",
+                                "color": "red",
+                                "time": None
+                            }
+                            continue
                             
-                        best_symbol = candidate["symbol"]
+                        best_symbol = sym
                         best_direction = candidate["direction"]
                         surge = candidate["surge"]
 
@@ -585,6 +584,17 @@ def main():
                                 )
                             else:
                                 logger.error(f"[{best_symbol}] Leaderboard Entry FAILED.")
+                                signal_state.latest_signal_status[best_symbol] = {
+                                    "status": f"Blocked: MT5 Entry Order Failed",
+                                    "color": "red",
+                                    "time": None
+                                }
+                        else:
+                            signal_state.latest_signal_status[best_symbol] = {
+                                "status": f"Blocked: Spread/Risk Limit Exceeded",
+                                "color": "red",
+                                "time": None
+                            }
                     
                     # Reset timer for next candle period
                     global_sweep_trigger_time = 0.0
