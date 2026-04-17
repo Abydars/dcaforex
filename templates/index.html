@@ -8,48 +8,47 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #000000;
-            --table-bg: #0a0a0a;
-            --border-color: #1e1e1e;
-            --hover-bg: #111111;
-            --text-primary: #e5e5e5;
-            --text-secondary: #737373;
-            --green: #00ff00;
-            --red: #ff0000;
-            --orange: #ffb800;
-            --gray: #3f3f46;
+            --bg-color: #0A0C10; /* Brutalist deep slate/black */
+            --table-bg: #0A0C10; 
+            --border-color: #1e293b;
+            --hover-bg: #111827;
+            --text-primary: #cbd5e1;
+            --text-secondary: #64748b;
+            --green: #00ff9d; /* Institutional neon green */
+            --red: #ff3355;   /* Crimson red */
+            --orange: #fbbf24;
+            --gray: #475569;
             --blue: #3b82f6;
         }
 
         body {
             margin: 0;
-            padding: 1rem;
+            padding: 0.5rem;
             background: var(--bg-color);
             color: var(--text-primary);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
         }
 
-
-
         .header-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            max-width: 1200px;
-            margin: 0 auto 1rem auto;
+            max-width: 100%;
+            margin: 0 auto;
             flex-wrap: wrap;
-            gap: 1rem;
-            background: var(--table-bg);
-            padding: 1rem;
+            gap: 0;
+            background: #0f172a;
+            padding: 0.25rem 0.5rem;
             border: 1px solid var(--border-color);
-            border-radius: 4px;
+            border-radius: 2px;
         }
 
         .header-buttons {
             display: flex;
-            gap: 0.75rem;
+            gap: 0.25rem;
             flex-wrap: wrap;
+            align-items: center;
         }
 
         .header-stats {
@@ -61,108 +60,61 @@
         .pnl-pill {
             background: transparent;
             border-right: 1px solid var(--border-color);
-            padding: 0 1rem;
-            font-size: 1rem;
-            font-weight: 600;
+            padding: 0 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 500;
             font-family: 'Roboto Mono', monospace;
+            display: flex;
+            align-items: center;
+            height: 100%;
         }
         .pnl-pill:last-child {
             border-right: none;
         }
 
-        @media (max-width: 768px) {
-            .header-container {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .header-stats {
-                width: 100%;
-                justify-content: space-between;
-                gap: 0.5rem;
-            }
-            .pnl-pill {
-                border-right: none;
-                padding: 0.5rem 0;
-                width: 100%;
-                border-bottom: 1px solid var(--border-color);
-            }
-            .pnl-pill:last-child {
-                border-bottom: none;
-            }
-            .header-buttons {
-                width: 100%;
-                justify-content: space-between;
-            }
-            .btn-toggle, .btn-close-all {
-                flex: 1;
-                text-align: center;
-            }
-        }
-
-        .btn-close {
+        .btn-toggle, .btn-close-all, .btn-close {
             background-color: transparent;
-            color: var(--red);
-            border: 1px solid var(--red);
-            padding: 0.25rem 0.6rem;
+            padding: 0.15rem 0.6rem;
             border-radius: 2px;
             font-size: 0.75rem;
-            font-weight: 600;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.1s;
             text-transform: uppercase;
-        }
-        .btn-close:hover {
-            background-color: var(--red);
-            color: #000;
-        }
-
-        .btn-close-all {
-            background-color: transparent;
-            color: var(--red);
-            border: 1px solid var(--red);
-            padding: 0.4rem 1rem;
-            border-radius: 2px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.1s;
-            text-transform: uppercase;
-        }
-        .btn-close-all:hover {
-            background-color: var(--red);
-            color: #000;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid;
+            line-height: normal;
         }
 
         .btn-toggle {
-            background-color: transparent;
             color: var(--green);
-            border: 1px solid var(--green);
-            padding: 0.4rem 1rem;
-            border-radius: 2px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.1s;
-            text-transform: uppercase;
+            border-color: var(--green);
         }
         .btn-toggle.off {
             color: var(--gray);
-            border: 1px solid var(--gray);
+            border-color: var(--gray);
         }
-        .btn-toggle:hover {
-            background-color: var(--green);
-            color: #000;
+        .btn-toggle:hover:not(.off) {
+            background-color: rgba(0, 255, 157, 0.1);
         }
         .btn-toggle.off:hover {
-            background-color: var(--gray);
-            color: #fff;
+            background-color: rgba(71, 85, 105, 0.2);
+        }
+
+        .btn-close-all, .btn-close {
+            color: var(--red);
+            border-color: var(--red);
+        }
+        .btn-close-all:hover, .btn-close:hover {
+            background-color: rgba(255, 51, 85, 0.1);
         }
 
         .table-container {
-            max-width: 1200px;
+            max-width: 100%;
             margin: 0 auto;
             background: var(--table-bg);
             border: 1px solid var(--border-color);
+            border-top: none;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
@@ -172,111 +124,84 @@
             border-collapse: collapse;
             text-align: left;
             min-width: 800px; 
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
 
         th, td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border-color);
+            padding: 0.35rem 0.5rem;
+            border-bottom: 1px solid #141b2d;
+            border-right: 1px solid #141b2d;
+        }
+        th:last-child, td:last-child {
+            border-right: none;
         }
 
         th {
-            background: #000000;
-            font-size: 0.75rem;
+            background: #0d1117;
+            font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: var(--text-secondary);
-            font-weight: 600;
+            font-weight: 500;
             white-space: nowrap;
-            border-bottom: 2px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
         }
 
-        tr {
-            transition: all 0.2s ease;
-        }
-
-        tr:hover {
-            background: var(--hover-bg);
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
+        tr { transition: background 0.1s; }
+        tr:hover { background: var(--hover-bg); }
 
         .mono {
             font-family: 'Roboto Mono', monospace;
-            letter-spacing: -0.05em;
+            letter-spacing: -0.03em;
         }
 
-        /* Symbol Name styling */
+        /* Symbol Name */
         .symbol-col {
-            font-weight: 700;
-            font-size: 0.95rem;
+            font-weight: 600;
+            font-size: 0.9rem;
             white-space: nowrap;
+            color: #fff;
         }
 
-        /* Color Dot next to symbol */
+        /* Color Dot */
         .dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: 0.75rem;
+            margin-right: 0.5rem;
+            vertical-align: middle;
         }
-        tr[data-color="green"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
-        tr[data-color="red"] .dot { background: var(--red); }
+        tr[data-color="green"] .dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
+        tr[data-color="red"] .dot { background: var(--red); box-shadow: 0 0 5px var(--red); }
         tr[data-color="orange"] .dot { background: var(--orange); }
         tr[data-color="gray"] .dot { background: var(--gray); }
 
-        /* Badge Styling */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            white-space: nowrap;
+        /* Status & Time */
+        .status-col {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.2;
         }
 
-        tr[data-color="green"] .badge { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-        tr[data-color="red"] .badge { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-        tr[data-color="orange"] .badge { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-        tr[data-color="gray"] .badge { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
-
         .time-col {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
+            font-size: 0.75rem;
+            color: #475569;
+            text-align: right;
             font-variant-numeric: tabular-nums;
         }
 
-        .status-col {
-            font-size: 0.95rem;
-            color: #e2e8f0;
-            line-height: 1.4;
-        }
-
-        /* Smooth pulse animation for active scanning */
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
-        .scanning { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        /* Glowing text properties for amounts */
+        .glow-red { color: var(--red); text-shadow: 0 0 8px rgba(255, 51, 85, 0.4); }
+        .glow-green { color: var(--green); text-shadow: 0 0 8px rgba(0, 255, 157, 0.4); }
 
         @media (max-width: 768px) {
-            th, td { padding: 0.75rem 1rem; }
-            .status-col { 
-                font-size: 0.85rem; 
-                min-width: 250px; 
-                white-space: normal;
-            }
-            .header-container { flex-direction: column; align-items: stretch; text-align: center; }
-            .header-right { justify-content: center; width: 100%; }
+            .header-container { flex-direction: column; align-items: stretch; }
+            .header-stats { width: 100%; justify-content: flex-start; padding: 0.5rem 0; border-top: 1px solid var(--border-color); margin-top: 0.5rem; }
+            .pnl-pill { border: none !important; margin: 0; padding: 0 0.5rem; flex: unset !important; text-align: left !important; }
         }
     </style>
+
 </head>
 <body>
 
@@ -307,7 +232,7 @@
     <!-- Session Modal -->
     <div id="session-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
         <div style="background:#1e293b; padding:2rem; border-radius:12px; width:300px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-            <h3 style="margin-top:0; color:#fff;">Start New Session</h3>
+            <h3 id="modal-title" style="margin-top:0; color:#fff;">Start New Session</h3>
             <div style="margin-bottom:1rem;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Target Profit ($)</label>
                 <input type="number" id="inp-tp" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="100.00">
@@ -338,7 +263,7 @@
             </div>
             <div style="display:flex; gap:1rem;">
                 <button onclick="closeSessionModal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
-                <button onclick="submitSession()" style="flex:1; padding:0.5rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Start</button>
+                <button id="modal-submit-btn" onclick="submitSession()" style="flex:1; padding:0.5rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Start</button>
             </div>
         </div>
     </div>
@@ -366,6 +291,10 @@
         let isSessionActive = false;
         let globalMasterSymbols = [];
         let globalSessionSymbols = [];
+        let globalSessionTp = 100;
+        let globalSessionSl = 50;
+        let globalSessionMax = 2;
+        let globalSessionTimeRanges = [];
 
         async function fetchSignals() {
             try {
@@ -377,6 +306,10 @@
                 }
                 if (apiData.session_symbols) {
                     globalSessionSymbols = apiData.session_symbols;
+                    globalSessionTp = apiData.session_tp || 100;
+                    globalSessionSl = apiData.session_sl || 50;
+                    globalSessionMax = apiData.session_max_symbols || 2;
+                    globalSessionTimeRanges = apiData.session_time_ranges || [];
                 }
 
                 renderDashboard(apiData);
@@ -402,11 +335,12 @@
 
             const pnlEl = document.getElementById('total-pnl');
             const isProfit = pnl >= 0;
-            pnlEl.innerHTML = `Running PnL: <span style="color: ${isProfit ? 'var(--green)' : 'var(--red)'}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span>`;
+            const glowClass = isProfit ? 'glow-green' : 'glow-red';
+            pnlEl.innerHTML = `<span style="color:var(--text-secondary)">P/L:</span> <span class="${glowClass}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span>`;
             
             const balEl = document.getElementById('account-bal');
             const bal = apiData.balance || 0;
-            if (balEl) balEl.innerHTML = `Bal: <span style="color:#fff">$${bal.toFixed(2)}</span>`;
+            if (balEl) balEl.innerHTML = `<span style="color:var(--text-secondary)">BAL:</span> <span style="color:#fff">$${bal.toFixed(2)}</span>`;
 
             isSessionActive = apiData.session_active;
             const sessionBtn = document.getElementById('btn-session');
@@ -422,14 +356,15 @@
                 const sMax = apiData.session_max_symbols || 2;
                 
                 const tSign = sTotalPnl >= 0 ? '+' : '';
-                const tColor = sTotalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+                const tGlow = sTotalPnl >= 0 ? 'glow-green' : 'glow-red';
                 
                 const rSign = sRealizedPnl >= 0 ? '+' : '';
-                const rColor = sRealizedPnl >= 0 ? 'var(--green)' : 'var(--red)';
+                const rGlow = sRealizedPnl >= 0 ? 'glow-green' : 'glow-red';
                 
-                sessionStats.innerHTML = `Realized: <span style="color:${rColor}; font-weight:600;">${rSign}$${sRealizedPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
-                                          Running: <span style="color:${tColor}; font-weight:600;">${tSign}$${sTotalPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
-                                          TP: $${apiData.session_tp} / SL: -$${apiData.session_sl} &nbsp;|&nbsp; Max: ${sMax}`;
+                sessionStats.innerHTML = `Realized: <span class="${rGlow}">${rSign}$${sRealizedPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
+                                          Eqt PnL: <span class="${tGlow}">${tSign}$${sTotalPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
+                                          TP: $${apiData.session_tp} / SL: -$${apiData.session_sl} &nbsp;|&nbsp; Max: ${sMax}
+                                          &nbsp;&nbsp;<button onclick="openSessionModal()" style="background:transparent; color:#3b82f6; border:1px solid #3b82f6; padding:0 4px; border-radius:2px; font-size:0.7rem; cursor:pointer;">EDIT</button>`;
             } else {
                 sessionBtn.innerText = "Start Session";
                 sessionBtn.style.backgroundColor = "#3b82f6"; // blue
@@ -585,6 +520,20 @@
             return `${uH}:${uM}`;
         }
 
+        // Helper to convert UTC string to Local Time string
+        function utcToLocalStr(timeStr) {
+            if (!timeStr) return "00:00";
+            const today = new Date();
+            const [hh, mm] = timeStr.split(':');
+            today.setUTCHours(parseInt(hh, 10));
+            today.setUTCMinutes(parseInt(mm, 10));
+            today.setSeconds(0);
+
+            const lH = today.getHours().toString().padStart(2, '0');
+            const lM = today.getMinutes().toString().padStart(2, '0');
+            return `${lH}:${lM}`;
+        }
+
         function openSessionModal() {
             // Populate Symbol Checkboxes
             const container = document.getElementById('sym-checkboxes');
@@ -612,6 +561,28 @@
                 label.appendChild(document.createTextNode(sym));
                 container.appendChild(label);
             });
+
+            // Prefill inputs if active
+            const tContainer = document.getElementById('time-repeater');
+            tContainer.innerHTML = "";
+            let btnSubmit = document.getElementById('modal-submit-btn');
+
+            if (isSessionActive) {
+                document.getElementById('inp-tp').value = globalSessionTp;
+                document.getElementById('inp-sl').value = globalSessionSl;
+                document.getElementById('inp-max-sym').value = globalSessionMax;
+                document.getElementById('modal-title').innerText = "Edit Active Session";
+                btnSubmit.innerText = "Save Changes";
+                
+                globalSessionTimeRanges.forEach(tr => {
+                    const localStart = utcToLocalStr(tr.start);
+                    const localEnd = utcToLocalStr(tr.end);
+                    addTimeRangeRow(localStart, localEnd);
+                });
+            } else {
+                document.getElementById('modal-title').innerText = "Start New Session";
+                btnSubmit.innerText = "Start";
+            }
 
             document.getElementById('session-modal').style.display = 'flex';
         }
@@ -649,7 +620,8 @@
 
             closeSessionModal();
             try {
-                await fetch('/api/session/start', {
+                const endpoint = isSessionActive ? '/api/session/update' : '/api/session/start';
+                await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols, time_ranges: timeRanges })

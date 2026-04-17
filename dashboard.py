@@ -61,6 +61,25 @@ def start_session():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid Config or No Symbols Selected"})
 
+@app.route('/api/session/update', methods=['POST'])
+def update_session():
+    data = request.json or {}
+    tp = float(data.get("tp", 0))
+    sl = float(data.get("sl", 0))
+    max_symbols = int(data.get("max_symbols", 2))
+    session_syms = data.get("symbols", [])
+    time_ranges = data.get("time_ranges", [])
+    
+    if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0 and signal_state.session_active:
+        signal_state.session_target_profit = tp
+        signal_state.session_stop_loss = sl
+        signal_state.session_max_symbols = max_symbols
+        signal_state.session_symbols = session_syms
+        signal_state.session_time_ranges = time_ranges
+        signal_state.save_session()
+        
+    return jsonify({"success": True})
+
 @app.route('/api/session/stop', methods=['POST'])
 def stop_session():
     signal_state.session_active = False
