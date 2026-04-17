@@ -77,6 +77,7 @@ def start_session():
     smart_flush = bool(data.get("smart_flush", False))
     flush_mins = int(data.get("flush_minutes", 5))
     flush_tol = int(data.get("flush_tolerance_pct", 10))
+    bot_active = data.get("bot_active")
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0:
         signal_state.session_target_profit = tp
@@ -95,7 +96,7 @@ def start_session():
         signal_state.session_active = True
         signal_state.session_waiting_for_next_range = False
         signal_state.session_last_ended_range_id = ""
-        signal_state.is_bot_active = True
+        signal_state.is_bot_active = bool(bot_active) if bot_active is not None else True
         
         # Clear out UI for symbols not in the session!
         signal_state.latest_signal_status = {
@@ -131,6 +132,8 @@ def update_session():
         signal_state.session_smart_flush = smart_flush
         signal_state.session_flush_minutes = flush_mins
         signal_state.session_flush_tolerance_pct = flush_tol
+        if bot_active is not None:
+            signal_state.is_bot_active = bool(bot_active)
         signal_state.save_session()
         
     return jsonify({"success": True})

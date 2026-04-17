@@ -921,6 +921,12 @@
                 alert("Please enable at least one active weekday!");
                 return;
             }
+            
+            let confirmMsg = "Session config saved!\n\nDo you want to turn ON the Master Bot Switch right now?\n\n(Click Cancel/No to remain Paused)";
+            if (isSessionActive) {
+                confirmMsg = "Session Config updated!\n\nDo you want to ensure the Master Bot Switch is ON? (Click Cancel to pause the bot)";
+            }
+            const confirmActivate = confirm(confirmMsg);
 
             closeSessionModal();
             try {
@@ -937,7 +943,8 @@
                         auto_restart: autoRestart,
                         smart_flush: smartFlush,
                         flush_minutes: flushMins,
-                        flush_tolerance_pct: flushTol
+                        flush_tolerance_pct: flushTol,
+                        bot_active: confirmActivate
                     })
                 });
                 fetchSignals();
