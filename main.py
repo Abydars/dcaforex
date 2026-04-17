@@ -290,36 +290,63 @@ def _check_order_triggers(symbol: str, state: BasketState):
 
     # 1. DCA (Against us)
     if dca_delta >= step_distance:
-        # ─── Smart DCA Reversal Filter ───
-        # Don't catch a falling knife: ensure the last closed candle shows a sign of pause/reversal
-        tf = get_mt5_timeframe()
-        rates = mt5.copy_rates_from_pos(symbol, tf, 0, 2)
-        if rates is not None and len(rates) >= 2:
-            last_closed = rates[-2]
-            
-            if state.direction == "BUY" and last_closed['close'] <= last_closed['open']:
-                # The market is still dumping. Delay DCA until a Green candle closes.
-                signal_state.dca_rejection_statuses[symbol] = "Awaiting 🟢 Candle confirmation"
-                return
+        # Arm the extreme tracker
+        if symbol not in signal_state.dca_armed_extremes:
+            signal_state.dca_armed_extremes[symbol] = current_price
+        else:
+            if state.direction == "BUY":
+                # Market dropping -> track lowest pain point
+                signal_state.dca_armed_extremes[symbol] = min(signal_state.dca_armed_extremes[symbol], current_price)
+            else:
+                # Market pumping -> track highest pain point
+                signal_state.dca_armed_extremes[symbol] = max(signal_state.dca_armed_extremes[symbol], current_price)
                 
-            if state.direction == "SELL" and last_closed['close'] >= last_closed['open']:
-                # The market is still pumping. Delay DCA until a Red candle closes.
-                signal_state.dca_rejection_statuses[symbol] = "Awaiting 🔴 Candle confirmation"
-                return
-
+        # ─── Dynamic Trailing Wick Reversal Filter ───
+        reversal_dist = step_distance * 0.15 # 15% pullback from extreme
+        min_reversal = 2.0 * pip_size
+        actual_reversal = max(reversal_dist, min_reversal)
+        
+        trigger_dca = False
+        extreme = signal_state.dca_armed_extremes[symbol]
+        
+        if state.direction == "BUY":
+            # Reversal up from the lowest low
+            if current_price - extreme >= actual_reversal:
+                trigger_dca = True
+        else:
+            # Reversal down from the highest high
+            if extreme - current_price >= actual_reversal:
+                trigger_dca = True
+                
+        if not trigger_dca:
+            distance_from_extreme = (current_price - extreme) if state.direction == "BUY" else (extreme - current_price)
+            req_pips = actual_reversal / pip_size
+            curr_pips = distance_from_extreme / pip_size
+            signal_state.dca_rejection_statuses[symbol] = f"Armed (Wick: {abs(curr_pips):.1f}/{req_pips:.1f} pips)"
+            return
+            
+        # Firing triggered! Clean up caches
+        del signal_state.dca_armed_extremes[symbol]
         if symbol in signal_state.dca_rejection_statuses:
             del signal_state.dca_rejection_statuses[symbol]
 
         state.dca_layer += 1
         pips_moved = dca_delta / pip_size
         logger.info(
-            f"📉 [{symbol}] DCA Trigger! {pips_moved:.1f} pips against "
-            f"(Layer {state.dca_layer} / Total {len(positions) + 1}). Smart Reversal Confirmed."
+            f"📉 [{symbol}] Trailing DCA Trigger! Wick Caught ({actual_reversal/pip_size:.1f} pip pullback) "
+            f"at distance {pips_moved:.1f} pips. (Layer {state.dca_layer} / Total {len(positions) + 1})."
         )
         if place_dca_order(symbol, state.direction, state.dca_layer, lot_size):
             state.last_dca_price = current_price
         else:
             state.dca_layer -= 1
+            
+    else:
+        # Disarm if price fully recovers out of the DCA target zone
+        if symbol in signal_state.dca_armed_extremes:
+            del signal_state.dca_armed_extremes[symbol]
+        if symbol in signal_state.dca_rejection_statuses:
+            del signal_state.dca_rejection_statuses[symbol]
 
     # 2. Pyramid (In our favor) - DISABLED to prevent halving profit right before trail
     # elif pyr_delta >= step_distance:

@@ -22,6 +22,7 @@ current_balance = 0.0
 is_bot_active = True
 manual_close_requests = set()
 dca_rejection_statuses = {}
+dca_armed_extremes = {}
 
 # Session States
 session_active = False
