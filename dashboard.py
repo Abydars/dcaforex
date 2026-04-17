@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, render_template, request
 import logging
 import signal_state
+import config
 
 # Suppress noisy flask logs
 log = logging.getLogger('werkzeug')
