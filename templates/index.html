@@ -314,14 +314,22 @@
                 </div>
                 <div id="flush-settings" style="display:none; flex-direction:column; gap:0.5rem; padding-left:1.5rem;">
                     <div style="display:flex; align-items:center; justify-content:space-between;">
-                        <span style="color:#94a3b8; font-size:0.8rem;">Trigger Minutes Before End:</span>
-                        <input type="number" id="inp-flush-mins" value="5" min="1" style="width:60px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
+                        <span style="color:#94a3b8; font-size:0.8rem;">Pause New Entries Before End (Mins):</span>
+                        <div style="display:flex; align-items:center; gap:0.25rem; width:70px; justify-content:flex-end;">
+                            <input type="number" id="inp-auto-pause-mins" value="15" min="0" style="width:50px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
+                        </div>
                     </div>
                     <div style="display:flex; align-items:center; justify-content:space-between;">
-                        <span style="color:#94a3b8; font-size:0.8rem;">Loss Tolerance (% of Session SL):</span>
-                        <div style="display:flex; align-items:center; gap:0.25rem;">
-                            <input type="number" id="inp-flush-tol" value="10" min="0" max="100" style="width:60px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
-                            <span style="color:#94a3b8; font-size:0.8rem;">%</span>
+                        <span style="color:#94a3b8; font-size:0.8rem;">Trigger Flush Before End (Mins):</span>
+                        <div style="display:flex; align-items:center; gap:0.25rem; width:70px; justify-content:flex-end;">
+                            <input type="number" id="inp-flush-mins" value="5" min="1" style="width:50px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between;">
+                        <span style="color:#94a3b8; font-size:0.8rem;">Flush Loss Tolerance (% of SL):</span>
+                        <div style="display:flex; align-items:center; gap:0.25rem; width:70px; justify-content:flex-end;">
+                            <input type="number" id="inp-flush-tol" value="10" min="0" max="100" style="width:50px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
+                            <span style="color:#94a3b8; font-size:0.8rem; flex-shrink:0;">%</span>
                         </div>
                     </div>
                 </div>
@@ -388,6 +396,7 @@
         let globalSessionSmartFlush = false;
         let globalSessionFlushMins = 5;
         let globalSessionFlushTol = 10;
+        let globalSessionAutoPauseMins = 15;
 
         async function fetchSignals() {
             try {
@@ -411,6 +420,7 @@
                     globalSessionSmartFlush = apiData.session_smart_flush || false;
                     globalSessionFlushMins = apiData.session_flush_minutes || 5;
                     globalSessionFlushTol = apiData.session_flush_tolerance_pct || 10;
+                    globalSessionAutoPauseMins = apiData.session_auto_pause_minutes || 15;
                 }
 
                 renderDashboard(apiData);
@@ -879,6 +889,7 @@
             document.getElementById('inp-smart-flush').checked = globalSessionSmartFlush;
             document.getElementById('inp-flush-mins').value = globalSessionFlushMins;
             document.getElementById('inp-flush-tol').value = globalSessionFlushTol;
+            document.getElementById('inp-auto-pause-mins').value = globalSessionAutoPauseMins;
             document.getElementById('flush-settings').style.display = globalSessionSmartFlush ? 'flex' : 'none';
 
             if (isSessionActive) {
@@ -923,6 +934,7 @@
             const smartFlush = document.getElementById('inp-smart-flush').checked;
             const flushMins = parseInt(document.getElementById('inp-flush-mins').value);
             const flushTol = parseInt(document.getElementById('inp-flush-tol').value);
+            const autoPauseMins = parseInt(document.getElementById('inp-auto-pause-mins').value) || 0;
 
             if (isNaN(tp) || isNaN(sl) || isNaN(maxSym) || tp <= 0 || sl <= 0 || maxSym <= 0) {
                 alert("Please enter valid positive numbers for TP, SL, and Max Pairs.");
@@ -959,6 +971,7 @@
                         smart_flush: smartFlush,
                         flush_minutes: flushMins,
                         flush_tolerance_pct: flushTol,
+                        auto_pause_minutes: autoPauseMins,
                         bot_active: confirmActivate
                     })
                 });

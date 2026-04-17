@@ -186,7 +186,14 @@ def _is_session_ending_soon(minutes: int) -> bool:
     return False
 
 def _is_within_trading_hours(symbol: str) -> bool:
-    return _get_active_time_range_id() != ""
+    if _get_active_time_range_id() == "":
+        return False
+        
+    if signal_state.session_active and getattr(signal_state, "session_auto_pause_minutes", 0) > 0:
+        if _is_session_ending_soon(signal_state.session_auto_pause_minutes):
+            return False
+            
+    return True
 
 
 # ─── Session Guard ───────────────────────────────────────
