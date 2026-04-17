@@ -287,15 +287,12 @@
                     <!-- Checkboxes injected via JS -->
                 </div>
             </div>
-            <div style="margin-bottom:1.5rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                    <label style="color:#cbd5e1; font-size:0.9rem; margin:0;">Active Time Ranges (Local Time)</label>
-                    <button onclick="addTimeRangeRow()" style="background:transparent; border:1px solid #3b82f6; color:#3b82f6; border-radius:4px; font-size:0.75rem; padding:0.2rem 0.5rem; cursor:pointer;">+ Add</button>
+            <div style="margin-bottom:1.5rem; max-height:220px; overflow-y:auto; padding-right:0.5rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Weekly Schedule (Local Time)</label>
+                <div id="schedule-container" style="display:flex; flex-direction:column; gap:0.5rem; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
+                    <!-- Javascript will inject 7 rows here -->
                 </div>
-                <div id="time-repeater" style="display:flex; flex-direction:column; gap:0.5rem;">
-                    <!-- Time inputs injected via JS -->
-                </div>
-                <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:0.25rem;">Leaves empty for 24/7 scanning</small>
+                <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:0.25rem;">Empty time ranges = 24/7 if day is enabled.</small>
             </div>
             
             <div style="margin-bottom:1.5rem; display:flex; align-items:center; gap:0.5rem;">
@@ -359,7 +356,8 @@
         let globalSessionTp = 100;
         let globalSessionSl = 50;
         let globalSessionMax = 2;
-        let globalSessionTimeRanges = [];
+        let globalSessionSchedule = {};
+        let globalSessionAutoRestart = false;
 
         async function fetchSignals() {
             try {
@@ -378,7 +376,8 @@
                     globalSessionTp = apiData.session_tp || 100;
                     globalSessionSl = apiData.session_sl || 50;
                     globalSessionMax = apiData.session_max_symbols || 2;
-                    globalSessionTimeRanges = apiData.session_time_ranges || [];
+                    globalSessionSchedule = apiData.session_schedule || {};
+                    globalSessionAutoRestart = apiData.session_auto_restart || false;
                 }
 
                 renderDashboard(apiData);
@@ -404,22 +403,31 @@
 
             // Check Trading Hours
             let inTradingHours = true;
-            if (globalSessionTimeRanges && globalSessionTimeRanges.length > 0) {
-                inTradingHours = false;
-                const now = new Date();
-                const currentMins = now.getUTCHours() * 60 + now.getUTCMinutes();
-                for (let r of globalSessionTimeRanges) {
-                    if (!r.start || !r.end) continue;
-                    let [sH, sM] = r.start.split(':').map(Number);
-                    let [eH, eM] = r.end.split(':').map(Number);
-                    let sMins = sH * 60 + sM;
-                    let eMins = eH * 60 + eM;
-                    if (sMins <= eMins) {
-                        if (currentMins >= sMins && currentMins < eMins) inTradingHours = true;
-                    } else {
-                        if (currentMins >= sMins || currentMins < eMins) inTradingHours = true;
+            const now = new Date();
+            let pyDayStr = ((now.getUTCDay() + 6) % 7).toString(); 
+            
+            if (globalSessionSchedule && globalSessionSchedule[pyDayStr]) {
+                const dayConfig = globalSessionSchedule[pyDayStr];
+                if (!dayConfig.enabled) {
+                    inTradingHours = false;
+                } else if (dayConfig.ranges && dayConfig.ranges.length > 0) {
+                    inTradingHours = false;
+                    const currentMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+                    for (let r of dayConfig.ranges) {
+                        if (!r.start || !r.end) continue;
+                        let [sH, sM] = r.start.split(':').map(Number);
+                        let [eH, eM] = r.end.split(':').map(Number);
+                        let sMins = sH * 60 + sM;
+                        let eMins = eH * 60 + eM;
+                        if (sMins <= eMins) {
+                            if (currentMins >= sMins && currentMins < eMins) inTradingHours = true;
+                        } else {
+                            if (currentMins >= sMins || currentMins < eMins) inTradingHours = true;
+                        }
                     }
                 }
+            } else {
+                inTradingHours = false;
             }
 
             isSessionActive = apiData.session_active;
@@ -431,7 +439,7 @@
                 warningBar.innerText = "TRADING PAUSED: NO ACTIVE SESSION STARTED";
                 warningBar.style.display = "block";
             } else if (!inTradingHours) {
-                warningBar.innerText = "TRADING PAUSED: OUT OF SPECIFIED TRADING HOURS";
+                warningBar.innerText = "TRADING PAUSED: OUT OF ACTIVE TRADING HOURS OR WEEKDAYS";
                 warningBar.style.display = "block";
             } else {
                 warningBar.style.display = "none";
@@ -658,20 +666,20 @@
             }
         }
 
-        function addTimeRangeRow(start = "08:00", end = "20:00") {
-            const container = document.getElementById('time-repeater');
-            const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.gap = '0.5rem';
-            row.style.alignItems = 'center';
-            
-            row.innerHTML = `
-                <input type="time" class="time-start" style="flex:1; padding:0.4rem; border-radius:4px; border:1px solid #334155; background:#0f172a; color:#fff;" value="${start}">
-                <span style="color:#94a3b8;">to</span>
-                <input type="time" class="time-end" style="flex:1; padding:0.4rem; border-radius:4px; border:1px solid #334155; background:#0f172a; color:#fff;" value="${end}">
-                <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:#ef4444; cursor:pointer; font-size:1.2rem; line-height:1;">&times;</button>
+        const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+        window.addScheduleRangeRow = function(btn) {
+            const rangesContainer = btn.parentElement.parentElement.querySelector('.ranges-container');
+            const rDiv = document.createElement('div');
+            rDiv.style.display = 'flex';
+            rDiv.style.gap = '0.5rem';
+            rDiv.innerHTML = `
+                <input type="time" class="time-start" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="08:00">
+                <span style="color:#64748b; font-size:0.8rem;">to</span>
+                <input type="time" class="time-end" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="20:00">
+                <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:#ef4444; cursor:pointer;">&times;</button>
             `;
-            container.appendChild(row);
+            rangesContainer.appendChild(rDiv);
         }
 
         // Helper to convert Local Time string (e.g. "08:00") to UTC string (e.g. "03:00")
@@ -730,24 +738,71 @@
                 container.appendChild(label);
             });
 
-            // Prefill inputs if active
-            const tContainer = document.getElementById('time-repeater');
-            tContainer.innerHTML = "";
+            // Build Weekly Schedule Table
+            const schedContainer = document.getElementById('schedule-container');
+            schedContainer.innerHTML = "";
+            for (let i = 0; i < 7; i++) {
+                const pyDay = i.toString();
+                let isEnabled = i < 5; // Mon-Fri default
+                let ranges = [];
+                if (isSessionActive && globalSessionSchedule[pyDay]) {
+                    isEnabled = globalSessionSchedule[pyDay].enabled;
+                    ranges = globalSessionSchedule[pyDay].ranges || [];
+                }
+
+                const dayRow = document.createElement('div');
+                dayRow.style.display = 'flex';
+                dayRow.style.flexDirection = 'column';
+                dayRow.style.borderBottom = '1px solid #1e293b';
+                dayRow.style.paddingBottom = '0.5rem';
+                dayRow.setAttribute('data-day', pyDay);
+
+                const header = document.createElement('div');
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'center';
+                header.style.marginBottom = '0.25rem';
+                
+                header.innerHTML = `
+                    <label style="color:#fff; font-size:0.85rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                        <input type="checkbox" class="day-enabled-cb" value="${pyDay}" ${isEnabled ? 'checked' : ''} style="accent-color:#3b82f6;">
+                        ${DAY_NAMES[i]}
+                    </label>
+                    <button onclick="addScheduleRangeRow(this)" style="background:transparent; border:1px solid #3b82f6; color:#3b82f6; border-radius:4px; font-size:0.7rem; padding:0.1rem 0.4rem; cursor:pointer;">+ Time</button>
+                `;
+                dayRow.appendChild(header);
+
+                const rangesContainer = document.createElement('div');
+                rangesContainer.className = 'ranges-container';
+                rangesContainer.style.display = 'flex';
+                rangesContainer.style.flexDirection = 'column';
+                rangesContainer.style.gap = '0.25rem';
+                
+                ranges.forEach(r => {
+                    const rDiv = document.createElement('div');
+                    rDiv.style.display = 'flex';
+                    rDiv.style.gap = '0.5rem';
+                    rDiv.innerHTML = `
+                        <input type="time" class="time-start" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="${utcToLocalStr(r.start)}">
+                        <span style="color:#64748b; font-size:0.8rem;">to</span>
+                        <input type="time" class="time-end" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="${utcToLocalStr(r.end)}">
+                        <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:#ef4444; cursor:pointer;">&times;</button>
+                    `;
+                    rangesContainer.appendChild(rDiv);
+                });
+                dayRow.appendChild(rangesContainer);
+                schedContainer.appendChild(dayRow);
+            }
+
             let btnSubmit = document.getElementById('modal-submit-btn');
 
             if (isSessionActive) {
                 document.getElementById('inp-tp').value = globalSessionTp;
                 document.getElementById('inp-sl').value = globalSessionSl;
                 document.getElementById('inp-max-sym').value = globalSessionMax;
-                // You can fetch the actual auto restart bool from global signals
+                document.getElementById('inp-auto-restart').checked = globalSessionAutoRestart;
                 document.getElementById('modal-title').innerText = "Edit Active Session";
                 btnSubmit.innerText = "Save Changes";
-                
-                globalSessionTimeRanges.forEach(tr => {
-                    const localStart = utcToLocalStr(tr.start);
-                    const localEnd = utcToLocalStr(tr.end);
-                    addTimeRangeRow(localStart, localEnd);
-                });
             } else {
                 document.getElementById('modal-title').innerText = "Start New Session";
                 btnSubmit.innerText = "Start";
@@ -769,14 +824,19 @@
             const checkboxes = document.querySelectorAll('#sym-checkboxes input[type="checkbox"]:checked');
             const selectedSymbols = Array.from(checkboxes).map(cb => cb.value);
             
-            const timeRows = document.querySelectorAll('#time-repeater > div');
-            const timeRanges = Array.from(timeRows).map(row => {
-                const s = row.querySelector('.time-start').value;
-                const e = row.querySelector('.time-end').value;
-                return {
-                    "start": localToUtcStr(s),
-                    "end": localToUtcStr(e)
-                };
+            const scheduleData = {};
+            let hasEnabledDay = false;
+            document.querySelectorAll('#schedule-container > div').forEach(row => {
+                const pyDay = row.getAttribute('data-day');
+                const enabled = row.querySelector('.day-enabled-cb').checked;
+                const ranges = [];
+                row.querySelectorAll('.ranges-container > div').forEach(rDiv => {
+                    const s = rDiv.querySelector('.time-start').value;
+                    const e = rDiv.querySelector('.time-end').value;
+                    ranges.push({"start": localToUtcStr(s), "end": localToUtcStr(e)});
+                });
+                scheduleData[pyDay] = { "enabled": enabled, "ranges": ranges };
+                if (enabled) hasEnabledDay = true;
             });
 
             const autoRestart = document.getElementById('inp-auto-restart').checked;
@@ -789,6 +849,10 @@
                 alert("Please select at least one trading pair!");
                 return;
             }
+            if (!hasEnabledDay) {
+                alert("Please enable at least one active weekday!");
+                return;
+            }
 
             closeSessionModal();
             try {
@@ -796,7 +860,7 @@
                 await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols, time_ranges: timeRanges, auto_restart: autoRestart })
+                    body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols, schedule: scheduleData, auto_restart: autoRestart })
                 });
                 fetchSignals();
             } catch (e) {

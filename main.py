@@ -123,27 +123,35 @@ def _parse_time(raw: str):
     parts = raw.split(":")
     return dt_time(hour=int(parts[0]), minute=int(parts[1]))
 
-def _get_active_time_range_index() -> int:
-    if not signal_state.session_time_ranges:
-        return 0  # Dummy index for 24/7 if empty
+def _get_active_time_range_id() -> str:
+    now_utc = datetime.now(tz=timezone.utc)
+    day_idx = str(now_utc.weekday())
+    day_config = signal_state.session_schedule.get(day_idx, {"enabled": False, "ranges": []})
+    
+    if not day_config.get("enabled", False):
+        return ""
 
-    now_time = datetime.now(tz=timezone.utc).time()
+    ranges = day_config.get("ranges", [])
+    if not ranges:
+        return f"{day_idx}_247"  # Dummy ID for 24/7 if empty
 
-    for idx, tr in enumerate(signal_state.session_time_ranges):
+    now_time = now_utc.time()
+
+    for idx, tr in enumerate(ranges):
         s_t = _parse_time(tr["start"])
         e_t = _parse_time(tr["end"])
         
         if s_t <= e_t:
             if s_t <= now_time <= e_t:
-                return idx
+                return f"{day_idx}_{idx}"
         else:
             if now_time >= s_t or now_time <= e_t:
-                return idx
+                return f"{day_idx}_{idx}"
                 
-    return -1
+    return ""
 
 def _is_within_trading_hours(symbol: str) -> bool:
-    return _get_active_time_range_index() >= 0
+    return _get_active_time_range_id() != ""
 
 
 # ─── Session Guard ───────────────────────────────────────
@@ -489,7 +497,7 @@ def main():
                 # Handle Auto Restart mechanism
                 if signal_state.session_auto_restart:
                     signal_state.session_waiting_for_next_range = True
-                    signal_state.session_last_ended_range_idx = _get_active_time_range_index()
+                    signal_state.session_last_ended_range_id = _get_active_time_range_id()
                     logger.warning("⏳ Auto-Restart STANDBY: Waiting for next Schedule Range...")
                 else:
                     signal_state.is_bot_active = False
@@ -498,20 +506,20 @@ def main():
                 
             # ── 1.b. Auto Restart Guard ──
             if not signal_state.session_active and signal_state.session_auto_restart and signal_state.session_waiting_for_next_range:
-                curr_idx = _get_active_time_range_index()
+                curr_id = _get_active_time_range_id()
                 
                 # Drop tracking memory if time exits all schedules boundary entirely
-                if curr_idx == -1:
-                    signal_state.session_last_ended_range_idx = -1
+                if curr_id == "":
+                    signal_state.session_last_ended_range_id = ""
                 
-                if curr_idx >= 0 and curr_idx != signal_state.session_last_ended_range_idx:
+                if curr_id != "" and curr_id != signal_state.session_last_ended_range_id:
                     # Time has entered a completely new valid block
                     acc = mt5.account_info()
                     if acc:
                         signal_state.session_active = True
                         signal_state.is_bot_active = True
                         signal_state.session_waiting_for_next_range = False
-                        signal_state.session_last_ended_range_idx = -1
+                        signal_state.session_last_ended_range_id = ""
                         signal_state.session_start_time_stamp = time.time()
                         
                         signal_state.session_start_equity = acc.equity

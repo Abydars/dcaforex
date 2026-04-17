@@ -50,7 +50,7 @@ def get_signals():
         "session_sl": signal_state.session_stop_loss,
         "session_max_symbols": signal_state.session_max_symbols,
         "session_symbols": signal_state.session_symbols,
-        "session_time_ranges": signal_state.session_time_ranges,
+        "session_schedule": signal_state.session_schedule,
         "session_auto_restart": signal_state.session_auto_restart,
         "master_symbols": config.SYMBOLS
     })
@@ -69,7 +69,7 @@ def start_session():
     sl = float(data.get("sl", 0))
     max_symbols = int(data.get("max_symbols", 2))
     session_syms = data.get("symbols", [])
-    time_ranges = data.get("time_ranges", [])
+    schedule = data.get("schedule", {str(i): {"enabled": i < 5, "ranges": []} for i in range(7)})
     auto_restart = bool(data.get("auto_restart", False))
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0:
@@ -77,7 +77,7 @@ def start_session():
         signal_state.session_stop_loss = sl
         signal_state.session_max_symbols = max_symbols
         signal_state.session_symbols = session_syms
-        signal_state.session_time_ranges = time_ranges
+        signal_state.session_schedule = schedule
         signal_state.session_auto_restart = auto_restart
         signal_state.session_start_time_stamp = time.time()
         
@@ -85,7 +85,7 @@ def start_session():
         signal_state.session_start_balance = signal_state.current_balance
         signal_state.session_active = True
         signal_state.session_waiting_for_next_range = False
-        signal_state.session_last_ended_range_idx = -1
+        signal_state.session_last_ended_range_id = ""
         signal_state.is_bot_active = True
         
         # Clear out UI for symbols not in the session!
@@ -106,7 +106,7 @@ def update_session():
     sl = float(data.get("sl", 0))
     max_symbols = int(data.get("max_symbols", 2))
     session_syms = data.get("symbols", [])
-    time_ranges = data.get("time_ranges", [])
+    schedule = data.get("schedule", {str(i): {"enabled": i < 5, "ranges": []} for i in range(7)})
     auto_restart = bool(data.get("auto_restart", False))
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0 and signal_state.session_active:
@@ -114,7 +114,7 @@ def update_session():
         signal_state.session_stop_loss = sl
         signal_state.session_max_symbols = max_symbols
         signal_state.session_symbols = session_syms
-        signal_state.session_time_ranges = time_ranges
+        signal_state.session_schedule = schedule
         signal_state.session_auto_restart = auto_restart
         signal_state.save_session()
         
