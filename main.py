@@ -133,23 +133,25 @@ def _is_within_trading_hours(symbol: str) -> bool:
         return now_time >= config.TRADING_START or now_time <= config.TRADING_END
 
 
-# ─── Drawdown Guard ───────────────────────────────────────
-def _check_drawdown_guard() -> bool:
-    """Emergency stop if GLOBAL loss exceeds MAX_DRAWDOWN_PCT of CAPITAL."""
+# ─── Session Guard ───────────────────────────────────────
+def _check_session_limits() -> str:
+    """Checks if the dynamic User-Session Hit TP or SL."""
+    if not signal_state.session_active:
+        return ""
+        
     account = mt5.account_info()
     if account is None:
-        return False
+        return ""
 
-    loss = config.SESSION_START_EQUITY - account.equity
-    max_loss = config.CAPITAL * (config.MAX_DRAWDOWN_PCT / 100.0)
+    current_pnl = account.equity - signal_state.session_start_equity
+    signal_state.session_current_pnl = current_pnl
 
-    if loss >= max_loss:
-        logger.critical(
-            f"🚨 DRAWDOWN GUARD! Global Loss: ${loss:.2f} ≥ ${max_loss:.2f} "
-            f"({config.MAX_DRAWDOWN_PCT}% of ${config.CAPITAL} capital)"
-        )
-        return True
-    return False
+    if current_pnl >= signal_state.session_target_profit:
+        return "TAKE_PROFIT_HIT"
+    if current_pnl <= -signal_state.session_stop_loss:
+        return "STOP_LOSS_HIT"
+        
+    return ""
 
 
 # ─── Smart Exit Check ─────────────────────────────────────
@@ -369,8 +371,7 @@ def main():
     account = mt5.account_info()
     if account:
         total_adopted_pnl = sum(get_basket_profit(sym) for sym in basket_states.keys())
-        config.SESSION_START_EQUITY = account.equity - total_adopted_pnl
-        logger.info(f"🔄 True Session Baseline Equity established at: ${config.SESSION_START_EQUITY:.2f} (Neutralizing {total_adopted_pnl:+.2f} floating PnL)")
+        logger.info(f"🔄 Adopted existing positions. Floating PnL: {total_adopted_pnl:+.2f}")
     else:
         logger.error("Could not fetch account equity. Exiting.")
         sys.exit(1)
@@ -401,13 +402,17 @@ def main():
                         }
                 signal_state.manual_close_requests.clear()
 
-            # ── 1. Drawdown Guard (Global) ──
-            if signal_state.is_bot_active and _check_drawdown_guard():
+            # ── 1. Session Guard (Dynamic TP/SL) ──
+            limit_hit = _check_session_limits()
+            if limit_hit:
                 for sym in list(basket_states.keys()):
-                    close_all_positions(sym, reason="DRAWDOWN_GUARD")
+                    close_all_positions(sym, reason=limit_hit)
                 basket_states.clear()
-                logger.critical("🛑 Bot halted — max drawdown hit.")
+                
+                logger.critical(f"🏆 SESSION ENDED ({limit_hit}). All trades closed.")
+                signal_state.session_active = False
                 signal_state.is_bot_active = False
+                signal_state.save_session()
 
             # ── 2. Active Basket Management ──
             symbols_to_remove = []

@@ -239,10 +239,31 @@
         <div class="header-right">
             <button id="btn-toggle" class="btn-toggle" onclick="toggleBot()">BOT: ON</button>
             <button class="btn-close-all" onclick="closeAll()">Close All</button>
-            <div class="pnl-pill" id="account-stats" style="font-size: 0.95rem; color: var(--text-secondary);">
-                Bal: $0.00 | Max DD: $0.00
+            
+            <button id="btn-session" class="btn-toggle" onclick="openSessionModal()" style="background-color: #3b82f6;">Start Session</button>
+            <div class="pnl-pill" id="session-stats" style="font-size: 0.95rem; color: var(--text-secondary);">
+                Session Inactive
             </div>
             <div class="pnl-pill" id="total-pnl">Total P/L: $0.00</div>
+        </div>
+    </div>
+
+    <!-- Session Modal -->
+    <div id="session-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:#1e293b; padding:2rem; border-radius:12px; width:300px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+            <h3 style="margin-top:0; color:#fff;">Start New Session</h3>
+            <div style="margin-bottom:1rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Target Profit ($)</label>
+                <input type="number" id="inp-tp" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="100.00">
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Stop Loss ($)</label>
+                <input type="number" id="inp-sl" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="50.00">
+            </div>
+            <div style="display:flex; gap:1rem;">
+                <button onclick="closeSessionModal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
+                <button onclick="submitSession()" style="flex:1; padding:0.5rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Start</button>
+            </div>
         </div>
     </div>
     
@@ -266,6 +287,7 @@
 
     <script>
         let isBotActive = true;
+        let isSessionActive = false;
 
         async function fetchSignals() {
             try {
@@ -296,10 +318,26 @@
             const isProfit = pnl >= 0;
             pnlEl.innerHTML = `Running PnL: <span style="color: ${isProfit ? 'var(--green)' : 'var(--red)'}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span>`;
             
-            const statsEl = document.getElementById('account-stats');
-            const bal = apiData.balance || 0;
-            const dd = apiData.max_dd || 0;
-            statsEl.innerHTML = `Bal: <span style="color:#fff">$${bal.toFixed(2)}</span> &nbsp;|&nbsp; Max DD: <span style="color:#f87171">$${dd.toFixed(2)}</span>`;
+            isSessionActive = apiData.session_active;
+            const sessionBtn = document.getElementById('btn-session');
+            const sessionStats = document.getElementById('session-stats');
+
+            if (isSessionActive) {
+                sessionBtn.innerText = "End Session";
+                sessionBtn.style.backgroundColor = "#dc2626"; // red
+                sessionBtn.onclick = endSession;
+
+                const sPnl = apiData.session_pnl || 0;
+                const sign = sPnl >= 0 ? '+' : '';
+                const color = sPnl >= 0 ? 'var(--green)' : 'var(--red)';
+                
+                sessionStats.innerHTML = `Session PnL: <span style="color:${color}; font-weight:600;">${sign}$${sPnl.toFixed(2)}</span> &nbsp;|&nbsp; TP: $${apiData.session_tp} / SL: -$${apiData.session_sl}`;
+            } else {
+                sessionBtn.innerText = "Start Session";
+                sessionBtn.style.backgroundColor = "#3b82f6"; // blue
+                sessionBtn.onclick = openSessionModal;
+                sessionStats.innerHTML = "Session Inactive";
+            }
             
             const symbols = Object.keys(data).sort((a, b) => {
                 const infoA = data[a];
@@ -406,6 +444,44 @@
                 fetchSignals();
             } catch (err) {
                 console.error(err);
+            }
+        }
+
+        function openSessionModal() {
+            document.getElementById('session-modal').style.display = 'flex';
+        }
+
+        function closeSessionModal() {
+            document.getElementById('session-modal').style.display = 'none';
+        }
+
+        async function submitSession() {
+            const tp = parseFloat(document.getElementById('inp-tp').value);
+            const sl = parseFloat(document.getElementById('inp-sl').value);
+            if (isNaN(tp) || isNaN(sl) || tp <= 0 || sl <= 0) {
+                alert("Please enter valid positive numbers for TP and SL");
+                return;
+            }
+            closeSessionModal();
+            try {
+                await fetch('/api/session/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tp, sl })
+                });
+                fetchSignals();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function endSession() {
+            if (!confirm("Are you sure you want to end the current session targets? Trades will remain open.")) return;
+            try {
+                await fetch('/api/session/stop', { method: 'POST' });
+                fetchSignals();
+            } catch (e) {
+                console.error(e);
             }
         }
 

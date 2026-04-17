@@ -18,9 +18,33 @@ def get_signals():
         "signals": signal_state.latest_signal_status,
         "total_pnl": signal_state.total_pnl,
         "balance": signal_state.current_balance,
-        "max_dd": signal_state.max_drawdown_usd,
-        "is_active": signal_state.is_bot_active
+        "is_active": signal_state.is_bot_active,
+        "session_active": signal_state.session_active,
+        "session_pnl": signal_state.session_current_pnl,
+        "session_tp": signal_state.session_target_profit,
+        "session_sl": signal_state.session_stop_loss
     })
+
+@app.route('/api/session/start', methods=['POST'])
+def start_session():
+    data = request.json or {}
+    tp = float(data.get("tp", 0))
+    sl = float(data.get("sl", 0))
+    if tp > 0 and sl > 0:
+        signal_state.session_target_profit = tp
+        signal_state.session_stop_loss = sl
+        signal_state.session_start_equity = signal_state.current_balance
+        signal_state.session_active = True
+        signal_state.is_bot_active = True
+        signal_state.save_session()
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Invalid TP/SL"})
+
+@app.route('/api/session/stop', methods=['POST'])
+def stop_session():
+    signal_state.session_active = False
+    signal_state.save_session()
+    return jsonify({"success": True})
 
 @app.route('/api/toggle', methods=['POST'])
 def toggle_bot():

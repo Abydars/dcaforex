@@ -46,8 +46,7 @@ TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()
 SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
 MAX_OPEN_SYMBOLS: int = int(_get_env("MAX_OPEN_SYMBOLS", default="2"))
 
-# ─── Safety ─────────────────────────────────────────────────
-MAX_DRAWDOWN_PCT: float = float(_get_env("MAX_DRAWDOWN_PCT", default="15.0"))
+
 
 def _parse_time(raw: str) -> dtime:
     parts = raw.split(":")
@@ -59,7 +58,7 @@ MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="550055"))
 
 # ─── Auto-Calculated (filled at runtime by auto_params) ─────
 CAPITAL: float = 0.0
-SESSION_START_EQUITY: float = 0.0
+
 LOT_SIZE: float = 0.0
 STEP_PIPS: float = 0.0
 MAX_ORDERS: int = 0

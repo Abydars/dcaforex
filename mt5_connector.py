@@ -93,8 +93,7 @@ def initialize_mt5():
         f"Equity: {account.equity:.2f}"
     )
 
-    # Capture session start equity for drawdown protection
-    config.SESSION_START_EQUITY = account.equity
+
 
     # ── Algo Trading Check ──
     terminal = mt5.terminal_info()
