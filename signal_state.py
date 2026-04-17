@@ -26,9 +26,11 @@ dca_rejection_statuses = {}
 # Session States
 session_active = False
 session_start_equity = 0.0
+session_start_balance = 0.0
 session_target_profit = 0.0
 session_stop_loss = 0.0
 session_current_pnl = 0.0
+session_realized_pnl = 0.0
 session_max_symbols = 2
 session_symbols = []
 
@@ -38,6 +40,7 @@ def save_session():
             json.dump({
                 "session_active": session_active,
                 "session_start_equity": session_start_equity,
+                "session_start_balance": session_start_balance,
                 "session_target_profit": session_target_profit,
                 "session_stop_loss": session_stop_loss,
                 "session_max_symbols": session_max_symbols,
@@ -47,13 +50,14 @@ def save_session():
         print(f"Error saving session: {e}")
 
 def load_session():
-    global session_active, session_start_equity, session_target_profit, session_stop_loss, session_max_symbols, session_symbols
+    global session_active, session_start_equity, session_start_balance, session_target_profit, session_stop_loss, session_max_symbols, session_symbols
     if os.path.exists(SESSION_FILE):
         try:
             with open(SESSION_FILE, "r") as f:
                 data = json.load(f)
             session_active = data.get("session_active", False)
             session_start_equity = data.get("session_start_equity", 0.0)
+            session_start_balance = data.get("session_start_balance", 0.0)
             session_target_profit = data.get("session_target_profit", 0.0)
             session_stop_loss = data.get("session_stop_loss", 0.0)
             session_max_symbols = data.get("session_max_symbols", 2)

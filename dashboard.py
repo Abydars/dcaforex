@@ -22,6 +22,7 @@ def get_signals():
         "is_active": signal_state.is_bot_active,
         "session_active": signal_state.session_active,
         "session_pnl": signal_state.session_current_pnl,
+        "session_realized_pnl": signal_state.session_realized_pnl,
         "session_tp": signal_state.session_target_profit,
         "session_sl": signal_state.session_stop_loss,
         "session_max_symbols": signal_state.session_max_symbols,
@@ -43,6 +44,7 @@ def start_session():
         signal_state.session_max_symbols = max_symbols
         signal_state.session_symbols = session_syms
         signal_state.session_start_equity = signal_state.current_balance
+        signal_state.session_start_balance = signal_state.current_balance
         signal_state.session_active = True
         signal_state.is_bot_active = True
         
@@ -59,6 +61,7 @@ def start_session():
 @app.route('/api/session/stop', methods=['POST'])
 def stop_session():
     signal_state.session_active = False
+    signal_state.manual_close_requests.add("ALL")
     signal_state.save_session()
     return jsonify({"success": True})
 

@@ -145,7 +145,9 @@ def _check_session_limits() -> str:
         return ""
 
     current_pnl = account.equity - signal_state.session_start_equity
+    realized_pnl = account.balance - signal_state.session_start_balance
     signal_state.session_current_pnl = current_pnl
+    signal_state.session_realized_pnl = realized_pnl
 
     if current_pnl >= signal_state.session_target_profit:
         return "TAKE_PROFIT_HIT"
@@ -388,6 +390,11 @@ def main():
                 for sym in list(basket_states.keys()):
                     close_all_positions(sym, reason="MANUAL_UI_CLOSE")
                     del basket_states[sym]
+                    signal_state.latest_signal_status[sym] = {
+                        "status": "Closed Manually. Waiting for next candle...",
+                        "color": "gray",
+                        "time": None
+                    }
                 signal_state.manual_close_requests.clear()
             else:
                 for req_sym in list(signal_state.manual_close_requests):
@@ -408,6 +415,11 @@ def main():
             if limit_hit:
                 for sym in list(basket_states.keys()):
                     close_all_positions(sym, reason=limit_hit)
+                    signal_state.latest_signal_status[sym] = {
+                        "status": f"Session Ended ({limit_hit})",
+                        "color": "gray",
+                        "time": None
+                    }
                 basket_states.clear()
                 
                 logger.critical(f"🏆 SESSION ENDED ({limit_hit}). All trades closed.")

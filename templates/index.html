@@ -280,18 +280,27 @@
 </head>
 <body>
 
-    <div class="header-container">
+    <!-- Tier 1: Global Controls -->
+    <div class="header-container" style="border-bottom: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
         <div class="header-buttons">
             <button id="btn-toggle" class="btn-toggle" onclick="toggleBot()">BOT: ON</button>
             <button class="btn-close-all" onclick="closeAll()">Close All</button>
-            <button id="btn-session" class="btn-toggle" onclick="openSessionModal()" style="background-color: #3b82f6;">Start Session</button>
         </div>
         <div class="header-stats">
-            <div class="pnl-pill" id="session-stats" style="font-size: 0.95rem; color: var(--text-secondary);">
-                Session Inactive
-            </div>
             <div class="pnl-pill" id="total-pnl">Total P/L: $0.00</div>
             <div class="pnl-pill" id="account-bal" style="color: var(--text-secondary);">Bal: $0.00</div>
+        </div>
+    </div>
+
+    <!-- Tier 2: Dedicated Session Cockpit -->
+    <div class="header-container" style="background: #0f172a; border-top-left-radius: 0; border-top-right-radius: 0; margin-top: -1px; border-top: 1px solid #1e293b;">
+        <div class="header-buttons">
+            <button id="btn-session" class="btn-toggle" onclick="openSessionModal()" style="background-color: #3b82f6;">Start Session</button>
+        </div>
+        <div class="header-stats" style="flex: 1; justify-content: flex-end;">
+            <div class="pnl-pill" id="session-stats" style="font-size: 0.95rem; color: var(--text-secondary); flex: 1; text-align: right; margin-left: 1rem; border: 1px dashed #334155;">
+                Session Inactive
+            </div>
         </div>
     </div>
 
@@ -398,12 +407,19 @@
                 sessionBtn.style.backgroundColor = "#dc2626"; // red
                 sessionBtn.onclick = endSession;
 
-                const sPnl = apiData.session_pnl || 0;
+                const sTotalPnl = apiData.session_pnl || 0;
+                const sRealizedPnl = apiData.session_realized_pnl || 0;
                 const sMax = apiData.session_max_symbols || 2;
-                const sign = sPnl >= 0 ? '+' : '';
-                const color = sPnl >= 0 ? 'var(--green)' : 'var(--red)';
                 
-                sessionStats.innerHTML = `Session PnL: <span style="color:${color}; font-weight:600;">${sign}$${sPnl.toFixed(2)}</span> &nbsp;|&nbsp; TP: $${apiData.session_tp} / SL: -$${apiData.session_sl} &nbsp;|&nbsp; Max: ${sMax}`;
+                const tSign = sTotalPnl >= 0 ? '+' : '';
+                const tColor = sTotalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+                
+                const rSign = sRealizedPnl >= 0 ? '+' : '';
+                const rColor = sRealizedPnl >= 0 ? 'var(--green)' : 'var(--red)';
+                
+                sessionStats.innerHTML = `Realized: <span style="color:${rColor}; font-weight:600;">${rSign}$${sRealizedPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
+                                          Running: <span style="color:${tColor}; font-weight:600;">${tSign}$${sTotalPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
+                                          TP: $${apiData.session_tp} / SL: -$${apiData.session_sl} &nbsp;|&nbsp; Max: ${sMax}`;
             } else {
                 sessionBtn.innerText = "Start Session";
                 sessionBtn.style.backgroundColor = "#3b82f6"; // blue
