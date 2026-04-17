@@ -29,6 +29,8 @@ session_start_equity = 0.0
 session_target_profit = 0.0
 session_stop_loss = 0.0
 session_current_pnl = 0.0
+session_max_symbols = 2
+session_symbols = []
 
 def save_session():
     try:
@@ -37,13 +39,15 @@ def save_session():
                 "session_active": session_active,
                 "session_start_equity": session_start_equity,
                 "session_target_profit": session_target_profit,
-                "session_stop_loss": session_stop_loss
+                "session_stop_loss": session_stop_loss,
+                "session_max_symbols": session_max_symbols,
+                "session_symbols": session_symbols
             }, f)
     except Exception as e:
         print(f"Error saving session: {e}")
 
 def load_session():
-    global session_active, session_start_equity, session_target_profit, session_stop_loss
+    global session_active, session_start_equity, session_target_profit, session_stop_loss, session_max_symbols, session_symbols
     if os.path.exists(SESSION_FILE):
         try:
             with open(SESSION_FILE, "r") as f:
@@ -52,6 +56,8 @@ def load_session():
             session_start_equity = data.get("session_start_equity", 0.0)
             session_target_profit = data.get("session_target_profit", 0.0)
             session_stop_loss = data.get("session_stop_loss", 0.0)
+            session_max_symbols = data.get("session_max_symbols", 2)
+            session_symbols = data.get("session_symbols", [])
         except Exception as e:
             print(f"Error loading session: {e}")
 

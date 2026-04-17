@@ -22,7 +22,10 @@ def get_signals():
         "session_active": signal_state.session_active,
         "session_pnl": signal_state.session_current_pnl,
         "session_tp": signal_state.session_target_profit,
-        "session_sl": signal_state.session_stop_loss
+        "session_sl": signal_state.session_stop_loss,
+        "session_max_symbols": signal_state.session_max_symbols,
+        "session_symbols": signal_state.session_symbols,
+        "master_symbols": config.SYMBOLS
     })
 
 @app.route('/api/session/start', methods=['POST'])
@@ -30,15 +33,27 @@ def start_session():
     data = request.json or {}
     tp = float(data.get("tp", 0))
     sl = float(data.get("sl", 0))
-    if tp > 0 and sl > 0:
+    max_symbols = int(data.get("max_symbols", 2))
+    session_syms = data.get("symbols", [])
+    
+    if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0:
         signal_state.session_target_profit = tp
         signal_state.session_stop_loss = sl
+        signal_state.session_max_symbols = max_symbols
+        signal_state.session_symbols = session_syms
         signal_state.session_start_equity = signal_state.current_balance
         signal_state.session_active = True
         signal_state.is_bot_active = True
+        
+        # Clear out UI for symbols not in the session!
+        signal_state.latest_signal_status = {
+            s: {"status": "Session Started... Scanning", "color": "gray", "time": None} 
+            for s in session_syms
+        }
+        
         signal_state.save_session()
         return jsonify({"success": True})
-    return jsonify({"success": False, "error": "Invalid TP/SL"})
+    return jsonify({"success": False, "error": "Invalid Config or No Symbols Selected"})
 
 @app.route('/api/session/stop', methods=['POST'])
 def stop_session():

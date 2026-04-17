@@ -353,7 +353,7 @@ def main():
         sys.exit(1)
 
     logger.info("═" * 60)
-    logger.info(f"  DCA FOREX BOT STARTED (MAX OPEN SYMBOLS: {config.MAX_OPEN_SYMBOLS})")
+    logger.info(f"  DCA FOREX BOT STARTED ")
     logger.info("═" * 60)
     
     # Start Dashboard Server in background
@@ -505,11 +505,11 @@ def main():
                 signal_state.total_pnl = total_bot_profit
 
             # ── 3. Scan for New Entries (Synchronized Leaderboard) ──
-            if signal_state.is_bot_active and active_baskets_count < config.MAX_OPEN_SYMBOLS:
+            if signal_state.is_bot_active and signal_state.session_active and active_baskets_count < signal_state.session_max_symbols:
                 
                 # Check for candle boundary crossing
                 sweep_triggered = False
-                for sym in config.SYMBOLS:
+                for sym in signal_state.session_symbols:
                     if _is_new_candle(sym):
                         sweep_triggered = True
                 
@@ -522,7 +522,7 @@ def main():
                     valid_signals = []
                     
                     # 1. Gather all signals concurrently
-                    for sym in config.SYMBOLS:
+                    for sym in signal_state.session_symbols:
                         if sym in basket_states:
                             continue # Already trading this!
                             
@@ -546,7 +546,7 @@ def main():
                     for candidate in valid_signals:
                         sym = candidate["symbol"]
                         
-                        if active_baskets_count >= config.MAX_OPEN_SYMBOLS:
+                        if active_baskets_count >= signal_state.session_max_symbols:
                             signal_state.latest_signal_status[sym] = {
                                 "status": "Skipped (Portfolio Limit Full)",
                                 "color": "red",

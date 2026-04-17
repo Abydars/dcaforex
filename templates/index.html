@@ -303,9 +303,19 @@
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Target Profit ($)</label>
                 <input type="number" id="inp-tp" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="100.00">
             </div>
-            <div style="margin-bottom:1.5rem;">
+            <div style="margin-bottom:1rem;">
                 <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Stop Loss ($)</label>
                 <input type="number" id="inp-sl" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="50.00">
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Max Open Pairs</label>
+                <input type="number" id="inp-max-sym" style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="2" min="1" max="10">
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Trading Pairs</label>
+                <div id="sym-checkboxes" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; max-height:150px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
+                    <!-- Checkboxes injected via JS -->
+                </div>
             </div>
             <div style="display:flex; gap:1rem;">
                 <button onclick="closeSessionModal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
@@ -335,11 +345,21 @@
     <script>
         let isBotActive = true;
         let isSessionActive = false;
+        let globalMasterSymbols = [];
+        let globalSessionSymbols = [];
 
         async function fetchSignals() {
             try {
                 const res = await fetch('/api/signals');
                 const apiData = await res.json();
+                
+                if (apiData.master_symbols) {
+                    globalMasterSymbols = apiData.master_symbols;
+                }
+                if (apiData.session_symbols) {
+                    globalSessionSymbols = apiData.session_symbols;
+                }
+
                 renderDashboard(apiData);
             } catch (err) {
                 console.error("Failed to fetch signals", err);
@@ -379,10 +399,11 @@
                 sessionBtn.onclick = endSession;
 
                 const sPnl = apiData.session_pnl || 0;
+                const sMax = apiData.session_max_symbols || 2;
                 const sign = sPnl >= 0 ? '+' : '';
                 const color = sPnl >= 0 ? 'var(--green)' : 'var(--red)';
                 
-                sessionStats.innerHTML = `Session PnL: <span style="color:${color}; font-weight:600;">${sign}$${sPnl.toFixed(2)}</span> &nbsp;|&nbsp; TP: $${apiData.session_tp} / SL: -$${apiData.session_sl}`;
+                sessionStats.innerHTML = `Session PnL: <span style="color:${color}; font-weight:600;">${sign}$${sPnl.toFixed(2)}</span> &nbsp;|&nbsp; TP: $${apiData.session_tp} / SL: -$${apiData.session_sl} &nbsp;|&nbsp; Max: ${sMax}`;
             } else {
                 sessionBtn.innerText = "Start Session";
                 sessionBtn.style.backgroundColor = "#3b82f6"; // blue
@@ -390,7 +411,16 @@
                 sessionStats.innerHTML = "Session Inactive";
             }
             
-            const symbols = Object.keys(data).sort((a, b) => {
+            // Build final array of symbols to display:
+            // 1. If NO session is active, maybe show all master? (user wants them hidden but active trades might be open?)
+            // We'll trust whatever signal_state tracking passed us in `data` (since backend wiped the old ones!)
+            let symbols = Object.keys(data);
+            
+            // Further filter if session is active to ensure UI is perfectly clean
+            if (apiData.session_active && globalSessionSymbols.length > 0) {
+                symbols = symbols.filter(sym => globalSessionSymbols.includes(sym));
+            }
+            symbols.sort((a, b) => {
                 const infoA = data[a];
                 const infoB = data[b];
                 const isAHolding = infoA.status.includes('Holding');
@@ -500,6 +530,33 @@
         }
 
         function openSessionModal() {
+            const container = document.getElementById('sym-checkboxes');
+            container.innerHTML = "";
+            
+            globalMasterSymbols.forEach(sym => {
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '0.5rem';
+                label.style.color = '#fff';
+                label.style.fontSize = '0.85rem';
+                label.style.cursor = 'pointer';
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = sym;
+                // Inherit existing if active, otherwise check all default
+                if (isSessionActive && globalSessionSymbols.length > 0) {
+                    cb.checked = globalSessionSymbols.includes(sym);
+                } else {
+                    cb.checked = true;
+                }
+                
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(sym));
+                container.appendChild(label);
+            });
+
             document.getElementById('session-modal').style.display = 'flex';
         }
 
@@ -510,16 +567,26 @@
         async function submitSession() {
             const tp = parseFloat(document.getElementById('inp-tp').value);
             const sl = parseFloat(document.getElementById('inp-sl').value);
-            if (isNaN(tp) || isNaN(sl) || tp <= 0 || sl <= 0) {
-                alert("Please enter valid positive numbers for TP and SL");
+            const maxSym = parseInt(document.getElementById('inp-max-sym').value);
+            
+            const checkboxes = document.querySelectorAll('#sym-checkboxes input[type="checkbox"]:checked');
+            const selectedSymbols = Array.from(checkboxes).map(cb => cb.value);
+
+            if (isNaN(tp) || isNaN(sl) || isNaN(maxSym) || tp <= 0 || sl <= 0 || maxSym <= 0) {
+                alert("Please enter valid positive numbers for TP, SL, and Max Pairs.");
                 return;
             }
+            if (selectedSymbols.length === 0) {
+                alert("Please select at least one trading pair!");
+                return;
+            }
+
             closeSessionModal();
             try {
                 await fetch('/api/session/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tp, sl })
+                    body: JSON.stringify({ tp: tp, sl: sl, max_symbols: maxSym, symbols: selectedSymbols })
                 });
                 fetchSignals();
             } catch (e) {
