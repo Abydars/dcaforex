@@ -29,58 +29,58 @@ logger = logging.getLogger("SignalEngine")
 SIGNAL_MODE = getattr(config, "SIGNAL_MODE", "candle")
 
 
-def _calc_ema(rates, period: int) -> float:
-    if rates is None or len(rates) < period:
-        return 0.0
-    closes = [r['close'] for r in rates]
-    sma = sum(closes[:period]) / period
-    ema = sma
-    multiplier = 2 / (period + 1)
-    for price in closes[period:]:
-        ema = (price - ema) * multiplier + ema
-    return ema
+# def _calc_ema(rates, period: int) -> float:
+#     if rates is None or len(rates) < period:
+#         return 0.0
+#     closes = [r['close'] for r in rates]
+#     sma = sum(closes[:period]) / period
+#     ema = sma
+#     multiplier = 2 / (period + 1)
+#     for price in closes[period:]:
+#         ema = (price - ema) * multiplier + ema
+#     return ema
 
 
-def _calc_adx(rates, period: int = 14) -> float:
-    if rates is None or len(rates) < period * 2:
-        return 0.0
-    trs, pos_dm, neg_dm = [], [], []
-    for i in range(1, len(rates)):
-        h, l, pc = rates[i]['high'], rates[i]['low'], rates[i-1]['close']
-        ph, pl = rates[i-1]['high'], rates[i-1]['low']
-        tr = max(h - l, abs(h - pc), abs(l - pc))
-        up_m, down_m = h - ph, pl - l
-        pdm = up_m if (up_m > down_m and up_m > 0) else 0
-        ndm = down_m if (down_m > up_m and down_m > 0) else 0
-        trs.append(tr)
-        pos_dm.append(pdm)
-        neg_dm.append(ndm)
+# def _calc_adx(rates, period: int = 14) -> float:
+#     if rates is None or len(rates) < period * 2:
+#         return 0.0
+#     trs, pos_dm, neg_dm = [], [], []
+#     for i in range(1, len(rates)):
+#         h, l, pc = rates[i]['high'], rates[i]['low'], rates[i-1]['close']
+#         ph, pl = rates[i-1]['high'], rates[i-1]['low']
+#         tr = max(h - l, abs(h - pc), abs(l - pc))
+#         up_m, down_m = h - ph, pl - l
+#         pdm = up_m if (up_m > down_m and up_m > 0) else 0
+#         ndm = down_m if (down_m > up_m and down_m > 0) else 0
+#         trs.append(tr)
+#         pos_dm.append(pdm)
+#         neg_dm.append(ndm)
 
-    def smooth(data, length):
-        res = [sum(data[:length])]
-        for val in data[length:]:
-            res.append(res[-1] - (res[-1] / length) + val)
-        return res
+#     def smooth(data, length):
+#         res = [sum(data[:length])]
+#         for val in data[length:]:
+#             res.append(res[-1] - (res[-1] / length) + val)
+#         return res
 
-    smoothed_tr = smooth(trs, period)
-    smoothed_pdm = smooth(pos_dm, period)
-    smoothed_ndm = smooth(neg_dm, period)
+#     smoothed_tr = smooth(trs, period)
+#     smoothed_pdm = smooth(pos_dm, period)
+#     smoothed_ndm = smooth(neg_dm, period)
 
-    dx_values = []
-    for i in range(len(smoothed_tr)):
-        if smoothed_tr[i] == 0:
-            dx_values.append(0)
-            continue
-        pdi = 100 * smoothed_pdm[i] / smoothed_tr[i]
-        ndi = 100 * smoothed_ndm[i] / smoothed_tr[i]
-        dx_values.append(100 * abs(pdi - ndi) / (pdi + ndi) if (pdi + ndi) > 0 else 0)
+#     dx_values = []
+#     for i in range(len(smoothed_tr)):
+#         if smoothed_tr[i] == 0:
+#             dx_values.append(0)
+#             continue
+#         pdi = 100 * smoothed_pdm[i] / smoothed_tr[i]
+#         ndi = 100 * smoothed_ndm[i] / smoothed_tr[i]
+#         dx_values.append(100 * abs(pdi - ndi) / (pdi + ndi) if (pdi + ndi) > 0 else 0)
 
-    if len(dx_values) < period:
-        return 0.0
-    adx = sum(dx_values[:period]) / period
-    for val in dx_values[period:]:
-        adx = ((adx * (period - 1)) + val) / period
-    return adx
+#     if len(dx_values) < period:
+#         return 0.0
+#     adx = sum(dx_values[:period]) / period
+#     for val in dx_values[period:]:
+#         adx = ((adx * (period - 1)) + val) / period
+#     return adx
 
 
 def get_entry_signal(target_symbol: str = None) -> dict | None:
@@ -114,10 +114,10 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         logger.warning(f"Could not fetch enough HTF candles for {symbol}. Proceeding without trend filter.")
 
     # ─── 2. Fetch Lower Timeframe Context ───
-    # Fetch 250 candles for EMA200 and ADX computation
-    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 250)
+    # Fetch 20 candles for ATR computation
+    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 20)
 
-    if rates is None or len(rates) < 200:
+    if rates is None or len(rates) < 18:
         logger.warning(f"Insufficient candle data for {symbol}. Received: {rates}")
         return None
 
@@ -169,18 +169,20 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
 
     # ─── 3. Strong Trend / Momentum Filters (EMA 200 + ADX) ───
     # We pass up to -1 to evaluate based on all closed candles
-    ema200 = _calc_ema(rates[:-1], period=200)
-    adx_value = _calc_adx(rates[:-1], period=14)
+    # ema200 = _calc_ema(rates[:-1], period=200)
+    # adx_value = _calc_adx(rates[:-1], period=14)
     
-    # We define an aggressive uptrend if price is > EMA 200 and ADX > 25
-    is_strong_uptrend = (curr_close > ema200) and (adx_value > 25.0)
-    # We define an aggressive downtrend if price is < EMA 200 and ADX > 25
-    is_strong_downtrend = (curr_close < ema200) and (adx_value > 25.0)
+    # # We define an aggressive uptrend if price is > EMA 200 and ADX > 25
+    # is_strong_uptrend = (curr_close > ema200) and (adx_value > 25.0)
+    # # We define an aggressive downtrend if price is < EMA 200 and ADX > 25
+    # is_strong_downtrend = (curr_close < ema200) and (adx_value > 25.0)
 
-    if is_strong_uptrend:
-        logger.debug(f"[{symbol}] Strong UPTREND (Price > EMA200 & ADX={adx_value:.1f} > 25)")
-    if is_strong_downtrend:
-        logger.debug(f"[{symbol}] Strong DOWNTREND (Price < EMA200 & ADX={adx_value:.1f} > 25)")
+    # if is_strong_uptrend:
+    #     logger.debug(f"[{symbol}] Strong UPTREND (Price > EMA200 & ADX={adx_value:.1f} > 25)")
+    #     _set(f"Strong UPTREND (Price > EMA200 & ADX={adx_value:.1f} > 25)", "green")
+    # if is_strong_downtrend:
+    #     logger.debug(f"[{symbol}] Strong DOWNTREND (Price < EMA200 & ADX={adx_value:.1f} > 25)")
+    #     _set(f"Strong DOWNTREND (Price < EMA200 & ADX={adx_value:.1f} > 25)", "red")
 
     # ─── MODE: Smart Candle Color (Trend + Momentum + Wick Rejection) ─
     upper_wick = curr_high - max(curr_open, curr_close)
@@ -220,9 +222,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
             if upper_wick >= body * 0.5:
                 _set("Green Candle: Upper Wick Rejection", "orange")
                 return None
-            if is_strong_downtrend:
-                _set("🚫 Blocked: Strong Downtrend Filter (ADX>25)", "red")
-                return None
+            # if is_strong_downtrend:
+            #     _set("🚫 Blocked: Strong Downtrend Filter (ADX>25)", "red")
+            #     return None
             _set(f"🚀 BUY Signal Triggered! (Surge: {surge_ratio:.2f}x)", "green")
             return {"direction": "BUY", "surge_ratio": surge_ratio}
         elif curr_close < curr_open:
@@ -243,9 +245,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
             if lower_wick >= body * 0.5:
                 _set("Red Candle: Lower Wick Rejection", "orange")
                 return None
-            if is_strong_uptrend:
-                _set("🚫 Blocked: Strong Uptrend Filter (ADX>25)", "red")
-                return None
+            # if is_strong_uptrend:
+            #     _set("🚫 Blocked: Strong Uptrend Filter (ADX>25)", "red")
+            #     return None
             _set(f"🚀 SELL Signal Triggered! (Surge: {surge_ratio:.2f}x)", "green")
             return {"direction": "SELL", "surge_ratio": surge_ratio}
         else:
@@ -263,9 +265,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and curr_close > prev_open
         and curr_open <= prev_close
     ):
-        if is_strong_downtrend:
-            _set("Pattern Blocked: Bullish Engulfing in strong Downtrend", "red")
-            return None
+        # if is_strong_downtrend:
+        #     _set("Pattern Blocked: Bullish Engulfing in strong Downtrend", "red")
+        #     return None
         _set("✅ BUllish Engulfing Pattern Detected!", "green")
         return {"direction": "BUY", "surge_ratio": surge_ratio}
 
@@ -276,9 +278,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and curr_close < prev_open
         and curr_open >= prev_close
     ):
-        if is_strong_uptrend:
-            _set("Pattern Blocked: Bearish Engulfing in strong Uptrend", "red")
-            return None
+        # if is_strong_uptrend:
+        #     _set("Pattern Blocked: Bearish Engulfing in strong Uptrend", "red")
+        #     return None
         _set("✅ Bearish Engulfing Pattern Detected!", "green")
         return {"direction": "SELL", "surge_ratio": surge_ratio}
 
@@ -291,9 +293,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and lower_wick >= 2.0 * body
         and upper_wick <= body * 0.5
     ):
-        if is_strong_downtrend:
-            _set("Pattern Blocked: Bullish Hammer in strong Downtrend", "red")
-            return None
+        # if is_strong_downtrend:
+        #     _set("Pattern Blocked: Bullish Hammer in strong Downtrend", "red")
+        #     return None
         _set("✅ Bullish Hammer Pattern Detected!", "green")
         return {"direction": "BUY", "surge_ratio": surge_ratio}
 
@@ -303,9 +305,9 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
         and upper_wick >= 2.0 * body
         and lower_wick <= body * 0.5
     ):
-        if is_strong_uptrend:
-            _set("Pattern Blocked: Shooting Star in strong Uptrend", "red")
-            return None
+        # if is_strong_uptrend:
+        #     _set("Pattern Blocked: Shooting Star in strong Uptrend", "red")
+        #     return None
         _set("✅ Shooting Star Pattern Detected!", "green")
         return {"direction": "SELL", "surge_ratio": surge_ratio}
 
