@@ -16,7 +16,7 @@ import logging
 import signal
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import MetaTrader5 as mt5
 
@@ -147,8 +147,43 @@ def _get_active_time_range_id() -> str:
         else:
             if now_time >= s_t or now_time <= e_t:
                 return f"{day_idx}_{idx}"
+                return f"{day_idx}_{idx}"
                 
     return ""
+
+def _is_session_ending_soon(minutes: int) -> bool:
+    now_utc = datetime.now(tz=timezone.utc)
+    day_idx = str(now_utc.weekday())
+    day_config = signal_state.session_schedule.get(day_idx, {"enabled": False, "ranges": []})
+    
+    if not day_config.get("enabled", False):
+        return False
+        
+    ranges = day_config.get("ranges", [])
+    if not ranges:
+        return False
+        
+    now_time = now_utc.time()
+    now_dt = datetime.combine(datetime.today(), now_time)
+    
+    for tr in ranges:
+        s_t = _parse_time(tr["start"])
+        e_t = _parse_time(tr["end"])
+        
+        start_dt = datetime.combine(datetime.today(), s_t)
+        end_dt = datetime.combine(datetime.today(), e_t)
+        
+        if end_dt <= start_dt:
+            end_dt += timedelta(days=1)
+            if now_dt < start_dt:
+                now_dt += timedelta(days=1)
+                
+        if start_dt <= now_dt <= end_dt:
+            time_left = (end_dt - now_dt).total_seconds() / 60.0
+            if time_left <= minutes:
+                return True
+                
+    return False
 
 def _is_within_trading_hours(symbol: str) -> bool:
     return _get_active_time_range_id() != ""
@@ -533,6 +568,12 @@ def main():
             symbols_to_remove = []
             active_baskets_count = 0
             
+            is_ending_soon = False
+            flush_limit = 0.0
+            if signal_state.session_smart_flush and signal_state.session_active:
+                is_ending_soon = _is_session_ending_soon(signal_state.session_flush_minutes)
+                flush_limit = signal_state.session_stop_loss * (signal_state.session_flush_tolerance_pct / 100.0)
+            
             for sym, state in basket_states.items():
                 if state.direction is not None:
                     active_baskets_count += 1
@@ -541,6 +582,14 @@ def main():
                         # Basket closed manually or naturally
                         symbols_to_remove.append(sym)
                         continue
+                        
+                    if is_ending_soon:
+                        profit = get_basket_profit(sym)
+                        if profit >= -max(0.01, flush_limit):
+                            logger.warning(f"🧹 EOD FLUSH [{sym}]! Remaining time low. Cutting at P/L: ${profit:.2f} (Limit: -${flush_limit:.2f})")
+                            close_all_positions(sym, reason="EOD_FLUSH")
+                            symbols_to_remove.append(sym)
+                            continue
 
                     if _check_smart_exit(sym, state):
                         symbols_to_remove.append(sym)

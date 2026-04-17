@@ -52,6 +52,9 @@ def get_signals():
         "session_symbols": signal_state.session_symbols,
         "session_schedule": signal_state.session_schedule,
         "session_auto_restart": signal_state.session_auto_restart,
+        "session_smart_flush": signal_state.session_smart_flush,
+        "session_flush_minutes": signal_state.session_flush_minutes,
+        "session_flush_tolerance_pct": signal_state.session_flush_tolerance_pct,
         "master_symbols": config.SYMBOLS
     })
 
@@ -71,6 +74,9 @@ def start_session():
     session_syms = data.get("symbols", [])
     schedule = data.get("schedule", {str(i): {"enabled": i < 5, "ranges": []} for i in range(7)})
     auto_restart = bool(data.get("auto_restart", False))
+    smart_flush = bool(data.get("smart_flush", False))
+    flush_mins = int(data.get("flush_minutes", 5))
+    flush_tol = int(data.get("flush_tolerance_pct", 10))
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0:
         signal_state.session_target_profit = tp
@@ -79,6 +85,9 @@ def start_session():
         signal_state.session_symbols = session_syms
         signal_state.session_schedule = schedule
         signal_state.session_auto_restart = auto_restart
+        signal_state.session_smart_flush = smart_flush
+        signal_state.session_flush_minutes = flush_mins
+        signal_state.session_flush_tolerance_pct = flush_tol
         signal_state.session_start_time_stamp = time.time()
         
         signal_state.session_start_equity = signal_state.current_balance
@@ -108,6 +117,9 @@ def update_session():
     session_syms = data.get("symbols", [])
     schedule = data.get("schedule", {str(i): {"enabled": i < 5, "ranges": []} for i in range(7)})
     auto_restart = bool(data.get("auto_restart", False))
+    smart_flush = bool(data.get("smart_flush", False))
+    flush_mins = int(data.get("flush_minutes", 5))
+    flush_tol = int(data.get("flush_tolerance_pct", 10))
     
     if tp > 0 and sl > 0 and max_symbols > 0 and len(session_syms) > 0 and signal_state.session_active:
         signal_state.session_target_profit = tp
@@ -116,6 +128,9 @@ def update_session():
         signal_state.session_symbols = session_syms
         signal_state.session_schedule = schedule
         signal_state.session_auto_restart = auto_restart
+        signal_state.session_smart_flush = smart_flush
+        signal_state.session_flush_minutes = flush_mins
+        signal_state.session_flush_tolerance_pct = flush_tol
         signal_state.save_session()
         
     return jsonify({"success": True})

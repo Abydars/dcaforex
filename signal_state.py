@@ -37,6 +37,9 @@ session_symbols = []
 session_schedule = {str(i): {"enabled": i < 5, "ranges": []} for i in range(7)}
 session_start_time_stamp = 0.0
 session_auto_restart = False
+session_smart_flush = False
+session_flush_minutes = 5
+session_flush_tolerance_pct = 10
 session_waiting_for_next_range = False
 session_last_ended_range_id = ""
 
@@ -54,6 +57,9 @@ def save_session():
                 "session_schedule": session_schedule,
                 "session_start_time_stamp": session_start_time_stamp,
                 "session_auto_restart": session_auto_restart,
+                "session_smart_flush": session_smart_flush,
+                "session_flush_minutes": session_flush_minutes,
+                "session_flush_tolerance_pct": session_flush_tolerance_pct,
                 "session_waiting_for_next_range": session_waiting_for_next_range,
                 "session_last_ended_range_id": session_last_ended_range_id
             }, f)
@@ -61,7 +67,7 @@ def save_session():
         print(f"Error saving session: {e}")
 
 def load_session():
-    global session_active, session_start_equity, session_start_balance, session_target_profit, session_stop_loss, session_max_symbols, session_symbols, session_schedule, session_start_time_stamp, session_auto_restart, session_waiting_for_next_range, session_last_ended_range_id
+    global session_active, session_start_equity, session_start_balance, session_target_profit, session_stop_loss, session_max_symbols, session_symbols, session_schedule, session_start_time_stamp, session_auto_restart, session_smart_flush, session_flush_minutes, session_flush_tolerance_pct, session_waiting_for_next_range, session_last_ended_range_id
     if os.path.exists(SESSION_FILE):
         try:
             with open(SESSION_FILE, "r") as f:
@@ -76,6 +82,9 @@ def load_session():
             session_schedule = data.get("session_schedule", {str(i): {"enabled": i < 5, "ranges": []} for i in range(7)})
             session_start_time_stamp = data.get("session_start_time_stamp", 0.0)
             session_auto_restart = data.get("session_auto_restart", False)
+            session_smart_flush = data.get("session_smart_flush", False)
+            session_flush_minutes = data.get("session_flush_minutes", 5)
+            session_flush_tolerance_pct = data.get("session_flush_tolerance_pct", 10)
             session_waiting_for_next_range = data.get("session_waiting_for_next_range", False)
             session_last_ended_range_id = data.get("session_last_ended_range_id", "")
         except Exception as e:
