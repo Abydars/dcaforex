@@ -195,10 +195,18 @@
         .glow-red { color: var(--red); text-shadow: 0 0 8px rgba(255, 51, 85, 0.4); }
         .glow-green { color: var(--green); text-shadow: 0 0 8px rgba(0, 255, 157, 0.4); }
 
+        .session-stats-grid { display: flex; align-items: center; white-space: nowrap; }
+        .text-secondary { color: var(--text-secondary); }
+
         @media (max-width: 768px) {
-            .header-container { flex-direction: column; align-items: stretch; }
-            .header-stats { width: 100%; justify-content: flex-start; padding: 0.5rem 0; border-top: 1px solid var(--border-color); margin-top: 0.5rem; }
-            .pnl-pill { border: none !important; margin: 0; padding: 0 0.5rem; flex: unset !important; text-align: left !important; }
+            .header-container { flex-direction: column; align-items: stretch; padding: 0.5rem; }
+            .header-buttons { width: 100%; justify-content: stretch; margin-bottom: 0.5rem; }
+            .header-buttons button { flex: 1; }
+            .header-stats { width: 100%; flex-direction: column; justify-content: flex-start; align-items: flex-start !important; padding: 0; border-top: 1px solid var(--border-color); margin-top: 0.5rem; padding-top:0.5rem; }
+            .pnl-pill { border: none !important; margin: 0 !important; padding: 0.25rem 0 !important; width: 100%; text-align: left !important; justify-content: space-between !important; }
+            .desktop-only { display: none !important; }
+            .session-stats-grid { flex-direction: column; align-items: flex-start; gap: 0.25rem; font-size: 0.8rem; width: 100%; }
+            .edit-btn { width: 100%; padding: 0.35rem !important; margin-top: 0.25rem; }
         }
     </style>
 
@@ -361,10 +369,17 @@
                 const rSign = sRealizedPnl >= 0 ? '+' : '';
                 const rGlow = sRealizedPnl >= 0 ? 'glow-green' : 'glow-red';
                 
-                sessionStats.innerHTML = `Realized: <span class="${rGlow}">${rSign}$${sRealizedPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
-                                          Eqt PnL: <span class="${tGlow}">${tSign}$${sTotalPnl.toFixed(2)}</span> &nbsp;|&nbsp; 
-                                          TP: $${apiData.session_tp} / SL: -$${apiData.session_sl} &nbsp;|&nbsp; Max: ${sMax}
-                                          &nbsp;&nbsp;<button onclick="openSessionModal()" style="background:transparent; color:#3b82f6; border:1px solid #3b82f6; padding:0 4px; border-radius:2px; font-size:0.7rem; cursor:pointer;">EDIT</button>`;
+                sessionStats.innerHTML = `<div class="session-stats-grid">
+                                              <span>Realized: <span class="${rGlow}">${rSign}$${sRealizedPnl.toFixed(2)}</span></span>
+                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
+                                              <span>Eqt PnL: <span class="${tGlow}">${tSign}$${sTotalPnl.toFixed(2)}</span></span>
+                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
+                                              <span>TP: $${apiData.session_tp} / SL: -$${apiData.session_sl}</span>
+                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
+                                              <span>Max: ${sMax}</span>
+                                              <span class="desktop-only">&nbsp;&nbsp;</span>
+                                              <button onclick="openSessionModal()" style="background:transparent; color:#3b82f6; border:1px solid #3b82f6; padding:0 4px; border-radius:2px; font-size:0.7rem; cursor:pointer;" class="edit-btn">EDIT</button>
+                                          </div>`;
             } else {
                 sessionBtn.innerText = "Start Session";
                 sessionBtn.style.backgroundColor = "#3b82f6"; // blue
