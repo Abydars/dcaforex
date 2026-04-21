@@ -125,6 +125,44 @@ def initialize_mt5(exit_on_fail: bool = True):
             valid_symbols.append(sym)
             
     config.SYMBOLS = valid_symbols
+    
+    # ─── Session Auto-Migration ───
+    import signal_state
+    if signal_state.session_symbols:
+        base_symbols = []
+        for group in getattr(config, "BASE_GROUPS", {}).values():
+            base_symbols.extend(group)
+            
+        new_session_symbols = []
+        for old_sym in signal_state.session_symbols:
+            my_base = None
+            # Identify the base string (e.g. 'EURUSD' from 'EURUSDm')
+            for b in base_symbols:
+                if old_sym.startswith(b):
+                    my_base = b
+                    break
+            
+            if my_base:
+                # Find the first valid symbol on the new broker that matches this base
+                migrated = False
+                for valid_sym in valid_symbols:
+                    if valid_sym.startswith(my_base):
+                        new_session_symbols.append(valid_sym)
+                        migrated = True
+                        break
+                if not migrated:
+                    # If the new broker doesn't have this pair at all, keep the old one (or drop it)
+                    # We keep it so it doesn't just disappear silently
+                    new_session_symbols.append(old_sym)
+            else:
+                new_session_symbols.append(old_sym)
+                
+        # Deduplicate and update
+        new_session_symbols = list(set(new_session_symbols))
+        if set(new_session_symbols) != set(signal_state.session_symbols):
+            logger.info(f"🔄 Migrated Session Symbols to new broker suffix: {new_session_symbols}")
+            signal_state.session_symbols = new_session_symbols
+            signal_state.save_session()
 
     logger.info(f"MT5 connection fully established ✓ ({len(valid_symbols)} Valid Symbols Registered)")
     return True
