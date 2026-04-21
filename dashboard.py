@@ -189,6 +189,7 @@ def update_session():
 def stop_session():
     if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
     signal_state.session_active = False
+    signal_state.session_waiting_for_next_range = False
     signal_state.manual_close_requests.add("ALL")
     signal_state.save_session()
     return jsonify({"success": True})

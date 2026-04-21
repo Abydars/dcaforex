@@ -572,7 +572,17 @@
                 warningBar.innerText = "TRADING PAUSED: NO ACTIVE SESSION STARTED";
                 warningBar.style.display = "block";
             } else if (!inTradingHours) {
-                warningBar.innerText = "TRADING PAUSED: OUT OF ACTIVE TRADING HOURS OR WEEKDAYS";
+                let nextTime = getNextStartTime(globalSessionSchedule);
+                if (nextTime) {
+                    let diff = nextTime - new Date();
+                    if (diff < 0) diff = 0;
+                    let h = Math.floor(diff / 3600000);
+                    let m = Math.floor((diff % 3600000) / 60000);
+                    let s = Math.floor((diff % 60000) / 1000);
+                    warningBar.innerHTML = `TRADING PAUSED: OUT OF ACTIVE TRADING HOURS <span style="font-family:'Roboto Mono', monospace; margin-left:10px; color:#fcd34d;">(Continues in ${h}h ${m}m ${s}s)</span>`;
+                } else {
+                    warningBar.innerText = "TRADING PAUSED: OUT OF ACTIVE TRADING HOURS OR WEEKDAYS";
+                }
                 warningBar.style.display = "block";
             } else if (isEndingSoon) {
                 warningBar.innerHTML = `TRADING PAUSED: NEARING SESSION END (AUTO-PAUSE ACTIVE, < ${globalSessionAutoPauseMins}m LEFT)`;
