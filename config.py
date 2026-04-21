@@ -34,9 +34,9 @@ def _get_env(key: str, default=None, required: bool = True) -> str:
 
 
 # ─── MT5 Credentials ────────────────────────────────────────
-MT5_LOGIN: int = int(_get_env("MT5_LOGIN"))
-MT5_PASS: str = _get_env("MT5_PASS")
-MT5_SERVER: str = _get_env("MT5_SERVER")
+MT5_LOGIN: int = int(_get_env("MT5_LOGIN", default="0", required=False))
+MT5_PASS: str = _get_env("MT5_PASS", default="", required=False)
+MT5_SERVER: str = _get_env("MT5_SERVER", default="", required=False)
 
 # ─── User Inputs (only these matter) ────────────────────────
 TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()

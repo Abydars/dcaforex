@@ -10,8 +10,42 @@ import time
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
+import dotenv
+
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+@app.route('/api/mt5_config', methods=['GET', 'POST'])
+def mt5_config():
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
+    
+    env_file = ".env"
+    
+    if request.method == 'GET':
+        return jsonify({
+            "MT5_LOGIN": os.getenv("MT5_LOGIN", ""),
+            "MT5_SERVER": os.getenv("MT5_SERVER", "")
+        })
+        
+    data = request.json or {}
+    login = data.get("MT5_LOGIN")
+    password = data.get("MT5_PASS")
+    server = data.get("MT5_SERVER")
+    
+    if login: dotenv.set_key(env_file, "MT5_LOGIN", str(login))
+    if password: dotenv.set_key(env_file, "MT5_PASS", password)
+    if server: dotenv.set_key(env_file, "MT5_SERVER", server)
+    
+    # Update running config
+    if login: config.MT5_LOGIN = int(login)
+    if password: config.MT5_PASS = password
+    if server: config.MT5_SERVER = server
+    
+    # We could attempt to re-initialize MT5 here if needed
+    # from mt5_connector import initialize_mt5
+    # initialize_mt5()
+    
+    return jsonify({"success": True})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

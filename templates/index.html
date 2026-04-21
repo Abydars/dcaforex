@@ -280,6 +280,7 @@
     <div class="header-container" style="background: #0f172a; border-top-left-radius: 0; border-top-right-radius: 0; margin-top: -1px; border-top: 1px solid #1e293b;">
         <div class="header-buttons">
             <button id="btn-session" class="btn-toggle" onclick="openSessionModal()" style="background-color: #3b82f6;">Start Session</button>
+            <button class="btn-toggle" onclick="openMt5Modal()" style="background-color: #f59e0b; color: #fff; border-color: #f59e0b;">MT5 Config</button>
         </div>
         <div class="header-stats" style="flex: 1; justify-content: flex-end;">
             <div class="pnl-pill" id="session-stats" style="font-size: 0.95rem; color: var(--text-secondary); flex: 1; text-align: right; margin-left: 1rem; border: 1px dashed #334155;">
@@ -360,6 +361,29 @@
             <div style="display:flex; gap:1rem;">
                 <button onclick="closeSessionModal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
                 <button id="modal-submit-btn" onclick="submitSession()" style="flex:1; padding:0.5rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Start</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MT5 Config Modal -->
+    <div id="mt5-modal" class="modal-overlay">
+        <div class="modal-inner" style="width: 400px;">
+            <h3 style="margin-top:0; color:#fff;">MT5 Configuration</h3>
+            <div style="margin-bottom:1rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">MT5 Login Account</label>
+                <input type="number" id="inp-mt5-login" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" placeholder="e.g. 12345678">
+            </div>
+            <div style="margin-bottom:1rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">MT5 Password</label>
+                <input type="password" id="inp-mt5-pass" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" placeholder="Leave blank to keep unchanged">
+            </div>
+            <div style="margin-bottom:1.5rem;">
+                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">MT5 Server</label>
+                <input type="text" id="inp-mt5-server" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" placeholder="e.g. Exness-MT5Trial11">
+            </div>
+            <div style="display:flex; gap:1rem;">
+                <button onclick="closeMt5Modal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
+                <button onclick="submitMt5Config()" style="flex:1; padding:0.5rem; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Save Config</button>
             </div>
         </div>
     </div>
@@ -1145,6 +1169,48 @@
             try {
                 await fetch('/api/session/stop', { method: 'POST' });
                 fetchSignals();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function openMt5Modal() {
+            try {
+                const res = await fetch('/api/mt5_config');
+                const data = await res.json();
+                document.getElementById('inp-mt5-login').value = data.MT5_LOGIN || "";
+                document.getElementById('inp-mt5-pass').value = ""; // Don't show password
+                document.getElementById('inp-mt5-server').value = data.MT5_SERVER || "";
+            } catch (e) {}
+            document.getElementById('mt5-modal').style.display = 'flex';
+        }
+
+        function closeMt5Modal() {
+            document.getElementById('mt5-modal').style.display = 'none';
+        }
+
+        async function submitMt5Config() {
+            const login = document.getElementById('inp-mt5-login').value;
+            const pass = document.getElementById('inp-mt5-pass').value;
+            const server = document.getElementById('inp-mt5-server').value;
+            
+            if (!login || !server) {
+                alert("Login and Server are required.");
+                return;
+            }
+            
+            try {
+                await fetch('/api/mt5_config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        MT5_LOGIN: login,
+                        MT5_PASS: pass,
+                        MT5_SERVER: server
+                    })
+                });
+                closeMt5Modal();
+                alert("MT5 config updated in .env! Restart the bot script to apply new credentials.");
             } catch (e) {
                 console.error(e);
             }
