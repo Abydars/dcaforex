@@ -430,11 +430,11 @@ def _check_order_triggers(symbol: str, state: BasketState):
 def _is_new_candle(symbol: str) -> bool:
     global _last_candle_times
     tf = get_mt5_timeframe()
-    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 1)
+    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 2)
     if rates is None or len(rates) == 0:
         return False
         
-    current_time = rates[0]['time']
+    current_time = rates[-1]['time']
     last_time = _last_candle_times.get(symbol, None)
     
     if last_time is None:
@@ -443,6 +443,17 @@ def _is_new_candle(symbol: str) -> bool:
         
     if current_time > last_time:
         _last_candle_times[symbol] = current_time
+        
+        # Log the newly closed candle details
+        if len(rates) >= 2:
+            c = rates[-2]
+            c_type = "GREEN 🟢" if c["close"] > c["open"] else "RED 🔴" if c["close"] < c["open"] else "DOJI ⚪"
+            logger.info(
+                f"[{symbol}] 📊 Closed Candle: {c_type} | "
+                f"O:{c['open']} H:{c['high']} L:{c['low']} C:{c['close']} | "
+                f"Body:{abs(c['close'] - c['open']):.5f} Range:{c['high'] - c['low']:.5f}"
+            )
+            
         return True
         
     return False

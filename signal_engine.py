@@ -134,14 +134,6 @@ def get_entry_signal(target_symbol: str = None) -> dict | None:
     body = abs(curr_close - curr_open)
     full_range = curr_high - curr_low
 
-    # Log candle details for debugging
-    candle_type = "GREEN 🟢" if curr_close > curr_open else "RED 🔴" if curr_close < curr_open else "DOJI ⚪"
-    logger.info(
-        f"[{symbol}] 📊 Closed Candle: {candle_type} | "
-        f"O:{curr_open} H:{curr_high} L:{curr_low} C:{curr_close} | "
-        f"Body:{body:.5f} Range:{full_range:.5f}"
-    )
-
     if full_range == 0:
         logger.debug(f"[{symbol}] Zero-range candle (doji), skipping.")
         return None
