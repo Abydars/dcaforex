@@ -431,6 +431,36 @@
     </div>
 
     <script>
+        function getNextStartTime(schedule) {
+            if (!schedule) return null;
+            const now = new Date();
+            for (let dayOffset = 0; dayOffset <= 7; dayOffset++) {
+                let checkDate = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+                let pyDayStr = ((checkDate.getUTCDay() + 6) % 7).toString();
+                let dayConfig = schedule[pyDayStr];
+                
+                if (dayConfig && dayConfig.enabled) {
+                    let ranges = dayConfig.ranges || [];
+                    if (ranges.length === 0) {
+                        if (dayOffset > 0) {
+                            checkDate.setUTCHours(0, 0, 0, 0);
+                            return checkDate;
+                        }
+                    } else {
+                        let sortedStarts = ranges.map(r => r.start).sort();
+                        for (let startStr of sortedStarts) {
+                            if (!startStr) continue;
+                            let [h, m] = startStr.split(':').map(Number);
+                            let cand = new Date(checkDate);
+                            cand.setUTCHours(h, m, 0, 0);
+                            if (cand > now) return cand;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         let isBotActive = true;
         let isSessionActive = false;
         let globalMasterSymbols = [];
@@ -593,10 +623,26 @@
                                               <button onclick="openSessionModal()" style="background:transparent; color:#3b82f6; border:1px solid #3b82f6; padding:0 4px; border-radius:2px; font-size:0.7rem; cursor:pointer;" class="edit-btn">EDIT</button>
                                           </div>`;
             } else {
+                let timerHtml = "";
+                if (apiData.session_auto_restart && apiData.session_waiting_for_next_range) {
+                    let nextTime = getNextStartTime(globalSessionSchedule);
+                    if (nextTime) {
+                        let diff = nextTime - new Date();
+                        let h = Math.floor(diff / 3600000);
+                        let m = Math.floor((diff % 3600000) / 60000);
+                        let s = Math.floor((diff % 60000) / 1000);
+                        timerHtml = `<span style="color:#f59e0b; margin-left:10px; font-family:'Roboto Mono', monospace;">(Restarts in ${h}h ${m}m ${s}s)</span>`;
+                    } else {
+                        timerHtml = `<span style="color:#f59e0b; margin-left:10px;">(Waiting for next schedule)</span>`;
+                    }
+                    sessionStats.innerHTML = `<span style="color:#f59e0b; font-weight:bold;">STANDBY MODE</span> ${timerHtml}`;
+                } else {
+                    sessionStats.innerHTML = "Session Inactive";
+                }
+                
                 sessionBtn.innerText = "Start Session";
                 sessionBtn.style.backgroundColor = "#3b82f6"; // blue
                 sessionBtn.onclick = openSessionModal;
-                sessionStats.innerHTML = "Session Inactive";
             }
             
             // Build final array of symbols to display:
