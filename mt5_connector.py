@@ -117,7 +117,8 @@ def initialize_mt5(exit_on_fail: bool = True):
 
     # ─── Symbol Registration ──
     valid_symbols = []
-    for sym in config.SYMBOLS:
+    # Use MASTER_SYMBOLS so we always scan from the full list on re-initialization
+    for sym in getattr(config, "MASTER_SYMBOLS", config.SYMBOLS):
         if _register_symbol(sym):
             valid_symbols.append(sym)
             

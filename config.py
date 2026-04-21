@@ -74,6 +74,7 @@ CORRELATION_GROUPS = {
 # Auto-compute Master Available Symbols explicitly from our Correlation Groups dictionary
 SYMBOLS: list = list({sym for group in CORRELATION_GROUPS.values() for sym in group})
 SYMBOLS.sort()
+MASTER_SYMBOLS = SYMBOLS.copy()
 SYMBOL: str = SYMBOLS[0] if len(SYMBOLS) > 0 else "EURUSDm"
 
 # ─── Auto-Calculated (filled at runtime by auto_params) ─────
