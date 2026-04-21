@@ -49,27 +49,41 @@ MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="550055"))
 DASHBOARD_PASSWORD: str = _get_env("DASHBOARD_PASSWORD", default="*&*&*&", required=False)
 
 # ─── Anti-Correlation Module ────────────────────────────────
-CORRELATION_GROUPS = {
+BASE_GROUPS = {
     # Major Pairs (USD Quote vs USD Base)
-    "USD_DIRECT": ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "EURUSDm", "GBPUSDm", "AUDUSDm", "NZDUSDm"],
-    "USD_INDIRECT": ["USDJPY", "USDCAD", "USDCHF", "USDJPYm", "USDCADm", "USDCHFm"],
+    "USD_DIRECT": ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"],
+    "USD_INDIRECT": ["USDJPY", "USDCAD", "USDCHF"],
     
     # Currency Crosses
-    "EUR_CROSS": ["EURGBP", "EURJPY", "EURCHF", "EURAUD", "EURNZD", "EURCAD", "EURGBPm", "EURJPYm", "EURCHFm", "EURAUDm", "EURNZDm", "EURCADm"],
-    "GBP_CROSS": ["GBPJPY", "GBPCHF", "GBPAUD", "GBPNZD", "GBPCAD", "GBPJPYm", "GBPCHFm", "GBPAUDm", "GBPNZDm", "GBPCADm"],
-    "JPY_CROSS": ["AUDJPY", "NZDJPY", "CADJPY", "CHFJPY", "AUDJPYm", "NZDJPYm", "CADJPYm", "CHFJPYm"],
+    "EUR_CROSS": ["EURGBP", "EURJPY", "EURCHF", "EURAUD", "EURNZD", "EURCAD"],
+    "GBP_CROSS": ["GBPJPY", "GBPCHF", "GBPAUD", "GBPNZD", "GBPCAD"],
+    "JPY_CROSS": ["AUDJPY", "NZDJPY", "CADJPY", "CHFJPY"],
     
     # Commodities / Metals
-    "METALS": ["XAUUSD", "XAGUSD", "XAUUSDm", "XAGUSDm", "GOLD", "SILVER"],
-    "OIL": ["USOIL", "UKOIL", "WTI", "BRENT", "USOILm", "UKOILm"],
+    "METALS": ["XAUUSD", "XAGUSD", "GOLD", "SILVER"],
+    "OIL": ["USOIL", "UKOIL", "WTI", "BRENT"],
     
     # Indices
     "US_INDICES": ["US30", "USTEC", "US100", "SPX500", "NAS100", "DJI"],
     "EU_INDICES": ["GER30", "GER40", "UK100", "FRA40", "DAX30", "DAX40"],
     
     # Crypto
-    "CRYPTO": ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "BTCUSDm", "ETHUSDm"]
+    "CRYPTO": ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"]
 }
+
+# Common MT4/MT5 Broker Suffixes
+SUFFIXES = [
+    "", "m", "c", "z", "i", "pro", "ecn", "raw", "x", 
+    ".a", ".r", ".ecn", ".pro", ".x", "_x", "_raw", "_i", "-i",
+    "b", "k", "s"
+]
+
+CORRELATION_GROUPS = {}
+for group_name, base_symbols in BASE_GROUPS.items():
+    CORRELATION_GROUPS[group_name] = []
+    for sym in base_symbols:
+        for suf in SUFFIXES:
+            CORRELATION_GROUPS[group_name].append(sym + suf)
 
 # Auto-compute Master Available Symbols explicitly from our Correlation Groups dictionary
 SYMBOLS: list = list({sym for group in CORRELATION_GROUPS.values() for sym in group})

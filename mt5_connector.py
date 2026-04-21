@@ -117,8 +117,10 @@ def initialize_mt5(exit_on_fail: bool = True):
 
     # ─── Symbol Registration ──
     valid_symbols = []
-    # Use MASTER_SYMBOLS so we always scan from the full list on re-initialization
-    for sym in getattr(config, "MASTER_SYMBOLS", config.SYMBOLS):
+    # Always scan from the unmutated CORRELATION_GROUPS to avoid hot-reload state issues
+    master_list = list({sym for group in config.CORRELATION_GROUPS.values() for sym in group})
+    master_list.sort()
+    for sym in master_list:
         if _register_symbol(sym):
             valid_symbols.append(sym)
             
