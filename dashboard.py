@@ -41,11 +41,15 @@ def mt5_config():
     if password: config.MT5_PASS = password
     if server: config.MT5_SERVER = server
     
-    # We could attempt to re-initialize MT5 here if needed
-    # from mt5_connector import initialize_mt5
-    # initialize_mt5()
+    # Re-initialize MT5 dynamically
+    import mt5_connector
+    mt5_connector.shutdown_mt5()
+    success = mt5_connector.initialize_mt5(exit_on_fail=False)
     
-    return jsonify({"success": True})
+    if success:
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False, "error": "Failed to connect to MT5 with these credentials. Check your details or MT5 Terminal."})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

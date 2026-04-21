@@ -58,12 +58,18 @@ def get_mt5_htf(current_tf: int) -> int:
     return _HTF_MAP.get(current_tf, mt5.TIMEFRAME_H1)
 
 
-def initialize_mt5():
+def initialize_mt5(exit_on_fail: bool = True):
     """
     Starts the MT5 terminal and authenticates headlessly
     against the configured Exness account.
     """
     logger.info("Initializing MetaTrader5 connection...")
+
+    if not config.MT5_LOGIN or not config.MT5_PASS or not config.MT5_SERVER:
+        logger.warning("MT5 Credentials missing. Please configure via Dashboard.")
+        if exit_on_fail:
+            sys.exit(1)
+        return False
 
     authorized = mt5.initialize(
         login=config.MT5_LOGIN,
@@ -76,7 +82,9 @@ def initialize_mt5():
             f"MT5 initialization / authorization failed. Error: {mt5.last_error()}"
         )
         mt5.shutdown()
-        sys.exit(1)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
 
     logger.info("MT5 initialized ✓")
 
@@ -85,15 +93,15 @@ def initialize_mt5():
     if account is None:
         logger.critical(f"Cannot retrieve account info. Error: {mt5.last_error()}")
         mt5.shutdown()
-        sys.exit(1)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
 
     logger.info(
         f"Account {account.login} @ {account.company} | "
         f"Balance: {account.balance:.2f} {account.currency} | "
         f"Equity: {account.equity:.2f}"
     )
-
-
 
     # ── Algo Trading Check ──
     terminal = mt5.terminal_info()
@@ -103,7 +111,9 @@ def initialize_mt5():
             "Enable it via Tools → Options → Expert Advisors."
         )
         mt5.shutdown()
-        sys.exit(1)
+        if exit_on_fail:
+            sys.exit(1)
+        return False
 
     # ─── Symbol Registration ──
     valid_symbols = []

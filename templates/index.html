@@ -1200,7 +1200,7 @@
             }
             
             try {
-                await fetch('/api/mt5_config', {
+                const response = await fetch('/api/mt5_config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -1209,8 +1209,13 @@
                         MT5_SERVER: server
                     })
                 });
-                closeMt5Modal();
-                alert("MT5 config updated in .env! Restart the bot script to apply new credentials.");
+                const result = await response.json();
+                if (result.success) {
+                    closeMt5Modal();
+                    alert("MT5 config applied successfully! The bot has automatically reconnected using the new credentials.");
+                } else {
+                    alert("Error: " + (result.error || "Failed to update config."));
+                }
             } catch (e) {
                 console.error(e);
             }
