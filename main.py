@@ -20,6 +20,7 @@ import logging
 import signal
 import sys
 import time
+import threading
 
 import MetaTrader5 as mt5
 
@@ -36,6 +37,7 @@ from filters import all_filters_pass
 from mt5_connector import get_tick, initialize_mt5, shutdown_mt5
 from risk import RiskManager, calculate_lot_size
 from signal_engine import generate_signal
+from dashboard import run_dashboard_server
 
 logger = logging.getLogger("Bot")
 
@@ -113,6 +115,11 @@ def main():
     trade_log.init_db()
     risk_mgr = RiskManager()
     _adopt_orphan_position()
+
+    # Start the Dashboard in a background thread
+    logger.info("Starting Dashboard UI on port 5000...")
+    dashboard_thread = threading.Thread(target=run_dashboard_server, daemon=True)
+    dashboard_thread.start()
 
     last_m5_ts = 0
     last_status_log = 0.0
