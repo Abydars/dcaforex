@@ -24,7 +24,7 @@
 
         body {
             margin: 0;
-            padding: 1.5rem 1rem;
+            padding: 1.5rem;
             background: var(--bg-dark);
             background-image: var(--bg-gradient);
             color: var(--text-main);
@@ -34,13 +34,29 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        .container {
-            max-width: 1000px;
+        .app-layout {
+            max-width: 1400px;
             margin: 0 auto;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .sidebar {
             display: flex;
             flex-direction: column;
             gap: 1.25rem;
-            animation: fadeIn 0.5s ease-out;
+            position: sticky;
+            top: 1.5rem;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            min-width: 0; /* Prevents overflow in CSS grid */
         }
 
         @keyframes fadeIn {
@@ -57,7 +73,7 @@
             border-radius: 16px;
             padding: 1.25rem;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: box-shadow 0.2s;
         }
         
         .panel:hover {
@@ -85,18 +101,19 @@
         .text-cyan { color: var(--accent-cyan); text-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
         .text-gray { color: var(--text-muted); }
 
-        /* Header Specifics */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 1.5rem;
-            background: linear-gradient(135deg, rgba(17, 24, 39, 0.6) 0%, rgba(0, 0, 0, 0.4) 100%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        /* Header specifics */
+        .brand-header {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            backdrop-filter: var(--glass-blur);
         }
         
-        .header h1 {
-            margin: 0;
+        .brand-header h1 {
+            margin: 0 0 0.5rem 0;
             font-size: 1.5rem;
             font-weight: 700;
             letter-spacing: -0.02em;
@@ -105,11 +122,16 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .header-subtitle {
-            font-size: 0.8rem;
+        .account-badge {
+            display: inline-block;
+            background: rgba(6, 182, 212, 0.1);
             color: var(--accent-cyan);
-            margin-top: 0.25rem;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            padding: 0.4rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
             font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 1.25rem;
         }
 
         /* Buttons */
@@ -117,14 +139,16 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--text-main);
-            padding: 0.5rem 1rem;
+            padding: 0.6rem 1rem;
             border-radius: 8px;
             font-size: 0.8rem;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
             font-family: 'Inter', sans-serif;
-            backdrop-filter: blur(4px);
+            width: 100%;
+            display: block;
+            text-align: center;
         }
         
         .btn:hover {
@@ -133,34 +157,29 @@
         }
 
         .bot-toggle {
-            padding: 0.5rem 1.25rem;
-            font-weight: 600;
-            border-radius: 8px;
-            border: 1px solid transparent;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            font-size: 0.9rem;
+            padding: 0.75rem;
         }
 
         .bot-toggle.on {
             background: rgba(16, 185, 129, 0.1);
             color: var(--accent-green);
-            border-color: rgba(16, 185, 129, 0.3);
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
         }
         .bot-toggle.off {
             background: rgba(239, 68, 68, 0.1);
             color: var(--accent-red);
-            border-color: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.4);
         }
 
         .btn-danger {
             background: rgba(239, 68, 68, 0.1);
             color: var(--accent-red);
             border: 1px solid rgba(239, 68, 68, 0.3);
-            padding: 0.6rem 1rem;
-            border-radius: 8px;
-            width: 100%;
-            margin-top: 1rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -176,13 +195,14 @@
         .grid-2 { grid-template-columns: repeat(2, 1fr); }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-4 { grid-template-columns: repeat(4, 1fr); }
-        .grid-5 { grid-template-columns: repeat(5, 1fr); }
         .grid-6 { grid-template-columns: repeat(6, 1fr); }
 
+        @media (max-width: 1024px) {
+            .app-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; }
+        }
         @media (max-width: 768px) {
-            .grid-4, .grid-5, .grid-6 { grid-template-columns: repeat(2, 1fr); }
-            .grid-3 { grid-template-columns: 1fr; }
-            .header { flex-direction: column; gap: 1rem; align-items: flex-start; }
+            .grid-6, .grid-4 { grid-template-columns: repeat(2, 1fr); }
         }
 
         /* Stat Boxes */
@@ -193,12 +213,14 @@
             padding: 0.75rem;
             text-align: center;
             transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         
         .stat-box:hover {
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.03);
             border-color: rgba(255, 255, 255, 0.1);
-            transform: translateY(-2px);
         }
 
         .stat-label {
@@ -214,6 +236,13 @@
             font-weight: 600;
             font-family: 'JetBrains Mono', monospace;
         }
+
+        /* Sidebar Stat Boxes (Compact) */
+        .sidebar .stat-box {
+            padding: 0.6rem;
+        }
+        .sidebar .grid { gap: 0.5rem; }
+        .sidebar .stat-value { font-size: 1rem; }
 
         /* Banners */
         .banner {
@@ -340,94 +369,99 @@
 </head>
 <body>
 
-<div class="container">
+<div class="app-layout">
     
-    <!-- HEADER -->
-    <div class="panel header">
-        <div>
-            <h1>XAUUSD Institutional</h1>
-            <div class="header-subtitle" id="account-info">Establishing connection...</div>
-        </div>
-        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-            <button class="btn" onclick="openMt5Modal()">MT5 Link</button>
-            <button class="btn" onclick="openConfigModal()">Parameters</button>
+    <!-- LEFT SIDEBAR -->
+    <div class="sidebar">
+        <!-- Brand & Actions -->
+        <div class="brand-header">
+            <h1>XAUUSD SMC</h1>
+            <div class="account-badge" id="account-info">Syncing with MT5...</div>
+            
+            <div class="grid grid-2" style="margin-bottom: 0.75rem;">
+                <button class="btn" onclick="openMt5Modal()">MT5 Link</button>
+                <button class="btn" onclick="openConfigModal()">Parameters</button>
+            </div>
             <button id="bot-toggle" class="btn bot-toggle on" onclick="toggleBot()">SYSTEM ON</button>
         </div>
-    </div>
 
-    <!-- BANNER -->
-    <div id="daily-stop-banner" class="banner"></div>
+        <!-- Today's Performance -->
+        <div class="panel">
+            <div class="panel-header">Daily Performance</div>
+            <div class="grid grid-2" id="today-stats-content">
+                <!-- Injected -->
+            </div>
+        </div>
 
-    <!-- POSITION -->
-    <div class="panel">
-        <div class="panel-header">Active Position</div>
-        <div id="position-content">
-            <div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-style: italic;">
-                Seeking high-probability setups...
+        <!-- System Rules (Config) -->
+        <div class="panel">
+            <div class="panel-header">System Rules</div>
+            <div class="grid grid-2" id="config-content">
+                <!-- Injected -->
             </div>
         </div>
     </div>
 
-    <!-- DIAGNOSTICS -->
-    <div class="panel">
-        <div class="panel-header">Market Context</div>
-        <div class="grid grid-4" id="market-context-content">
-            <div class="stat-box">
-                <div class="stat-label">H1 Bias</div>
-                <div class="stat-value mono" id="ctx-bias">--</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Structure</div>
-                <div class="stat-value mono" id="ctx-zone">--</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Session</div>
-                <div class="stat-value mono" id="ctx-filters">--</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Live Quote</div>
-                <div class="stat-value mono text-cyan" id="ctx-price">--</div>
-            </div>
-        </div>
-    </div>
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <!-- BANNER -->
+        <div id="daily-stop-banner" class="banner"></div>
 
-    <!-- DAILY PERFORMANCE -->
-    <div class="panel">
-        <div class="panel-header">Today's Performance</div>
-        <div class="grid grid-3" id="today-stats-content">
-            <div class="stat-box"><div class="stat-label">Syncing</div><div class="stat-value">--</div></div>
+        <!-- ACTIVE POSITION -->
+        <div class="panel">
+            <div class="panel-header">Active Exposure</div>
+            <div id="position-content">
+                <div style="text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-style: italic;">
+                    Seeking high-probability setups...
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- CONFIG READOUT -->
-    <div class="panel">
-        <div class="panel-header">System Rules</div>
-        <div class="grid grid-5" id="config-content">
-            <!-- Injected -->
+        <!-- MARKET CONTEXT -->
+        <div class="panel">
+            <div class="panel-header">Market Context</div>
+            <div class="grid grid-4" id="market-context-content">
+                <div class="stat-box">
+                    <div class="stat-label">H1 Bias</div>
+                    <div class="stat-value mono" id="ctx-bias">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Structure</div>
+                    <div class="stat-value mono" id="ctx-zone">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Session</div>
+                    <div class="stat-value mono" id="ctx-filters">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Live Quote</div>
+                    <div class="stat-value mono text-cyan" id="ctx-price">--</div>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- HISTORY -->
-    <div class="panel">
-        <div class="panel-header">
-            Trade Ledger
-            <span id="history-summary" style="font-size: 0.7rem; color: var(--accent-cyan); font-family: 'JetBrains Mono', monospace;"></span>
-        </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Type</th>
-                        <th>Entry</th>
-                        <th>Exit</th>
-                        <th>P/L</th>
-                        <th>Note</th>
-                    </tr>
-                </thead>
-                <tbody id="history-table">
-                </tbody>
-            </table>
+        <!-- TRADE HISTORY -->
+        <div class="panel">
+            <div class="panel-header">
+                Trade Ledger
+                <span id="history-summary" style="font-size: 0.7rem; color: var(--accent-cyan); font-family: 'JetBrains Mono', monospace; letter-spacing: 0;"></span>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>P/L</th>
+                            <th>Note</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table">
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -503,22 +537,19 @@
         // Account
         if (data.account && data.account.login) {
             document.getElementById('account-info').innerText = 
-                `${data.account.server} | Acc: ${data.account.login} | Equity: $${data.account.equity.toFixed(2)}`;
+                `${data.account.server} | Acc: ${data.account.login} | Eq: $${data.account.equity.toFixed(2)}`;
         }
 
         // Config Grid
         if (data.config) {
             const cfg = data.config;
             document.getElementById('config-content').innerHTML = `
-                <div class="stat-box"><div class="stat-label">Risk Budget</div><div class="stat-value text-cyan">${cfg.RISK_PCT_PER_TRADE}%</div></div>
-                <div class="stat-box"><div class="stat-label">Drawdown Cap</div><div class="stat-value">${cfg.MAX_DAILY_LOSS_PCT}%</div></div>
-                <div class="stat-box"><div class="stat-label">Trade Limit</div><div class="stat-value">${cfg.MAX_TRADES_PER_DAY}</div></div>
+                <div class="stat-box"><div class="stat-label">Risk</div><div class="stat-value text-cyan">${cfg.RISK_PCT_PER_TRADE}%</div></div>
+                <div class="stat-box"><div class="stat-label">Daily DD Cap</div><div class="stat-value">${cfg.MAX_DAILY_LOSS_PCT}%</div></div>
+                <div class="stat-box"><div class="stat-label">Max Trades</div><div class="stat-value">${cfg.MAX_TRADES_PER_DAY}</div></div>
                 <div class="stat-box"><div class="stat-label">Consec Stops</div><div class="stat-value">${cfg.MAX_CONSECUTIVE_LOSSES}</div></div>
-                <div class="stat-box"><div class="stat-label">News Avoid</div><div class="stat-value">${cfg.NEWS_ENABLED ? '<span class="text-green">ON</span>' : '<span class="text-red">OFF</span>'}</div></div>
                 <div class="stat-box"><div class="stat-label">Min Reward</div><div class="stat-value">${cfg.MIN_RR}R</div></div>
-                <div class="stat-box"><div class="stat-label">Max Reward</div><div class="stat-value">${cfg.MAX_RR}R</div></div>
-                <div class="stat-box"><div class="stat-label">Min Range</div><div class="stat-value">$${cfg.MIN_ATR_M15_USD}</div></div>
-                <div class="stat-box"><div class="stat-label">Max Spread</div><div class="stat-value">$${cfg.MAX_SPREAD_USD}</div></div>
+                <div class="stat-box"><div class="stat-label">News Rule</div><div class="stat-value">${cfg.NEWS_ENABLED ? '<span class="text-green">AVOID</span>' : '<span class="text-red">TRADE</span>'}</div></div>
             `;
             
             if (document.getElementById('config-modal').style.display !== 'flex') {
@@ -571,13 +602,13 @@
                     <div class="stat-box"><div class="stat-label">Net P/L</div><div class="stat-value mono ${pnlColor}">${sign}$${p.pnl.toFixed(2)}</div></div>
                     <div class="stat-box"><div class="stat-label">Entry</div><div class="stat-value mono">${p.entry_price.toFixed(2)}</div></div>
                     <div class="stat-box"><div class="stat-label">Current</div><div class="stat-value mono">${p.current_price.toFixed(2)}</div></div>
-                    <div class="stat-box"><div class="stat-label">Take Profit</div><div class="stat-value mono text-green">${p.tp.toFixed(2)} <span style="font-size:0.6rem">(${tpPct}%)</span></div></div>
-                    <div class="stat-box"><div class="stat-label">Stop Loss</div><div class="stat-value mono text-red">${p.sl.toFixed(2)} <span style="font-size:0.6rem">(${slPct}%)</span></div></div>
+                    <div class="stat-box"><div class="stat-label">Target</div><div class="stat-value mono text-green">${p.tp.toFixed(2)} <span style="font-size:0.6rem">(${tpPct}%)</span></div></div>
+                    <div class="stat-box"><div class="stat-label">Stop</div><div class="stat-value mono text-red">${p.sl.toFixed(2)} <span style="font-size:0.6rem">(${slPct}%)</span></div></div>
                 </div>
-                <button class="btn btn-danger" onclick="emergencyClose()">Force Liquidation</button>
+                <button class="btn btn-danger" style="margin-top: 1rem;" onclick="emergencyClose()">Force Liquidation</button>
             `;
         } else {
-            posDiv.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No active exposure.</div>`;
+            posDiv.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-style: italic;">No active exposure. Seeking setups...</div>`;
         }
 
         // Today's Stats
@@ -585,20 +616,10 @@
             const ts = data.today_stats;
             const pnlColor = ts.realized_pnl >= 0 ? 'text-green' : 'text-red';
             document.getElementById('today-stats-content').innerHTML = `
+                <div class="stat-box" style="grid-column: span 2;"><div class="stat-label">Net Return</div><div class="stat-value mono ${pnlColor}">$${ts.realized_pnl.toFixed(2)}</div></div>
                 <div class="stat-box"><div class="stat-label">Executions</div><div class="stat-value">${ts.trades_today}</div></div>
                 <div class="stat-box"><div class="stat-label">Win/Loss</div><div class="stat-value"><span class="text-green">${ts.wins}</span> - <span class="text-red">${ts.losses}</span></div></div>
-                <div class="stat-box"><div class="stat-label">Realized P/L</div><div class="stat-value mono ${pnlColor}">$${ts.realized_pnl.toFixed(2)}</div></div>
             `;
-        }
-
-        // Market Context
-        if (data.market_context) {
-            const mc = data.market_context;
-            const biasCol = mc.bias_h1 === 'BULLISH' ? 'text-green' : (mc.bias_h1 === 'BEARISH' ? 'text-red' : 'text-gray');
-            document.getElementById('ctx-bias').innerHTML = `<span class="${biasCol}">${mc.bias_h1}</span>`;
-            document.getElementById('ctx-zone').innerHTML = `<span class="${mc.bias_tradeable ? 'text-green' : 'text-amber'}">${mc.bias_tradeable ? 'Aligned' : 'Waiting'}</span>`;
-            document.getElementById('ctx-filters').innerHTML = `<span class="${mc.filters_passed ? 'text-green' : 'text-red'}">${mc.filters_passed ? 'Clear' : mc.filters_reason}</span>`;
-            document.getElementById('ctx-price').innerText = mc.current_price ? mc.current_price.toFixed(2) : '--';
         }
     }
 
