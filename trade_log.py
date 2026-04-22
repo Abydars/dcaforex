@@ -117,3 +117,8 @@ def get_summary(last_n_days: int = 30) -> dict:
             (cutoff,),
         ).fetchone()
     return dict(rows) if rows else {}
+
+def get_recent_trades(limit: int = 1000):
+    with _conn() as c:
+        rows = c.execute("SELECT * FROM trades WHERE status='CLOSED' ORDER BY exit_time DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
