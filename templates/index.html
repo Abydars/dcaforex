@@ -3,398 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XAUUSD Premium Scalper</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>XAUUSD Institutional Terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-dark: #050505;
-            --bg-gradient: radial-gradient(circle at top right, #111827 0%, #050505 60%);
-            --panel-bg: rgba(17, 24, 39, 0.4);
-            --panel-border: rgba(255, 255, 255, 0.05);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
+            --bg-dark: #0a0c10;
+            --panel-bg: #12151b;
+            --border: #222831;
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
             --accent-cyan: #06b6d4;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
+            --accent-green: #00ff9d;
+            --accent-red: #ff3355;
             --accent-amber: #f59e0b;
-            --glass-blur: blur(12px);
         }
 
         * { box-sizing: border-box; }
 
         body {
             margin: 0;
-            padding: 1.5rem;
+            padding: 0.5rem;
             background: var(--bg-dark);
-            background-image: var(--bg-gradient);
             color: var(--text-main);
             font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
             min-height: 100vh;
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
         }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .text-green { color: var(--accent-green); }
+        .text-red { color: var(--accent-red); }
+        .text-amber { color: var(--accent-amber); }
+        .text-cyan { color: var(--accent-cyan); }
+        .text-muted { color: var(--text-muted); }
 
         .app-layout {
             max-width: 1400px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: 340px 1fr;
-            gap: 1.5rem;
+            grid-template-columns: 280px 1fr;
+            gap: 0.5rem;
             align-items: start;
-            animation: fadeIn 0.5s ease-out;
         }
 
         .sidebar {
             display: flex;
             flex-direction: column;
-            gap: 1.25rem;
-            position: sticky;
-            top: 1.5rem;
+            gap: 0.5rem;
         }
 
         .main-content {
             display: flex;
             flex-direction: column;
-            gap: 1.25rem;
-            min-width: 0; /* Prevents overflow in CSS grid */
+            gap: 0.5rem;
+            min-width: 0;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Glassmorphic Panels */
         .panel {
             background: var(--panel-bg);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            padding: 1.25rem;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            transition: box-shadow 0.2s;
-        }
-        
-        .panel:hover {
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            padding: 0.5rem;
         }
 
         .panel-header {
-            font-size: 0.85rem;
+            font-size: 10px;
             font-weight: 600;
-            margin-bottom: 1rem;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
-            align-items: center;
         }
 
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        /* Typography Colors */
-        .text-green { color: var(--accent-green); text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
-        .text-red { color: var(--accent-red); text-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
-        .text-amber { color: var(--accent-amber); }
-        .text-cyan { color: var(--accent-cyan); text-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
-        .text-gray { color: var(--text-muted); }
-
-        /* Header specifics */
-        .brand-header {
-            padding: 1.5rem;
-            background: linear-gradient(135deg, rgba(17, 24, 39, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            backdrop-filter: var(--glass-blur);
-        }
-        
-        .brand-header h1 {
-            margin: 0 0 0.5rem 0;
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            background: linear-gradient(to right, #fff, #9ca3af);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .account-badge {
-            display: inline-block;
-            background: rgba(6, 182, 212, 0.1);
-            color: var(--accent-cyan);
-            border: 1px solid rgba(6, 182, 212, 0.2);
-            padding: 0.4rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-family: 'JetBrains Mono', monospace;
-            margin-bottom: 1.25rem;
-        }
-
-        /* Buttons */
-        .btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
-            padding: 0.6rem 1rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-family: 'Inter', sans-serif;
-            width: 100%;
-            display: block;
-            text-align: center;
-        }
-        
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-1px);
-        }
-
-        .bot-toggle {
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-size: 0.9rem;
-            padding: 0.75rem;
-        }
-
-        .bot-toggle.on {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--accent-green);
-            border-color: rgba(16, 185, 129, 0.4);
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
-        }
-        .bot-toggle.off {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--accent-red);
-            border-color: rgba(239, 68, 68, 0.4);
-        }
-
-        .btn-danger {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--accent-red);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .btn-danger:hover {
-            background: var(--accent-red);
-            color: white;
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-        }
-
-        /* Grids */
-        .grid { display: grid; gap: 0.75rem; }
+        /* Stats & Grids */
+        .grid { display: grid; gap: 0.25rem; }
         .grid-2 { grid-template-columns: repeat(2, 1fr); }
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
         .grid-4 { grid-template-columns: repeat(4, 1fr); }
         .grid-6 { grid-template-columns: repeat(6, 1fr); }
 
-        @media (max-width: 1024px) {
-            .app-layout { grid-template-columns: 1fr; }
-            .sidebar { position: static; }
-        }
-        @media (max-width: 768px) {
-            .grid-6, .grid-4 { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        /* Stat Boxes */
         .stat-box {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            border-radius: 10px;
-            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            padding: 0.4rem;
             text-align: center;
-            transition: all 0.2s ease;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
         }
         
-        .stat-box:hover {
-            background: rgba(255, 255, 255, 0.03);
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
         .stat-label {
-            font-size: 0.65rem;
+            font-size: 9px;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.2rem;
         }
 
         .stat-value {
-            font-size: 1.15rem;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* Sidebar Stat Boxes (Compact) */
-        .sidebar .stat-box {
-            padding: 0.6rem;
-        }
-        .sidebar .grid { gap: 0.5rem; }
-        .sidebar .stat-value { font-size: 1rem; }
-
-        /* Banners */
-        .banner {
-            background: rgba(239, 68, 68, 0.1);
-            border-left: 4px solid var(--accent-red);
-            color: var(--accent-red);
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
+            font-size: 13px;
             font-weight: 500;
-            font-size: 0.85rem;
-            display: none;
-            backdrop-filter: blur(4px);
-            animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        .sidebar .stat-value { font-size: 12px; }
+
+        /* Buttons */
+        .btn {
+            background: #1e232b;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.5rem;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            text-transform: uppercase;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn:hover { background: #2a313c; }
+
+        .btn-toggle {
+            font-weight: 600;
+            padding: 0.5rem;
+        }
+        .btn-toggle.on {
+            background: rgba(0, 255, 157, 0.1);
+            color: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+        .btn-toggle.off {
+            background: rgba(255, 51, 85, 0.1);
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .btn-danger {
+            background: rgba(255, 51, 85, 0.1);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+            margin-top: 0.5rem;
+        }
+        .btn-danger:hover { background: rgba(255, 51, 85, 0.2); }
+
+        /* Branding */
+        .brand {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 0 0 0.25rem 0;
+            text-transform: uppercase;
+        }
+        .account-badge {
+            font-size: 10px;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(6, 182, 212, 0.1);
+            padding: 0.2rem 0.4rem;
+            display: inline-block;
+            margin-bottom: 0.5rem;
         }
 
         /* Tables */
-        .table-container {
-            overflow-x: auto;
-            margin: 0 -0.5rem;
-        }
+        .table-container { overflow-x: auto; }
         table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 0.8rem;
+            border-collapse: collapse;
+            font-size: 11px;
         }
         th, td {
-            padding: 0.75rem 1rem;
+            padding: 0.4rem;
             text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            white-space: nowrap;
+            border-bottom: 1px solid var(--border);
         }
         th {
             color: var(--text-muted);
             font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-size: 0.7rem;
         }
-        tr:last-child td { border-bottom: none; }
-        tbody tr { transition: background 0.1s; }
-        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+        /* Banners */
+        .banner {
+            background: rgba(255, 51, 85, 0.15);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            display: none;
+            text-transform: uppercase;
+        }
 
         /* Modals */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
+            background: rgba(0, 0, 0, 0.85);
             display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
         .modal {
-            background: #0f172a;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 2rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 1rem;
             width: 90%;
-            max-width: 450px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes modalPop {
-            from { opacity: 0; transform: scale(0.95) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
+            max-width: 400px;
         }
         .modal h3 {
-            margin: 0 0 1.5rem 0;
-            color: #fff;
-            font-weight: 600;
-            font-size: 1.1rem;
+            margin: 0 0 1rem 0;
+            font-size: 12px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
         }
         .form-group {
-            margin-bottom: 1.25rem;
+            margin-bottom: 0.75rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .form-group label {
-            font-size: 0.8rem;
+            font-size: 11px;
             color: var(--text-muted);
-            font-weight: 500;
         }
         .form-group input, .form-group select {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #fff;
-            padding: 0.5rem 0.75rem;
-            border-radius: 6px;
+            background: #000;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.3rem 0.5rem;
             font-family: 'JetBrains Mono', monospace;
-            width: 140px;
+            font-size: 11px;
+            width: 150px;
             text-align: right;
-            transition: border-color 0.2s;
         }
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--accent-cyan);
-        }
-        .btn-modal {
-            background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
-            color: white;
-            border: none;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-top: 1rem;
-            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
-            transition: all 0.2s;
-        }
-        .btn-modal:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4); }
-        /* Sessions Repeater */
+        .form-group input:focus { outline: none; border-color: var(--text-muted); }
+        
         .session-row {
             display: grid;
-            grid-template-columns: 2fr 1.5fr auto 1.5fr auto;
-            gap: 0.5rem;
-            margin-bottom: 0.75rem;
+            grid-template-columns: 2fr 1fr auto 1fr auto;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
             align-items: center;
         }
         .session-row input {
             width: 100%;
-            padding: 0.5rem;
-            font-size: 0.8rem;
             text-align: center;
         }
-        .session-row input[type="text"] {
-            text-align: left;
-        }
+        .session-row input[type="text"] { text-align: left; }
         .session-row button {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(255, 51, 85, 0.1);
             color: var(--accent-red);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 6px;
+            border: 1px solid rgba(255, 51, 85, 0.3);
             cursor: pointer;
-            font-size: 1rem;
-            padding: 0.3rem 0.6rem;
-            transition: background 0.2s;
+            padding: 0.2rem 0.4rem;
         }
-        .session-row button:hover {
-            background: var(--accent-red);
-            color: white;
+
+        @media (max-width: 900px) {
+            .app-layout { grid-template-columns: 1fr; }
+            .grid-6 { grid-template-columns: repeat(3, 1fr); }
         }
     </style>
 </head>
@@ -404,19 +275,17 @@
     
     <!-- LEFT SIDEBAR -->
     <div class="sidebar">
-        <!-- Brand & Actions -->
-        <div class="brand-header">
-            <h1>XAUUSD SMC</h1>
-            <div class="account-badge" id="account-info">Syncing with MT5...</div>
+        <div class="panel">
+            <h1 class="brand">XAUUSD Terminal</h1>
+            <div class="account-badge" id="account-info">SYNCING...</div>
             
-            <div class="grid grid-2" style="margin-bottom: 0.75rem;">
+            <div class="grid grid-2" style="margin-bottom: 0.5rem;">
                 <button class="btn" onclick="openMt5Modal()">MT5 Link</button>
                 <button class="btn" onclick="openConfigModal()">Parameters</button>
             </div>
-            <button id="bot-toggle" class="btn bot-toggle on" onclick="toggleBot()">SYSTEM ON</button>
+            <button id="bot-toggle" class="btn btn-toggle on" onclick="toggleBot()">SYSTEM ON</button>
         </div>
 
-        <!-- Today's Performance -->
         <div class="panel">
             <div class="panel-header">Daily Performance</div>
             <div class="grid grid-2" id="today-stats-content">
@@ -424,9 +293,8 @@
             </div>
         </div>
 
-        <!-- System Rules (Config) -->
         <div class="panel">
-            <div class="panel-header">System Rules</div>
+            <div class="panel-header">System Parameters</div>
             <div class="grid grid-2" id="config-content">
                 <!-- Injected -->
             </div>
@@ -435,20 +303,17 @@
 
     <!-- MAIN CONTENT -->
     <div class="main-content">
-        <!-- BANNER -->
         <div id="daily-stop-banner" class="banner"></div>
 
-        <!-- ACTIVE POSITION -->
         <div class="panel">
             <div class="panel-header">Active Exposure</div>
             <div id="position-content">
-                <div style="text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-style: italic;">
-                    Seeking high-probability setups...
+                <div style="text-align: center; color: var(--text-muted); padding: 1rem 0; font-style: italic;">
+                    No active positions.
                 </div>
             </div>
         </div>
 
-        <!-- MARKET CONTEXT -->
         <div class="panel">
             <div class="panel-header">Market Context</div>
             <div class="grid grid-4" id="market-context-content">
@@ -461,7 +326,7 @@
                     <div class="stat-value mono" id="ctx-zone">--</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-label">Session</div>
+                    <div class="stat-label">Session Filters</div>
                     <div class="stat-value mono" id="ctx-filters">--</div>
                 </div>
                 <div class="stat-box">
@@ -471,11 +336,10 @@
             </div>
         </div>
 
-        <!-- TRADE HISTORY -->
         <div class="panel">
             <div class="panel-header">
                 Trade Ledger
-                <span id="history-summary" style="font-size: 0.7rem; color: var(--accent-cyan); font-family: 'JetBrains Mono', monospace; letter-spacing: 0;"></span>
+                <span id="history-summary" class="mono text-cyan"></span>
             </div>
             <div class="table-container">
                 <table>
@@ -503,9 +367,9 @@
     <div class="modal">
         <h3>Broker Connection</h3>
         <div class="form-group"><label>Account ID</label><input type="text" id="mt5_login"></div>
-        <div class="form-group"><label>Password</label><input type="password" id="mt5_pass" placeholder="Unchanged"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="mt5_pass" placeholder="***"></div>
         <div class="form-group"><label>Server</label><input type="text" id="mt5_server"></div>
-        <button class="btn-modal" onclick="saveMt5Config()" id="btn-mt5-save">Initialize MT5</button>
+        <button class="btn" style="margin-top: 0.5rem;" onclick="saveMt5Config()" id="btn-mt5-save">INITIALIZE MT5</button>
     </div>
 </div>
 
@@ -529,16 +393,13 @@
             </select>
         </div>
         
-        <div style="margin-bottom: 1.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.25rem;">
-            <label style="font-size: 0.85rem; color: var(--text-main); font-weight: 600; display: block; margin-bottom: 0.25rem;">Trading Sessions</label>
-            <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 1rem;">
-                Set your preferred trading windows. Times will automatically save as UTC for the engine, but are displayed in your <strong>Local Timezone</strong> here.
-            </div>
+        <div style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem;">
+            <label style="font-size: 11px; color: var(--text-main); font-weight: 500; display: block; margin-bottom: 0.5rem;">TRADING SESSIONS (LOCAL TIME)</label>
             <div id="sessions-container"></div>
-            <button class="btn" style="margin-top: 0.5rem; font-size: 0.75rem; padding: 0.5rem; border-style: dashed;" onclick="addSessionRow()">+ Add Session Window</button>
+            <button class="btn" style="margin-bottom: 0.5rem; background: transparent;" onclick="addSessionRow()">+ ADD SESSION</button>
         </div>
 
-        <button class="btn-modal" onclick="saveConfig()">Apply to Engine</button>
+        <button class="btn" onclick="saveConfig()">APPLY PARAMETERS</button>
     </div>
 </div>
 
@@ -568,30 +429,28 @@
         isBotEnabled = data.bot_enabled;
         const btn = document.getElementById('bot-toggle');
         if (isBotEnabled) {
-            btn.className = 'btn bot-toggle on';
-            btn.innerText = 'SYSTEM ACTIVE';
+            btn.className = 'btn btn-toggle on';
+            btn.innerText = 'SYSTEM: ACTIVE';
         } else {
-            btn.className = 'btn bot-toggle off';
-            btn.innerText = 'SYSTEM HALTED';
+            btn.className = 'btn btn-toggle off';
+            btn.innerText = 'SYSTEM: HALTED';
         }
 
         // Account
         if (data.account && data.account.login) {
             document.getElementById('account-info').innerText = 
-                `${data.account.server} | Acc: ${data.account.login} | Eq: $${data.account.equity.toFixed(2)}`;
+                `${data.account.server} | ACC: ${data.account.login} | EQ: $${data.account.equity.toFixed(2)}`;
         }
 
         // Config Grid
         if (data.config) {
             const cfg = data.config;
             document.getElementById('config-content').innerHTML = `
-                <div class="stat-box"><div class="stat-label">Risk</div><div class="stat-value text-cyan">${cfg.RISK_PCT_PER_TRADE}%</div></div>
-                <div class="stat-box"><div class="stat-label">Daily DD Cap</div><div class="stat-value">${cfg.MAX_DAILY_LOSS_PCT}%</div></div>
-                <div class="stat-box"><div class="stat-label">Max Trades</div><div class="stat-value">${cfg.MAX_TRADES_PER_DAY}</div></div>
-                <div class="stat-box"><div class="stat-label">Consec Stops</div><div class="stat-value">${cfg.MAX_CONSECUTIVE_LOSSES}</div></div>
-                <div class="stat-box"><div class="stat-label">Min Reward</div><div class="stat-value">${cfg.MIN_RR}R</div></div>
-                <div class="stat-box"><div class="stat-label">News Rule</div><div class="stat-value">${cfg.NEWS_ENABLED ? '<span class="text-green">AVOID</span>' : '<span class="text-red">TRADE</span>'}</div></div>
-                <div class="stat-box" style="grid-column: span 2;"><div class="stat-label">Sessions</div><div class="stat-value mono" style="font-size: 0.8rem;">${cfg.SESSIONS_UTC ? cfg.SESSIONS_UTC.map(s => s[0]).join(', ') : 'None'}</div></div>
+                <div class="stat-box"><div class="stat-label">Risk</div><div class="stat-value mono text-cyan">${cfg.RISK_PCT_PER_TRADE}%</div></div>
+                <div class="stat-box"><div class="stat-label">DD Cap</div><div class="stat-value mono">${cfg.MAX_DAILY_LOSS_PCT}%</div></div>
+                <div class="stat-box"><div class="stat-label">Max Trades</div><div class="stat-value mono">${cfg.MAX_TRADES_PER_DAY}</div></div>
+                <div class="stat-box"><div class="stat-label">Min Reward</div><div class="stat-value mono">${cfg.MIN_RR}R</div></div>
+                <div class="stat-box" style="grid-column: span 2;"><div class="stat-label">News Rule</div><div class="stat-value mono">${cfg.NEWS_ENABLED ? '<span class="text-green">AVOID</span>' : '<span class="text-red">TRADE</span>'}</div></div>
             `;
             
             if (document.getElementById('config-modal').style.display !== 'flex') {
@@ -605,13 +464,12 @@
                 document.getElementById('cfg_MAX_SPREAD_USD').value = cfg.MAX_SPREAD_USD;
                 document.getElementById('cfg_NEWS_ENABLED').value = cfg.NEWS_ENABLED ? "true" : "false";
                 
-                // Render sessions
                 const cont = document.getElementById('sessions-container');
                 cont.innerHTML = '';
-                if (cfg.SESSIONS_UTC) {
+                if (cfg.SESSIONS_UTC && cfg.SESSIONS_UTC.length > 0) {
                     cfg.SESSIONS_UTC.forEach(s => addSessionRow(s[0], s[1], s[2], s[3], s[4]));
                 } else {
-                    addSessionRow("LONDON", 7, 0, 11, 0); // fallback defaults
+                    addSessionRow("LONDON", 7, 0, 11, 0);
                     addSessionRow("NY", 12, 30, 16, 0);
                 }
             }
@@ -650,17 +508,17 @@
 
             posDiv.innerHTML = `
                 <div class="grid grid-6">
-                    <div class="stat-box"><div class="stat-label">Direction</div><div class="stat-value text-${p.direction === 'BUY' ? 'green' : 'red'}">${p.direction}</div></div>
-                    <div class="stat-box"><div class="stat-label">Net P/L</div><div class="stat-value mono ${pnlColor}">${sign}$${p.pnl.toFixed(2)}</div></div>
+                    <div class="stat-box"><div class="stat-label">Side</div><div class="stat-value mono ${p.direction === 'BUY' ? 'text-green' : 'text-red'}">${p.direction}</div></div>
+                    <div class="stat-box"><div class="stat-label">P/L</div><div class="stat-value mono ${pnlColor}">${sign}$${p.pnl.toFixed(2)}</div></div>
                     <div class="stat-box"><div class="stat-label">Entry</div><div class="stat-value mono">${p.entry_price.toFixed(2)}</div></div>
                     <div class="stat-box"><div class="stat-label">Current</div><div class="stat-value mono">${p.current_price.toFixed(2)}</div></div>
-                    <div class="stat-box"><div class="stat-label">Target</div><div class="stat-value mono text-green">${p.tp.toFixed(2)} <span style="font-size:0.6rem">(${tpPct}%)</span></div></div>
-                    <div class="stat-box"><div class="stat-label">Stop</div><div class="stat-value mono text-red">${p.sl.toFixed(2)} <span style="font-size:0.6rem">(${slPct}%)</span></div></div>
+                    <div class="stat-box"><div class="stat-label">Target</div><div class="stat-value mono text-green">${p.tp.toFixed(2)}</div></div>
+                    <div class="stat-box"><div class="stat-label">Stop</div><div class="stat-value mono text-red">${p.sl.toFixed(2)}</div></div>
                 </div>
-                <button class="btn btn-danger" style="margin-top: 1rem;" onclick="emergencyClose()">Force Liquidation</button>
+                <button class="btn btn-danger" onclick="emergencyClose()">FORCE LIQUIDATION</button>
             `;
         } else {
-            posDiv.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-style: italic;">No active exposure. Seeking setups...</div>`;
+            posDiv.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 1rem 0; font-size: 11px;">AWAITING MARKET CONDITIONS</div>`;
         }
 
         // Today's Stats
@@ -669,9 +527,19 @@
             const pnlColor = ts.realized_pnl >= 0 ? 'text-green' : 'text-red';
             document.getElementById('today-stats-content').innerHTML = `
                 <div class="stat-box" style="grid-column: span 2;"><div class="stat-label">Net Return</div><div class="stat-value mono ${pnlColor}">$${ts.realized_pnl.toFixed(2)}</div></div>
-                <div class="stat-box"><div class="stat-label">Executions</div><div class="stat-value">${ts.trades_today}</div></div>
-                <div class="stat-box"><div class="stat-label">Win/Loss</div><div class="stat-value"><span class="text-green">${ts.wins}</span> - <span class="text-red">${ts.losses}</span></div></div>
+                <div class="stat-box"><div class="stat-label">Executions</div><div class="stat-value mono">${ts.trades_today}</div></div>
+                <div class="stat-box"><div class="stat-label">Win/Loss</div><div class="stat-value mono"><span class="text-green">${ts.wins}</span>-<span class="text-red">${ts.losses}</span></div></div>
             `;
+        }
+
+        // Market Context
+        if (data.market_context) {
+            const mc = data.market_context;
+            const biasCol = mc.bias_h1 === 'BULLISH' ? 'text-green' : (mc.bias_h1 === 'BEARISH' ? 'text-red' : 'text-muted');
+            document.getElementById('ctx-bias').innerHTML = `<span class="${biasCol}">${mc.bias_h1}</span>`;
+            document.getElementById('ctx-zone').innerHTML = `<span class="${mc.bias_tradeable ? 'text-green' : 'text-amber'}">${mc.bias_tradeable ? 'ALIGNED' : 'WAITING'}</span>`;
+            document.getElementById('ctx-filters').innerHTML = `<span class="${mc.filters_passed ? 'text-green' : 'text-red'}">${mc.filters_passed ? 'CLEAR' : mc.filters_reason}</span>`;
+            document.getElementById('ctx-price').innerText = mc.current_price ? mc.current_price.toFixed(2) : '--';
         }
     }
 
@@ -682,31 +550,31 @@
         
         const tbody = document.getElementById('history-table');
         if (!data.recent_trades || data.recent_trades.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Ledger empty</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">LEDGER EMPTY</td></tr>';
             return;
         }
 
         tbody.innerHTML = data.recent_trades.map(t => {
             const d = new Date(t.exit_time * 1000);
-            const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
             const dirColor = t.direction === 'BUY' ? 'text-green' : 'text-red';
             const pnlColor = t.pnl >= 0 ? 'text-green' : 'text-red';
             const sign = t.pnl >= 0 ? '+' : '';
             return `
                 <tr>
-                    <td class="mono text-gray">${timeStr}</td>
+                    <td class="mono text-muted">${timeStr}</td>
                     <td class="mono ${dirColor}">${t.direction}</td>
                     <td class="mono">${t.entry_price.toFixed(2)}</td>
                     <td class="mono">${t.exit_price.toFixed(2)}</td>
                     <td class="mono ${pnlColor}">${sign}$${t.pnl.toFixed(2)}</td>
-                    <td style="color:var(--text-muted); font-size: 0.7rem">${t.exit_reason}</td>
+                    <td style="color:var(--text-muted); font-size: 10px">${t.exit_reason.toUpperCase()}</td>
                 </tr>
             `;
         }).join('');
     }
 
     async function toggleBot() {
-        if (!confirm(`Switch system ${!isBotEnabled ? 'ON' : 'OFF'}?`)) return;
+        if (!confirm(`SWITCH SYSTEM ${!isBotEnabled ? 'ON' : 'OFF'}?`)) return;
         try {
             await fetch('/api/toggle', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({enabled: !isBotEnabled}) });
             fetchData();
@@ -714,10 +582,10 @@
     }
 
     async function emergencyClose() {
-        if (!confirm('🚨 CRITICAL: Force liquidation of open position at market price?')) return;
+        if (!confirm('CRITICAL: FORCE LIQUIDATION OF POSITION AT MARKET PRICE?')) return;
         try {
             await fetch('/api/close', { method: 'POST' });
-            alert("Signal sent to execution engine.");
+            alert("SIGNAL SENT.");
         } catch (e) { console.error(e); }
     }
 
@@ -728,7 +596,7 @@
 
     async function saveMt5Config() {
         const btn = document.getElementById('btn-mt5-save');
-        btn.innerText = 'Connecting...'; btn.disabled = true;
+        btn.innerText = 'CONNECTING...'; btn.disabled = true;
         try {
             const res = await fetch('/api/mt5_config', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -739,10 +607,10 @@
                 })
             });
             const data = await res.json();
-            if (data.success) { alert("Connected!"); closeMt5Modal(); fetchData(); }
-            else { alert("Error: " + data.error); }
-        } catch(e) { alert("Network error"); }
-        finally { btn.innerText = 'Initialize MT5'; btn.disabled = false; }
+            if (data.success) { closeMt5Modal(); fetchData(); }
+            else { alert("ERROR: " + data.error); }
+        } catch(e) { alert("NETWORK ERROR"); }
+        finally { btn.innerText = 'INITIALIZE MT5'; btn.disabled = false; }
     }
 
     async function saveConfig() {
@@ -753,7 +621,6 @@
             const endLocal = row.querySelector('.sess-end').value;
             
             if (name && startLocal && endLocal) {
-                // Convert local HH:MM to UTC HH, MM
                 const [shL, smL] = startLocal.split(':').map(Number);
                 const dStart = new Date();
                 dStart.setHours(shL, smL, 0, 0);
@@ -790,26 +657,23 @@
         let startLocal = "";
         let endLocal = "";
         
-        // Convert UTC inputs back to local time strings if they exist
         if (utc_sh !== null && utc_sm !== null) {
-            const dS = new Date();
-            dS.setUTCHours(utc_sh, utc_sm, 0, 0);
+            const dS = new Date(); dS.setUTCHours(utc_sh, utc_sm, 0, 0);
             startLocal = dS.getHours().toString().padStart(2, '0') + ':' + dS.getMinutes().toString().padStart(2, '0');
         }
         if (utc_eh !== null && utc_em !== null) {
-            const dE = new Date();
-            dE.setUTCHours(utc_eh, utc_em, 0, 0);
+            const dE = new Date(); dE.setUTCHours(utc_eh, utc_em, 0, 0);
             endLocal = dE.getHours().toString().padStart(2, '0') + ':' + dE.getMinutes().toString().padStart(2, '0');
         }
 
         const div = document.createElement('div');
         div.className = 'session-row';
         div.innerHTML = `
-            <input type="text" class="sess-name" placeholder="Name (e.g. NY)" value="${name}">
+            <input type="text" class="sess-name" placeholder="NAME" value="${name}">
             <input type="time" class="sess-start" value="${startLocal}">
-            <span style="color:var(--text-muted); text-align:center;">to</span>
+            <span style="color:var(--text-muted); font-size: 10px; text-align:center;">-</span>
             <input type="time" class="sess-end" value="${endLocal}">
-            <button title="Remove session" onclick="this.parentElement.remove()">×</button>
+            <button title="Remove" onclick="this.parentElement.remove()">X</button>
         `;
         document.getElementById('sessions-container').appendChild(div);
     }
