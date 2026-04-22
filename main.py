@@ -25,7 +25,7 @@ import threading
 import MetaTrader5 as mt5
 
 import config
-import signal_state
+import ui_state
 import trade_log
 from execution import (
     close_position,
@@ -137,6 +137,17 @@ def main():
                     new_m5_closed = True
                 last_m5_ts = current_m5
 
+            # ── Check UI emergency close request ──
+            if ui_state.emergency_close_request:
+                ui_state.emergency_close_request = False
+                position = get_open_position(config.SYMBOL)
+                if position is not None:
+                    logger.info("🚨 Emergency close requested via UI.")
+                    close_position(position, reason="MANUAL_UI_CLOSE")
+                    _current_ticket = 0
+                    time.sleep(1.0)
+                continue
+
             # ── 1. Manage open position ──
             position = get_open_position(config.SYMBOL)
 
@@ -154,24 +165,9 @@ def main():
                         f"SL {position.sl:.2f} TP {position.tp:.2f} | "
                         f"P/L ${position.profit:+.2f}"
                     )
-                
-                tick = get_tick(config.SYMBOL)
-                current_price = 0.0
-                if tick:
-                    current_price = tick.bid if position.type == mt5.ORDER_TYPE_SELL else tick.ask
-                
-                signal_state.latest_signal_status[config.SYMBOL] = {
-                    "status": f"Holding {'BUY' if position.type == mt5.ORDER_TYPE_BUY else 'SELL'}",
-                    "color": "green" if position.profit >= 0 else "red",
-                    "time": position.time,
-                    "pnl": position.profit,
-                    "tp": position.tp,
-                    "sl": position.sl,
-                    "entry_price": position.price_open,
-                    "current_price": current_price
-                }
-
                 # Nothing else to do — SL/TP are on the broker side
+                time.sleep(config.LOOP_INTERVAL_SEC)
+                continue
                 time.sleep(config.LOOP_INTERVAL_SEC)
                 continue
 
@@ -187,11 +183,11 @@ def main():
                 if loop_start - last_status_log >= 300.0:  # Log every 5 min
                     last_status_log = loop_start
                     logger.info(f"⏸️  Trading paused: {reason} | {risk_mgr.status_line()}")
-                signal_state.latest_signal_status[config.SYMBOL] = {
-                    "status": f"Risk Blocked: {reason}",
-                    "color": "gray",
-                    "time": time.time()
-                }
+                time.sleep(config.LOOP_INTERVAL_SEC)
+                continue
+
+            # ── UI Toggle Check ──
+            if not ui_state.bot_enabled:
                 time.sleep(config.LOOP_INTERVAL_SEC)
                 continue
 
@@ -205,13 +201,27 @@ def main():
 
             # ── 4. Run filters ──
             passed, reason = all_filters_pass(config.SYMBOL)
+            
+            # Update market context for UI
+            tick = get_tick(config.SYMBOL)
+            current_price = (tick.bid + tick.ask) / 2.0 if tick else 0.0
+            
+            from bias import get_bias
+            bias = get_bias(config.SYMBOL, current_price) if current_price else None
+            
+            ui_state.last_market_context = {
+                "symbol": config.SYMBOL,
+                "current_price": current_price,
+                "bias_h1": bias.h1_trend if bias else "UNKNOWN",
+                "bias_m15_aligned": bias.m15_aligned if bias else False,
+                "bias_tradeable": bias.is_tradeable if bias else False,
+                "filters_passed": passed,
+                "filters_reason": reason,
+                "time": time.time()
+            }
+
             if not passed:
                 logger.info(f"⏸️  Filters blocked: {reason}")
-                signal_state.latest_signal_status[config.SYMBOL] = {
-                    "status": f"Filters Blocked: {reason}",
-                    "color": "gray",
-                    "time": time.time()
-                }
                 continue
 
             # ── 5. Generate signal ──

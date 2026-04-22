@@ -20,7 +20,6 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
-import signal_state
 import config
 from bias import BiasResult, get_bias
 from liquidity import (
@@ -67,7 +66,6 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     tick = get_tick(symbol)
     if tick is None:
         logger.debug("No tick available")
-        signal_state.latest_signal_status[symbol] = {"status": "Waiting for Tick Data", "color": "gray", "time": time.time()}
         return None
     current_price = (tick.bid + tick.ask) / 2.0
 
@@ -77,7 +75,6 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
 
     if not bias.is_tradeable:
         logger.debug(f"❌ Bias not tradeable: {bias.reason}")
-        signal_state.latest_signal_status[symbol] = {"status": f"Waiting for Bias ({bias.reason})", "color": "orange", "time": time.time()}
         return None
 
     direction_smc = _bias_direction_to_smc(bias.h1_trend)
@@ -93,7 +90,6 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     sweep = find_recent_sweep(m5, direction_smc)
     if sweep is None:
         logger.debug(f"❌ No recent {direction_smc} sweep on M5")
-        signal_state.latest_signal_status[symbol] = {"status": f"Bias {bias.h1_trend}: Waiting for {direction_smc} Sweep", "color": "orange", "time": time.time()}
         return None
 
     logger.debug(f"Sweep found: {sweep}")
@@ -102,7 +98,6 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     fvg = find_entry_fvg_after_sweep(m5, direction_smc, sweep)
     if fvg is None:
         logger.debug(f"❌ No unmitigated FVG after sweep")
-        signal_state.latest_signal_status[symbol] = {"status": f"Swept: Waiting for {direction_smc} FVG", "color": "orange", "time": time.time()}
         return None
 
     logger.debug(f"FVG found: {fvg}")
@@ -113,12 +108,10 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     if direction_smc == 'BULLISH':
         if current_price < fvg.bottom:
             logger.debug(f"❌ Price ${current_price:.2f} already below FVG bottom ${fvg.bottom:.2f}")
-            signal_state.latest_signal_status[symbol] = {"status": "FVG invalidated (Price below bottom)", "color": "red", "time": time.time()}
             return None
     else:
         if current_price > fvg.top:
             logger.debug(f"❌ Price ${current_price:.2f} already above FVG top ${fvg.top:.2f}")
-            signal_state.latest_signal_status[symbol] = {"status": "FVG invalidated (Price above top)", "color": "red", "time": time.time()}
             return None
 
     # ── Step 7: Calculate entry, SL, TP ──
@@ -151,7 +144,6 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
 
     if rr < config.MIN_RR:
         logger.debug(f"❌ RR {rr:.2f} < min {config.MIN_RR}")
-        signal_state.latest_signal_status[symbol] = {"status": f"RR too low ({rr:.2f} < {config.MIN_RR})", "color": "red", "time": time.time()}
         return None
 
     # Cap unrealistic RR — target might be too far, use cap
@@ -176,5 +168,4 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
         fvg=fvg,
     )
     logger.info(f"🎯 SIGNAL: {signal} | {signal.setup_note}")
-    signal_state.latest_signal_status[symbol] = {"status": f"Signal Generated ({direction_order})", "color": "green", "time": time.time()}
     return signal

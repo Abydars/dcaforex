@@ -3,1313 +3,481 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DCA Signal Monitor</title>
-    <!-- Modern Tech Font Option -->
+    <title>XAUUSD SMC Scalping Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0A0C10; /* Brutalist deep slate/black */
-            --table-bg: #0A0C10; 
-            --border-color: #1e293b;
-            --hover-bg: #111827;
-            --text-primary: #cbd5e1;
-            --text-secondary: #64748b;
-            --green: #00ff9d; /* Institutional neon green */
-            --red: #ff3355;   /* Crimson red */
-            --orange: #fbbf24;
-            --gray: #475569;
-            --blue: #3b82f6;
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --green: #238636;
+            --red: #da3633;
+            --amber: #d29922;
+            --blue: #1f6feb;
+            --gray: #6e7681;
         }
 
         body {
             margin: 0;
-            padding: 0.5rem;
+            padding: 1rem;
             background: var(--bg-color);
             color: var(--text-primary);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            min-height: 100vh;
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.5;
         }
 
-        .header-container {
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .panel-header {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            color: #fff;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            max-width: 100%;
-            margin: 0 auto;
-            flex-wrap: wrap;
-            gap: 0;
-            background: #0f172a;
-            padding: 0.25rem 0.5rem;
-            border: 1px solid var(--border-color);
-            border-radius: 2px;
         }
-
-        .header-buttons {
-            display: flex;
-            gap: 0.25rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .header-stats {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .pnl-pill {
-            background: transparent;
-            border-right: 1px solid var(--border-color);
-            padding: 0 0.75rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-            font-family: 'Roboto Mono', monospace;
-            display: flex;
-            align-items: center;
-            height: 100%;
-        }
-        .pnl-pill:last-child {
-            border-right: none;
-        }
-
-        .btn-toggle, .btn-close-all, .btn-close {
-            background-color: transparent;
-            padding: 0.15rem 0.6rem;
-            border-radius: 2px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.1s;
-            text-transform: uppercase;
-            font-family: 'Inter', sans-serif;
-            border: 1px solid;
-            line-height: normal;
-        }
-
-        .btn-toggle {
-            color: var(--green);
-            border-color: var(--green);
-        }
-        .btn-toggle.off {
-            color: var(--gray);
-            border-color: var(--gray);
-        }
-        .btn-toggle:hover:not(.off) {
-            background-color: rgba(0, 255, 157, 0.1);
-        }
-        .btn-toggle.off:hover {
-            background-color: rgba(71, 85, 105, 0.2);
-        }
-
-        .btn-close-all, .btn-close {
-            color: var(--red);
-            border-color: var(--red);
-        }
-        .btn-close-all:hover, .btn-close:hover {
-            background-color: rgba(255, 51, 85, 0.1);
-        }
-
-        .table-container {
-            max-width: 100%;
-            margin: 0 auto;
-            background: var(--table-bg);
-            border: 1px solid var(--border-color);
-            border-top: none;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            min-width: 800px; 
-            font-size: 0.8rem;
-        }
-
-        th, td {
-            padding: 0.35rem 0.5rem;
-            border-bottom: 1px solid #141b2d;
-            border-right: 1px solid #141b2d;
-        }
-        th:last-child, td:last-child {
-            border-right: none;
-        }
-
-        th {
-            background: #0d1117;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
-            font-weight: 500;
-            white-space: nowrap;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        tr { transition: background 0.1s; }
-        tr:hover { background: var(--hover-bg); }
 
         .mono {
             font-family: 'Roboto Mono', monospace;
-            letter-spacing: -0.03em;
         }
 
-        /* Symbol Name */
-        .symbol-col {
-            font-weight: 600;
-            font-size: 0.9rem;
-            white-space: nowrap;
+        /* Colors */
+        .text-green { color: #3fb950; }
+        .text-red { color: #ff7b72; }
+        .text-amber { color: #d29922; }
+        .text-gray { color: var(--text-secondary); }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bot-toggle {
+            padding: 0.75rem 2rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+        }
+        .bot-toggle.on {
+            background: var(--green);
+            color: #fff;
+        }
+        .bot-toggle.off {
+            background: var(--gray);
             color: #fff;
         }
 
-        /* Color Dot */
-        .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 0.5rem;
-            vertical-align: middle;
-        }
-        tr[data-color="green"] .dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
-        tr[data-color="red"] .dot { background: var(--red); box-shadow: 0 0 5px var(--red); }
-        tr[data-color="orange"] .dot { background: var(--orange); }
-        tr[data-color="gray"] .dot { background: var(--gray); }
-
-        /* Status & Time */
-        .status-col {
-            font-size: 0.8rem;
-            color: #94a3b8;
-            line-height: 1.2;
-        }
-
-        .time-col {
-            font-size: 0.75rem;
-            color: #475569;
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* Glowing text properties for amounts */
-        .glow-red { color: var(--red); text-shadow: 0 0 8px rgba(255, 51, 85, 0.4); }
-        .glow-green { color: var(--green); text-shadow: 0 0 8px rgba(0, 255, 157, 0.4); }
-
-        .session-stats-grid { display: flex; align-items: center; white-space: nowrap; }
-        .text-secondary { color: var(--text-secondary); }
-
-        @media (max-width: 768px) {
-            .header-container { flex-direction: column; align-items: stretch; padding: 0.5rem; }
-            .header-buttons { width: 100%; justify-content: stretch; margin-bottom: 0.5rem; }
-            .header-buttons button { flex: 1; }
-            .header-stats { width: 100%; flex-direction: column; justify-content: flex-start; align-items: flex-start !important; padding: 0; border-top: 1px solid var(--border-color); margin-top: 0.5rem; padding-top:0.5rem; }
-            .pnl-pill { border: none !important; margin: 0 !important; padding: 0.25rem 0 !important; width: 100%; text-align: left !important; justify-content: space-between !important; }
-            .desktop-only { display: none !important; }
-            .session-stats-grid { flex-direction: column; align-items: flex-start; gap: 0.25rem; font-size: 0.8rem; width: 100%; }
-            .edit-btn { width: 100%; padding: 0.35rem !important; margin-top: 0.25rem; }
-            .edit-btn { width: 100%; padding: 0.35rem !important; margin-top: 0.25rem; }
-        }
-
-        /* Tabs Styling */
-        .tabs-header {
-            display: flex;
+        /* Data Grids */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+        
+        .stat-box {
             background: #0d1117;
-            border-bottom: 1px solid #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0.5rem;
+            text-align: center;
         }
-        .tab-btn {
-            background: transparent;
-            color: #64748b;
-            border: none;
-            padding: 1rem 2rem;
-            font-size: 0.85rem;
-            font-family: 'Roboto Mono', monospace;
-            cursor: pointer;
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
             text-transform: uppercase;
+        }
+        .stat-value {
+            font-size: 1.1rem;
             font-weight: 600;
-            transition: all 0.2s;
-            border-bottom: 2px solid transparent;
+            margin-top: 0.25rem;
         }
-        .tab-btn:hover { color: #fff; }
-        .tab-btn.active {
-            color: #00ff9d;
-            border-bottom: 2px solid #00ff9d;
+
+        /* Buttons */
+        .btn-danger {
+            background: var(--red);
+            color: #fff;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
         }
-        
-        /* Modal Responsiveness */
-        .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;
-            backdrop-filter: blur(2px);
+        .btn-danger:hover { background: #b32a28; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
         }
-        .modal-inner {
-            background: #1e293b; padding: 2rem; border-radius: 12px; width: 500px; 
-            max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            box-sizing: border-box;
+        th, td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
         }
-        .bulk-times-row {
-            display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; 
-            background: #0d1117; padding: 0.5rem; border-radius: 6px; border: 1px solid #334155;
+        th {
+            color: var(--text-secondary);
+            font-weight: 500;
         }
-        
-        @media (max-width: 480px) {
-            .modal-inner { padding: 1rem; border-radius: 8px; }
-            .bulk-times-row { flex-wrap: wrap; }
-            .bulk-times-row input { flex: 1; min-width: 40%; }
-            .bulk-times-row button { flex: 1; min-width: 40%; padding: 0.5rem; }
+
+        .banner {
+            background: rgba(218, 54, 51, 0.1);
+            border: 1px solid var(--red);
+            color: #ff7b72;
+            padding: 0.75rem;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: none;
         }
     </style>
-
 </head>
 <body>
-    <!-- Global Warning Bar -->
-    <div id="global-warning" style="display:none; background: #ff3355; color: #fff; text-align: center; padding: 0.5rem; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase;"></div>
 
-    <!-- Tier 1: Global Controls -->
-    <div class="header-container" style="border-bottom: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
-        <div class="header-buttons">
-            <button id="btn-toggle" class="btn-toggle" onclick="toggleBot()">BOT: ON</button>
-            <button class="btn-close-all" onclick="closeAll()">Close All</button>
-        </div>
-        <div class="header-stats">
-            <div class="pnl-pill" id="total-pnl">Total P/L: $0.00</div>
-            <div class="pnl-pill" id="account-bal" style="color: var(--text-secondary);">Bal: $0.00</div>
-        </div>
-    </div>
-
-    <!-- Tier 2: Dedicated Session Cockpit -->
-    <div class="header-container" style="background: #0f172a; border-top-left-radius: 0; border-top-right-radius: 0; margin-top: -1px; border-top: 1px solid #1e293b;">
-        <div class="header-buttons">
-            <button id="btn-session" class="btn-toggle" onclick="openSessionModal()" style="background-color: #3b82f6;">Start Session</button>
-            <button class="btn-toggle" onclick="openMt5Modal()" style="background-color: #f59e0b; color: #fff; border-color: #f59e0b;">MT5 Config</button>
-        </div>
-        <div class="header-stats" style="flex: 1; justify-content: flex-end;">
-            <div class="pnl-pill" id="session-stats" style="font-size: 0.95rem; color: var(--text-secondary); flex: 1; text-align: right; margin-left: 1rem; border: 1px dashed #334155;">
-                Session Inactive
-            </div>
-        </div>
-    </div>
-
-    <!-- Session Modal -->
-    <div id="session-modal" class="modal-overlay">
-        <div class="modal-inner">
-            <h3 id="modal-title" style="margin-top:0; color:#fff;">Start New Session</h3>
-            <div style="margin-bottom:1rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Target Profit ($)</label>
-                <input type="number" id="inp-tp" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="100.00">
-            </div>
-            <div style="margin-bottom:1rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Stop Loss ($)</label>
-                <input type="number" id="inp-sl" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="50.00">
-            </div>
-            <div style="margin-bottom:1.5rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Max Open Pairs</label>
-                <input type="number" id="inp-max-sym" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" value="2" min="1" max="10">
-            </div>
-            <div style="margin-bottom:1.5rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Trading Pairs (Grouped by Correlation)</label>
-                <div id="sym-checkboxes" style="display:block; max-height:160px; overflow-y:auto; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
-                    <!-- Checkboxes injected via JS -->
-                </div>
-            </div>
-            <div style="margin-bottom:1.5rem; max-height:280px; overflow-y:auto;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">Weekly Schedule (Local Time)</label>
-                <div class="bulk-times-row">
-                    <input type="time" id="bulk-start" style="padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="08:00">
-                    <span style="color:#64748b; font-size:0.8rem; text-align:center;">to</span>
-                    <input type="time" id="bulk-end" style="padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="20:00">
-                    <button onclick="applyBulkTimes()" style="background:#3b82f6; color:#fff; border:none; border-radius:4px; font-size:0.7rem; padding:0.3rem 0.5rem; cursor:pointer;">Apply Config</button>
-                    <button onclick="clearBulkTimes()" style="background:#dc2626; color:#fff; border:none; border-radius:4px; font-size:0.7rem; padding:0.3rem 0.4rem; cursor:pointer;">Clear</button>
-                </div>
-                <div id="schedule-container" style="display:flex; flex-direction:column; gap:0.5rem; background:#0f172a; padding:0.5rem; border:1px solid #334155; border-radius:6px;">
-                    <!-- Javascript will inject 7 rows here -->
-                </div>
-                <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:0.25rem;">Empty time ranges = 24/7 if day is enabled.</small>
-            </div>
-            
-            <div style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-                <input type="checkbox" id="inp-auto-restart" style="accent-color: #3b82f6; width:16px; height:16px;">
-                <label for="inp-auto-restart" style="color:#cbd5e1; font-size:0.9rem; cursor:pointer;">Auto-Restart Next Time Range</label>
-            </div>
-            
-            <div style="background:#0f172a; border:1px solid #334155; border-radius:6px; padding:0.75rem; margin-bottom:1.5rem;">
-                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                    <input type="checkbox" id="inp-smart-flush" onchange="document.getElementById('flush-settings').style.display = this.checked ? 'flex' : 'none';" style="accent-color: #3b82f6; width:16px; height:16px;">
-                    <label for="inp-smart-flush" style="color:#cbd5e1; font-size:0.9rem; cursor:pointer;">Enable Smart End-of-Session Flush</label>
-                </div>
-                <div id="flush-settings" style="display:none; flex-direction:column; gap:0.5rem; padding-left:1.5rem;">
-                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                        <span style="color:#94a3b8; font-size:0.8rem;">Pause New Entries Before End (Mins):</span>
-                        <div style="display:flex; align-items:center; gap:0.25rem; width:70px; justify-content:flex-end;">
-                            <input type="number" id="inp-auto-pause-mins" value="15" min="0" style="width:50px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
-                        </div>
-                    </div>
-                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                        <span style="color:#94a3b8; font-size:0.8rem;">Trigger Flush Before End (Mins):</span>
-                        <div style="display:flex; align-items:center; gap:0.25rem; width:70px; justify-content:flex-end;">
-                            <input type="number" id="inp-flush-mins" value="5" min="1" style="width:50px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
-                        </div>
-                    </div>
-                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                        <span style="color:#94a3b8; font-size:0.8rem;">Flush Loss Tolerance (% of SL):</span>
-                        <div style="display:flex; align-items:center; gap:0.25rem; width:70px; justify-content:flex-end;">
-                            <input type="number" id="inp-flush-tol" value="10" min="0" max="100" style="width:50px; padding:0.2rem; border-radius:4px; border:1px solid #334155; background:#1e293b; color:#fff; text-align:center;">
-                            <span style="color:#94a3b8; font-size:0.8rem; flex-shrink:0;">%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex; gap:1rem;">
-                <button onclick="closeSessionModal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
-                <button id="modal-submit-btn" onclick="submitSession()" style="flex:1; padding:0.5rem; background:#3b82f6; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Start</button>
-            </div>
-        </div>
-    </div>
+<div class="container">
     
-    <!-- MT5 Config Modal -->
-    <div id="mt5-modal" class="modal-overlay">
-        <div class="modal-inner" style="width: 400px;">
-            <h3 style="margin-top:0; color:#fff;">MT5 Configuration</h3>
-            <div style="margin-bottom:1rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">MT5 Login Account</label>
-                <input type="number" id="inp-mt5-login" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" placeholder="e.g. 12345678">
+    <!-- HEADER -->
+    <div class="panel header">
+        <div>
+            <h1 style="margin: 0; font-size: 1.5rem; color: #fff;">XAUUSD SMC Scalping Bot</h1>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;" id="account-info">
+                Loading account info...
             </div>
-            <div style="margin-bottom:1rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">MT5 Password</label>
-                <input type="password" id="inp-mt5-pass" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" placeholder="Leave blank to keep unchanged">
-            </div>
-            <div style="margin-bottom:1.5rem;">
-                <label style="color:#cbd5e1; font-size:0.9rem; display:block; margin-bottom:0.5rem;">MT5 Server</label>
-                <input type="text" id="inp-mt5-server" style="width:100%; box-sizing:border-box; padding:0.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#fff;" placeholder="e.g. Exness-MT5Trial11">
-            </div>
-            <div style="display:flex; gap:1rem;">
-                <button onclick="closeMt5Modal()" style="flex:1; padding:0.5rem; background:#334155; color:#fff; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
-                <button onclick="submitMt5Config()" style="flex:1; padding:0.5rem; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Save Config</button>
+        </div>
+        <button id="bot-toggle" class="bot-toggle on" onclick="toggleBot()">BOT ON</button>
+    </div>
+
+    <!-- DAILY LIMIT BANNER -->
+    <div id="daily-stop-banner" class="banner"></div>
+
+    <!-- CURRENT POSITION -->
+    <div class="panel">
+        <div class="panel-header">Current Position</div>
+        <div id="position-content">
+            <div style="text-align: center; color: var(--text-secondary); padding: 1rem;">
+                No open position — scanning for setups.
             </div>
         </div>
     </div>
-    
-    <!-- Navigation Tabs -->
-    <div class="tabs-header">
-        <button class="tab-btn active" id="btn-tab-trading" onclick="switchTab('trading')">Trading View</button>
-        <button class="tab-btn" id="btn-tab-sessions" onclick="switchTab('sessions')">Session Logs</button>
-    </div>
-    
-    <div id="tab-trading" class="table-container" style="border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Symbol</th>
-                    <th>State</th>
-                    <th>Details</th>
-                    <th>PnL</th>
-                    <th>Entry Time</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="dashboard">
-                <!-- Rows injected here -->
-            </tbody>
-        </table>
-    </div>
 
-    <div id="tab-sessions" class="table-container" style="display:none; border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0;">
-        <table>
-            <thead>
-                <tr>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                    <th>Duration (Mins)</th>
-                    <th>Traded Pairs</th>
-                    <th>Reason</th>
-                    <th>Realized PnL</th>
-                </tr>
-            </thead>
-            <tbody id="session-history">
-                <!-- Rows injected here -->
-            </tbody>
-        </table>
+    <!-- MARKET CONTEXT -->
+    <div class="panel">
+        <div class="panel-header">Market Context</div>
+        <div class="grid-2" id="market-context-content">
+            <div class="stat-box">
+                <div class="stat-label">H1 Trend</div>
+                <div class="stat-value mono" id="ctx-bias">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Zone Status</div>
+                <div class="stat-value mono" id="ctx-zone">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Session</div>
+                <div class="stat-value mono" id="ctx-filters">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Current Price</div>
+                <div class="stat-value mono" id="ctx-price">--</div>
+            </div>
+        </div>
     </div>
 
-    <script>
-        function getNextStartTime(schedule) {
-            if (!schedule) return null;
-            const now = new Date();
-            for (let dayOffset = 0; dayOffset <= 7; dayOffset++) {
-                let checkDate = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
-                let pyDayStr = ((checkDate.getUTCDay() + 6) % 7).toString();
-                let dayConfig = schedule[pyDayStr];
-                
-                if (dayConfig && dayConfig.enabled) {
-                    let ranges = dayConfig.ranges || [];
-                    if (ranges.length === 0) {
-                        if (dayOffset > 0) {
-                            checkDate.setUTCHours(0, 0, 0, 0);
-                            return checkDate;
-                        }
-                    } else {
-                        let sortedStarts = ranges.map(r => r.start).sort();
-                        for (let startStr of sortedStarts) {
-                            if (!startStr) continue;
-                            let [h, m] = startStr.split(':').map(Number);
-                            let cand = new Date(checkDate);
-                            cand.setUTCHours(h, m, 0, 0);
-                            if (cand > now) return cand;
-                        }
-                    }
-                }
-            }
-            return null;
+    <!-- TODAY'S STATS -->
+    <div class="panel">
+        <div class="panel-header">Today's Stats</div>
+        <div class="grid-3" id="today-stats-content">
+            <!-- Injected by JS -->
+        </div>
+    </div>
+
+    <!-- TRADE HISTORY -->
+    <div class="panel">
+        <div class="panel-header">
+            Trade History (Last 30 Days)
+            <span id="history-summary" style="font-size: 0.8rem; font-weight: 400; color: var(--text-secondary);"></span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Dir</th>
+                        <th>Entry</th>
+                        <th>Exit</th>
+                        <th>P/L</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table">
+                    <!-- Injected by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- CONFIG VIEW -->
+    <div class="panel">
+        <div class="panel-header" style="cursor: pointer;" onclick="document.getElementById('config-content').style.display = document.getElementById('config-content').style.display === 'none' ? 'block' : 'none';">
+            Configuration (Click to Expand)
+        </div>
+        <div id="config-content" style="display: none; font-size: 0.85rem; color: var(--text-secondary);">
+            <div style="margin-bottom: 0.5rem; color: var(--amber);">To change these values, edit .env and restart the bot.</div>
+            <pre id="config-pre" style="background: #0d1117; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; overflow-x: auto;"></pre>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let isBotEnabled = true;
+
+    async function fetchData() {
+        try {
+            const res = await fetch('/api/state');
+            if (res.status === 401) { window.location.href = '/login'; return; }
+            const data = await res.json();
+            renderState(data);
+        } catch (e) { console.error(e); }
+    }
+
+    async function fetchHistory() {
+        try {
+            const res = await fetch('/api/history?days=30');
+            if (res.status === 401) return;
+            const data = await res.json();
+            renderHistory(data);
+        } catch (e) { console.error(e); }
+    }
+
+    function renderState(data) {
+        // Toggle
+        isBotEnabled = data.bot_enabled;
+        const btn = document.getElementById('bot-toggle');
+        if (isBotEnabled) {
+            btn.className = 'bot-toggle on';
+            btn.innerText = 'BOT ON';
+        } else {
+            btn.className = 'bot-toggle off';
+            btn.innerText = 'BOT OFF';
         }
 
-        let isBotActive = true;
-        let isSessionActive = false;
-        let globalMasterSymbols = [];
-        let globalSessionSymbols = [];
-        let globalSessionTp = 100;
-        let globalSessionSl = 50;
-        let globalSessionMax = 2;
-        let globalSessionSchedule = {};
-        let globalSessionAutoRestart = false;
-        let globalSessionSmartFlush = false;
-        let globalSessionFlushMins = 5;
-        let globalSessionFlushTol = 10;
-        let globalSessionAutoPauseMins = 15;
-        let globalCorrelationGroups = {};
-
-        async function fetchSignals() {
-            try {
-                const res = await fetch('/api/signals');
-                if (res.status === 401) {
-                    window.location.href = '/login';
-                    return;
-                }
-                const apiData = await res.json();
-                
-                if (apiData.master_symbols) {
-                    globalMasterSymbols = apiData.master_symbols;
-                }
-                if (apiData.correlation_groups) {
-                    globalCorrelationGroups = apiData.correlation_groups;
-                }
-                if (apiData.session_symbols) {
-                    globalSessionSymbols = apiData.session_symbols;
-                    globalSessionTp = apiData.session_tp || 100;
-                    globalSessionSl = apiData.session_sl || 50;
-                    globalSessionMax = apiData.session_max_symbols || 2;
-                    globalSessionSchedule = apiData.session_schedule || {};
-                    globalSessionAutoRestart = apiData.session_auto_restart || false;
-                    globalSessionSmartFlush = apiData.session_smart_flush || false;
-                    globalSessionFlushMins = apiData.session_flush_minutes || 5;
-                    globalSessionFlushTol = apiData.session_flush_tolerance_pct || 10;
-                    globalSessionAutoPauseMins = apiData.session_auto_pause_minutes || 15;
-                }
-
-                renderDashboard(apiData);
-            } catch (err) {
-                console.error("Failed to fetch signals", err);
-            }
+        // Account
+        if (data.account && data.account.login) {
+            document.getElementById('account-info').innerText = 
+                `${data.account.login} | ${data.account.server} | Equity: $${data.account.equity.toFixed(2)}`;
         }
 
-        function renderDashboard(apiData) {
-            const tbody = document.getElementById('dashboard');
-            const data = apiData.signals || {};
-            const pnl = apiData.total_pnl || 0;
+        // Config
+        if (data.config) {
+            document.getElementById('config-pre').innerText = JSON.stringify(data.config, null, 2);
+        }
 
-            isBotActive = apiData.is_active !== false;
-            const toggleBtn = document.getElementById('btn-toggle');
-            if (isBotActive) {
-                toggleBtn.innerText = "BOT: ON";
-                toggleBtn.className = "btn-toggle";
+        // Daily Stop Banner
+        const banner = document.getElementById('daily-stop-banner');
+        if (data.today_stats && data.today_stats.stopped_by_limit) {
+            banner.style.display = 'block';
+            banner.innerText = `Daily Stop Active: ${data.today_stats.reason}`;
+        } else {
+            banner.style.display = 'none';
+        }
+
+        // Position
+        const posDiv = document.getElementById('position-content');
+        if (data.position) {
+            const p = data.position;
+            const isProfit = p.pnl >= 0;
+            const pnlColor = isProfit ? 'text-green' : 'text-red';
+            const sign = isProfit ? '+' : '';
+            
+            // Distances
+            const tpDist = Math.abs(p.tp - p.entry_price);
+            const slDist = Math.abs(p.entry_price - p.sl);
+            
+            let tpPct = 0, slPct = 0;
+            if (p.direction === 'BUY') {
+                if (p.current_price > p.entry_price) tpPct = ((p.current_price - p.entry_price) / tpDist) * 100;
+                else slPct = ((p.entry_price - p.current_price) / slDist) * 100;
             } else {
-                toggleBtn.innerText = "BOT: OFF";
-                toggleBtn.className = "btn-toggle off";
+                if (p.current_price < p.entry_price) tpPct = ((p.entry_price - p.current_price) / tpDist) * 100;
+                else slPct = ((p.current_price - p.entry_price) / slDist) * 100;
             }
+            tpPct = Math.max(0, Math.min(100, tpPct)).toFixed(1);
+            slPct = Math.max(0, Math.min(100, slPct)).toFixed(1);
 
-            // Check Trading Hours
-            let inTradingHours = true;
-            const now = new Date();
-            let pyDayStr = ((now.getUTCDay() + 6) % 7).toString(); 
-            let isEndingSoon = false;
-            
-            if (globalSessionSchedule && globalSessionSchedule[pyDayStr]) {
-                const dayConfig = globalSessionSchedule[pyDayStr];
-                if (!dayConfig.enabled) {
-                    inTradingHours = false;
-                } else if (dayConfig.ranges && dayConfig.ranges.length > 0) {
-                    inTradingHours = false;
-                    const currentMins = now.getUTCHours() * 60 + now.getUTCMinutes();
-                    for (let r of dayConfig.ranges) {
-                        if (!r.start || !r.end) continue;
-                        let [sH, sM] = r.start.split(':').map(Number);
-                        let [eH, eM] = r.end.split(':').map(Number);
-                        let sMins = sH * 60 + sM;
-                        let eMins = eH * 60 + eM;
-                        if (sMins <= eMins) {
-                            if (currentMins >= sMins && currentMins < eMins) {
-                                inTradingHours = true;
-                                if ((eMins - currentMins) <= globalSessionAutoPauseMins && globalSessionAutoPauseMins > 0) isEndingSoon = true;
-                            }
-                        } else {
-                            if (currentMins >= sMins || currentMins < eMins) {
-                                inTradingHours = true;
-                                let adjustedCurr = currentMins < eMins ? (currentMins + 24 * 60) : currentMins;
-                                let adjustedEnd = eMins + 24 * 60;
-                                if ((adjustedEnd - adjustedCurr) <= globalSessionAutoPauseMins && globalSessionAutoPauseMins > 0) isEndingSoon = true;
-                            }
-                        }
-                    }
-                }
-            } else {
-                inTradingHours = false;
-            }
+            const duration = Math.floor((Date.now() / 1000) - p.time);
+            const mins = Math.floor(duration / 60);
 
-            isSessionActive = apiData.session_active;
-            const warningBar = document.getElementById('global-warning');
-            if (!isBotActive) {
-                warningBar.innerText = "TRADING PAUSED: MASTER BOT SWITCH IS OFF";
-                warningBar.style.display = "block";
-            } else if (!isSessionActive) {
-                warningBar.innerText = "TRADING PAUSED: NO ACTIVE SESSION STARTED";
-                warningBar.style.display = "block";
-            } else if (!inTradingHours) {
-                let nextTime = getNextStartTime(globalSessionSchedule);
-                if (nextTime) {
-                    let diff = nextTime - new Date();
-                    if (diff < 0) diff = 0;
-                    let h = Math.floor(diff / 3600000);
-                    let m = Math.floor((diff % 3600000) / 60000);
-                    let s = Math.floor((diff % 60000) / 1000);
-                    warningBar.innerHTML = `TRADING PAUSED: OUT OF ACTIVE TRADING HOURS <span style="font-family:'Roboto Mono', monospace; margin-left:10px; color:#fcd34d;">(Continues in ${h}h ${m}m ${s}s)</span>`;
-                } else {
-                    warningBar.innerText = "TRADING PAUSED: OUT OF ACTIVE TRADING HOURS OR WEEKDAYS";
-                }
-                warningBar.style.display = "block";
-            } else if (isEndingSoon) {
-                warningBar.innerHTML = `TRADING PAUSED: NEARING SESSION END (AUTO-PAUSE ACTIVE, < ${globalSessionAutoPauseMins}m LEFT)`;
-                warningBar.style.display = "block";
-            } else {
-                warningBar.style.display = "none";
-            }
-
-            const pnlEl = document.getElementById('total-pnl');
-            const isProfit = pnl >= 0;
-            const glowClass = isProfit ? 'glow-green' : 'glow-red';
-            pnlEl.innerHTML = `<span style="color:var(--text-secondary)">P/L:</span> <span class="${glowClass}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span>`;
-            
-            const balEl = document.getElementById('account-bal');
-            const bal = apiData.balance || 0;
-            if (balEl) balEl.innerHTML = `<span style="color:var(--text-secondary)">BAL:</span> <span style="color:#fff">$${bal.toFixed(2)}</span>`;
-
-            isSessionActive = apiData.session_active;
-            const sessionBtn = document.getElementById('btn-session');
-            const sessionStats = document.getElementById('session-stats');
-
-            if (isSessionActive) {
-                sessionBtn.innerText = "End Session";
-                sessionBtn.style.backgroundColor = "#dc2626"; // red
-                sessionBtn.onclick = endSession;
-
-                const sTotalPnl = apiData.session_pnl || 0;
-                const sRealizedPnl = apiData.session_realized_pnl || 0;
-                const sMax = apiData.session_max_symbols || 2;
-                
-                const tSign = sTotalPnl >= 0 ? '+' : '';
-                const tGlow = sTotalPnl >= 0 ? 'glow-green' : 'glow-red';
-                
-                const rSign = sRealizedPnl >= 0 ? '+' : '';
-                const rGlow = sRealizedPnl >= 0 ? 'glow-green' : 'glow-red';
-                
-                sessionStats.innerHTML = `<div class="session-stats-grid">
-                                              <span>Realized: <span class="${rGlow}">${rSign}$${sRealizedPnl.toFixed(2)}</span></span>
-                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
-                                              <span>Eqt PnL: <span class="${tGlow}">${tSign}$${sTotalPnl.toFixed(2)}</span></span>
-                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
-                                              <span>TP: $${apiData.session_tp} / SL: -$${apiData.session_sl}</span>
-                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
-                                              <span>Max: ${sMax}</span>
-                                              <span class="desktop-only text-secondary">&nbsp;|&nbsp;</span>
-                                              <span>AUTO: ${apiData.session_auto_restart ? '<span style="color:#00ff9d">ON</span>' : '<span style="color:#64748b">OFF</span>'}</span>
-                                              <span class="desktop-only">&nbsp;&nbsp;</span>
-                                              <button onclick="openSessionModal()" style="background:transparent; color:#3b82f6; border:1px solid #3b82f6; padding:0 4px; border-radius:2px; font-size:0.7rem; cursor:pointer;" class="edit-btn">EDIT</button>
-                                          </div>`;
-            } else {
-                let timerHtml = "";
-                if (apiData.session_auto_restart && apiData.session_waiting_for_next_range) {
-                    let nextTime = getNextStartTime(globalSessionSchedule);
-                    if (nextTime) {
-                        let diff = nextTime - new Date();
-                        let h = Math.floor(diff / 3600000);
-                        let m = Math.floor((diff % 3600000) / 60000);
-                        let s = Math.floor((diff % 60000) / 1000);
-                        timerHtml = `<span style="color:#f59e0b; margin-left:10px; font-family:'Roboto Mono', monospace;">(Restarts in ${h}h ${m}m ${s}s)</span>`;
-                    } else {
-                        timerHtml = `<span style="color:#f59e0b; margin-left:10px;">(Waiting for next schedule)</span>`;
-                    }
-                    sessionStats.innerHTML = `<span style="color:#f59e0b; font-weight:bold;">STANDBY MODE</span> ${timerHtml}`;
-                } else {
-                    sessionStats.innerHTML = "Session Inactive";
-                }
-                
-                sessionBtn.innerText = "Start Session";
-                sessionBtn.style.backgroundColor = "#3b82f6"; // blue
-                sessionBtn.onclick = openSessionModal;
-            }
-            
-            // Build final array of symbols to display:
-            // 1. If NO session is active, maybe show all master? (user wants them hidden but active trades might be open?)
-            // We'll trust whatever signal_state tracking passed us in `data` (since backend wiped the old ones!)
-            let symbols = Object.keys(data);
-            
-            // Further filter if session is active to ensure UI is perfectly clean
-            if (apiData.session_active && globalSessionSymbols.length > 0) {
-                symbols = symbols.filter(sym => globalSessionSymbols.includes(sym));
-            }
-            symbols.sort((a, b) => {
-                const infoA = data[a];
-                const infoB = data[b];
-                const isAHolding = infoA.status.includes('Holding');
-                const isBHolding = infoB.status.includes('Holding');
-                
-                if (isAHolding && !isBHolding) return -1;
-                if (!isAHolding && isBHolding) return 1;
-                
-                return a.localeCompare(b);
-            });
-            
-            if (symbols.length === 0) {
-                tbody.innerHTML = '<tr id="waiting-row"><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">Waiting for signal engine...</td></tr>';
-                return;
-            }
-
-            // Remove waiting row if data arrives
-            const wRow = document.getElementById('waiting-row');
-            if (wRow) wRow.remove();
-
-            symbols.forEach(sym => {
-                const info = data[sym];
-                let stateLabel = "Scanning";
-                if (info.status.includes("Holding")) {
-                    stateLabel = info.color === "green" ? "Profit" : "Drawdown";
-                } else if (info.color === "green") {
-                    stateLabel = "Active";
-                } else if (info.color === "red") {
-                    stateLabel = "Blocked";
-                } else if (info.color === "orange") {
-                    stateLabel = "Delayed";
-                }
-
-                let formattedTime = '--:--:--';
-                if (info.time) {
-                    const d = new Date(info.time * 1000);
-                    formattedTime = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                }
-
-                let pnlText = "--";
-                let tpSlText = "";
-                if (info.pnl !== undefined && info.status.includes("Holding")) {
-                    const sign = info.pnl >= 0 ? '+' : '';
-                    const color = info.pnl >= 0 ? 'var(--green)' : 'var(--red)';
-                    pnlText = `<span class="mono" style="color: ${color}; font-weight: 600;">${sign}$${info.pnl.toFixed(2)}</span>`;
-                    
-                    if (info.tp && info.sl && info.entry_price && info.current_price) {
-                        const isBuy = info.status.includes("BUY");
-                        const totalDistance = Math.abs(info.tp - info.entry_price);
-                        const slDistance = Math.abs(info.entry_price - info.sl);
-                        
-                        let tpPct = 0;
-                        let slPct = 0;
-                        if (isBuy) {
-                            if (info.current_price > info.entry_price) {
-                                tpPct = ((info.current_price - info.entry_price) / totalDistance) * 100;
-                            } else {
-                                slPct = ((info.entry_price - info.current_price) / slDistance) * 100;
-                            }
-                        } else {
-                            if (info.current_price < info.entry_price) {
-                                tpPct = ((info.entry_price - info.current_price) / totalDistance) * 100;
-                            } else {
-                                slPct = ((info.current_price - info.entry_price) / slDistance) * 100;
-                            }
-                        }
-                        
-                        tpPct = Math.max(0, Math.min(100, tpPct));
-                        slPct = Math.max(0, Math.min(100, slPct));
-                        
-                        tpSlText = `<br><span style="font-size:0.7rem; color:#94a3b8; font-family:'Roboto Mono', monospace;">Target: ${info.tp.toFixed(3)} <span style="color:#00ff9d;">(${tpPct.toFixed(1)}%)</span> | Stop: ${info.sl.toFixed(3)} <span style="color:#ff3355;">(-${slPct.toFixed(1)}%)</span></span>`;
-                    }
-                }
-
-                let row = document.getElementById('row-' + sym);
-                
-                if (!row) {
-                    row = document.createElement('tr');
-                    row.id = 'row-' + sym;
-                    tbody.appendChild(row);
-                }
-
-                row.setAttribute('data-color', info.color);
-                
-                row.innerHTML = `
-                    <td class="symbol-col">
-                        <span class="dot" style="background-color: ${info.color === 'green' ? 'var(--green)' : (info.color === 'red' ? 'var(--red)' : (info.color === 'orange' ? 'var(--orange)' : 'var(--gray)'))}"></span>
-                        ${sym}
-                    </td>
-                    <td>
-                        <span class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</span>
-                    </td>
-                    <td class="status-col mono" style="color: #a1a1aa;">${info.status}${tpSlText}</td>
-                    <td style="white-space: nowrap;">${pnlText}</td>
-                    <td class="time-col mono" style="color: #71717a;">${info.time ? formattedTime : '--:--:--'}</td>
-                    <td>
-                        ${info.status.includes('Holding') ? `<button class="btn-close" onclick="closeSymbol('${sym}')">Close</button>` : ''}
-                    </td>
-                `;
-            });
-        }
-
-        async function closeSymbol(sym) {
-            if (!confirm(`Are you sure you want to CLOSE ALL ACTIVE TRADES for ${sym}?`)) return;
-            try {
-                await fetch(`/api/close/${sym}`, { method: 'POST' });
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        async function closeAll() {
-            if (!confirm(`🚨 WARNING: Are you sure you want to PANIC CLOSE ALL trades?`)) return;
-            try {
-                await fetch(`/api/close_all`, { method: 'POST' });
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        async function toggleBot() {
-            const newState = !isBotActive;
-            const msg = newState ? "Turn the Bot ON? (Will start taking new entries)" : "Turn the Bot OFF? (Will pause taking new entries, but keep tracking open trades)";
-            if (!confirm(msg)) return;
-            try {
-                await fetch(`/api/toggle`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_active: newState })
-                });
-                fetchSignals();
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        let activeTab = 'trading';
-        function switchTab(tabId) {
-            document.getElementById('btn-tab-trading').classList.remove('active');
-            document.getElementById('btn-tab-sessions').classList.remove('active');
-            document.getElementById('tab-trading').style.display = 'none';
-            document.getElementById('tab-sessions').style.display = 'none';
-
-            document.getElementById('btn-tab-' + tabId).classList.add('active');
-            document.getElementById('tab-' + tabId).style.display = 'block';
-            activeTab = tabId;
-            if (tabId === 'sessions') {
-                fetchHistory();
-            }
-        }
-
-        async function fetchHistory() {
-            try {
-                const res = await fetch('/api/session/history');
-                if (res.status === 401) return;
-                const data = await res.json();
-                
-                const tbody = document.getElementById('session-history');
-                tbody.innerHTML = '';
-                
-                if (!data.history || data.history.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">No session history found.</td></tr>';
-                    return;
-                }
-                
-                data.history.forEach(row => {
-                    const tr = document.createElement('tr');
-                    const isProfit = row.realized_pnl >= 0;
-                    const pnlColor = isProfit ? 'var(--green)' : 'var(--red)';
-                    const sign = isProfit ? '+' : '';
-                    
-                    let startStr = row.start_time;
-                    let endStr = row.end_time;
-                    // Backward compatibility for old DB entries
-                    if (startStr && !startStr.includes('Z')) {
-                        startStr = startStr.replace(' ', 'T') + 'Z';
-                        endStr = endStr.replace(' ', 'T') + 'Z';
-                    }
-                    
-                    let sTime = new Date(startStr);
-                    let eTime = new Date(endStr);
-                    
-                    let diffMs = Math.max(0, eTime.getTime() - sTime.getTime());
-                    let durationMins = Math.floor(diffMs / 60000);
-                    let durationSecs = Math.floor((diffMs % 60000) / 1000);
-                    
-                    let durText = durationMins > 0 ? `${durationMins}m ${durationSecs}s` : `${durationSecs}s`;
-                    
-                    const opt = { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true };
-                    
-                    tr.innerHTML = `
-                        <td class="mono" style="color:#cbd5e1;">${sTime.toLocaleString('en-US', opt)}</td>
-                        <td class="mono" style="color:#cbd5e1;">${eTime.toLocaleString('en-US', opt)}</td>
-                        <td class="mono" style="color:#71717a;">${durText}</td>
-                        <td class="mono" style="color:#94a3b8; font-size:0.8rem;">${row.traded_symbols}</td>
-                        <td class="mono" style="color:#f59e0b;">${row.reason}</td>
-                        <td class="mono" style="color:${pnlColor}; font-weight:bold;">${sign}$${row.realized_pnl.toFixed(2)}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-                
-            } catch (err) {
-                console.error("Failed to fetch history", err);
-            }
-        }
-
-        const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-        window.addScheduleRangeRow = function(btn) {
-            const rangesContainer = btn.parentElement.parentElement.querySelector('.ranges-container');
-            const rDiv = document.createElement('div');
-            rDiv.style.display = 'flex';
-            rDiv.style.gap = '0.5rem';
-            rDiv.innerHTML = `
-                <input type="time" class="time-start" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="08:00">
-                <span style="color:#64748b; font-size:0.8rem;">to</span>
-                <input type="time" class="time-end" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="20:00">
-                <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:#ef4444; cursor:pointer;">&times;</button>
+            posDiv.innerHTML = `
+                <div class="grid-2">
+                    <div class="stat-box">
+                        <div class="stat-label">Direction</div>
+                        <div class="stat-value text-${p.direction === 'BUY' ? 'green' : 'red'}">${p.direction}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Unrealized P/L</div>
+                        <div class="stat-value mono ${pnlColor}">${sign}$${p.pnl.toFixed(2)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Entry</div>
+                        <div class="stat-value mono">${p.entry_price.toFixed(3)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Current</div>
+                        <div class="stat-value mono">${p.current_price.toFixed(3)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Target (${tpPct}%)</div>
+                        <div class="stat-value mono text-green">${p.tp.toFixed(3)}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Stop (-${slPct}%)</div>
+                        <div class="stat-value mono text-red">${p.sl.toFixed(3)}</div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+                    Duration: ${mins} minutes
+                </div>
+                <button class="btn-danger" onclick="emergencyClose()">🚨 Emergency Close Position</button>
             `;
-            rangesContainer.appendChild(rDiv);
+        } else {
+            posDiv.innerHTML = `
+                <div style="text-align: center; color: var(--text-secondary); padding: 1rem;">
+                    No open position — scanning for setups.
+                </div>
+            `;
         }
 
-        window.applyBulkTimes = function() {
-            const start = document.getElementById('bulk-start').value;
-            const end = document.getElementById('bulk-end').value;
-            const dayRows = document.querySelectorAll('#schedule-container > div');
-            dayRows.forEach(row => {
-                if (row.querySelector('.day-enabled-cb').checked) {
-                    const rangesContainer = row.querySelector('.ranges-container');
-                    const rDiv = document.createElement('div');
-                    rDiv.style.display = 'flex';
-                    rDiv.style.gap = '0.5rem';
-                    rDiv.innerHTML = `
-                        <input type="time" class="time-start" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="${start}">
-                        <span style="color:#64748b; font-size:0.8rem;">to</span>
-                        <input type="time" class="time-end" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="${end}">
-                        <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:#ef4444; cursor:pointer;">&times;</button>
-                    `;
-                    rangesContainer.appendChild(rDiv);
-                }
+        // Today's Stats
+        if (data.today_stats) {
+            const ts = data.today_stats;
+            const tsDiv = document.getElementById('today-stats-content');
+            const pnlColor = ts.realized_pnl >= 0 ? 'text-green' : 'text-red';
+            tsDiv.innerHTML = `
+                <div class="stat-box">
+                    <div class="stat-label">Trades</div>
+                    <div class="stat-value">${ts.trades_today} / ${data.config ? data.config.MAX_TRADES_PER_DAY : '-'}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">W / L</div>
+                    <div class="stat-value"><span class="text-green">${ts.wins}</span> / <span class="text-red">${ts.losses}</span></div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Realized P/L</div>
+                    <div class="stat-value mono ${pnlColor}">$${ts.realized_pnl.toFixed(2)}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Consecutive Loss</div>
+                    <div class="stat-value text-${ts.consecutive_losses > 0 ? 'amber' : 'gray'}">${ts.consecutive_losses}</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Drawdown</div>
+                    <div class="stat-value mono text-${ts.daily_drawdown_pct > 0 ? 'red' : 'gray'}">-${ts.daily_drawdown_pct.toFixed(2)}%</div>
+                </div>
+            `;
+        }
+
+        // Market Context
+        if (data.market_context) {
+            const mc = data.market_context;
+            
+            let biasColor = mc.bias_h1 === 'BULLISH' ? 'text-green' : (mc.bias_h1 === 'BEARISH' ? 'text-red' : 'text-gray');
+            document.getElementById('ctx-bias').innerHTML = `<span class="${biasColor}">${mc.bias_h1}</span>`;
+            
+            let zoneColor = mc.bias_tradeable ? 'text-green' : 'text-amber';
+            let zoneText = mc.bias_tradeable ? 'Valid Zone' : 'Invalid Zone';
+            document.getElementById('ctx-zone').innerHTML = `<span class="${zoneColor}">${zoneText}</span>`;
+            
+            let fColor = mc.filters_passed ? 'text-green' : 'text-red';
+            let fText = mc.filters_passed ? 'OK' : mc.filters_reason;
+            document.getElementById('ctx-filters').innerHTML = `<span class="${fColor}">${fText}</span>`;
+            
+            document.getElementById('ctx-price').innerText = mc.current_price ? mc.current_price.toFixed(3) : '--';
+        }
+    }
+
+    function renderHistory(data) {
+        if (data.summary) {
+            document.getElementById('history-summary').innerText = 
+                `— ${data.summary.total_trades} trades | Winrate: ${data.summary.winrate.toFixed(1)}% | P/L: $${data.summary.total_pnl.toFixed(2)}`;
+        }
+        
+        const tbody = document.getElementById('history-table');
+        if (!data.recent_trades || data.recent_trades.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">No recent trades</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.recent_trades.map(t => {
+            const d = new Date(t.exit_time * 1000);
+            const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const dirColor = t.direction === 'BUY' ? 'text-green' : 'text-red';
+            const pnlColor = t.pnl >= 0 ? 'text-green' : 'text-red';
+            const sign = t.pnl >= 0 ? '+' : '';
+            return `
+                <tr>
+                    <td class="mono" style="font-size:0.75rem; color:var(--text-secondary);">${timeStr}</td>
+                    <td class="mono ${dirColor}">${t.direction}</td>
+                    <td class="mono">${t.entry_price.toFixed(3)}</td>
+                    <td class="mono">${t.exit_price.toFixed(3)}</td>
+                    <td class="mono ${pnlColor}">${sign}$${t.pnl.toFixed(2)}</td>
+                    <td style="font-size:0.75rem;">${t.exit_reason}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function toggleBot() {
+        const newState = !isBotEnabled;
+        if (!confirm(`Turn bot ${newState ? 'ON' : 'OFF'}?`)) return;
+        try {
+            await fetch('/api/toggle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled: newState})
             });
-        }
+            fetchData();
+        } catch (e) { console.error(e); }
+    }
 
-        window.clearBulkTimes = function() {
-            document.querySelectorAll('.ranges-container').forEach(container => {
-                container.innerHTML = "";
-            });
-        }
+    async function emergencyClose() {
+        if (!confirm('🚨 WARNING: Are you sure you want to market close the open position?')) return;
+        try {
+            await fetch('/api/close', { method: 'POST' });
+            alert("Close requested. Main loop will execute shortly.");
+        } catch (e) { console.error(e); }
+    }
 
-        // Helper to convert Local Time string (e.g. "08:00") to UTC string (e.g. "03:00")
-        function localToUtcStr(timeStr) {
-            if (!timeStr) return "00:00";
-            const today = new Date();
-            const [hh, mm] = timeStr.split(':');
-            today.setHours(parseInt(hh, 10));
-            today.setMinutes(parseInt(mm, 10));
-            today.setSeconds(0);
-            
-            const uH = today.getUTCHours().toString().padStart(2, '0');
-            const uM = today.getUTCMinutes().toString().padStart(2, '0');
-            return `${uH}:${uM}`;
-        }
+    // Polling
+    fetchData();
+    fetchHistory();
+    setInterval(fetchData, 2000);
+    setInterval(fetchHistory, 60000);
 
-        // Helper to convert UTC string to Local Time string
-        function utcToLocalStr(timeStr) {
-            if (!timeStr) return "00:00";
-            const today = new Date();
-            const [hh, mm] = timeStr.split(':');
-            today.setUTCHours(parseInt(hh, 10));
-            today.setUTCMinutes(parseInt(mm, 10));
-            today.setSeconds(0);
-
-            const lH = today.getHours().toString().padStart(2, '0');
-            const lM = today.getMinutes().toString().padStart(2, '0');
-            return `${lH}:${lM}`;
-        }
-
-        function openSessionModal() {
-            // Populate Symbol Checkboxes Grouped by Correlation
-            const container = document.getElementById('sym-checkboxes');
-            container.innerHTML = "";
-            
-            let renderedSymbols = new Set();
-            
-            for (const [groupName, groupSymbolsRaw] of Object.entries(globalCorrelationGroups)) {
-                const validGroupSymbols = groupSymbolsRaw.filter(sym => globalMasterSymbols.includes(sym));
-                
-                if (validGroupSymbols.length > 0) {
-                    const headerRow = document.createElement('div');
-                    headerRow.style.display = 'flex';
-                    headerRow.style.justifyContent = 'space-between';
-                    headerRow.style.alignItems = 'flex-end';
-                    headerRow.style.marginTop = '0.5rem';
-                    headerRow.style.marginBottom = '0.25rem';
-
-                    const groupTitle = document.createElement('div');
-                    groupTitle.style.color = '#3b82f6';
-                    groupTitle.style.fontSize = '0.75rem';
-                    groupTitle.style.fontWeight = 'bold';
-                    groupTitle.style.textTransform = 'uppercase';
-                    groupTitle.innerText = groupName.replace("_", " ");
-                    
-                    const toggleBtn = document.createElement('span');
-                    toggleBtn.style.color = '#64748b';
-                    toggleBtn.style.fontSize = '0.7rem';
-                    toggleBtn.style.cursor = 'pointer';
-                    toggleBtn.style.textDecoration = 'underline';
-                    toggleBtn.innerText = 'Toggle All';
-                    
-                    headerRow.appendChild(groupTitle);
-                    headerRow.appendChild(toggleBtn);
-                    container.appendChild(headerRow);
-                    
-                    const groupGrid = document.createElement('div');
-                    groupGrid.style.display = 'grid';
-                    groupGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(90px, 1fr))';
-                    groupGrid.style.gap = '0.5rem';
-                    groupGrid.style.marginBottom = '0.5rem';
-                    
-                    validGroupSymbols.forEach(sym => {
-                        renderedSymbols.add(sym);
-                        const label = document.createElement('label');
-                        label.style.display = 'flex';
-                        label.style.alignItems = 'center';
-                        label.style.gap = '0.5rem';
-                        label.style.color = '#fff';
-                        label.style.fontSize = '0.80rem';
-                        label.style.cursor = 'pointer';
-                        
-                        const cb = document.createElement('input');
-                        cb.type = 'checkbox';
-                        cb.value = sym;
-                        cb.style.accentColor = '#3b82f6';
-                        
-                        if (globalSessionSymbols.length > 0) {
-                            cb.checked = globalSessionSymbols.includes(sym);
-                        } else {
-                            cb.checked = true;
-                        }
-                        
-                        label.appendChild(cb);
-                        label.appendChild(document.createTextNode(sym));
-                        groupGrid.appendChild(label);
-                    });
-                    container.appendChild(groupGrid);
-                    
-                    toggleBtn.onclick = () => {
-                        const inputs = groupGrid.querySelectorAll('input[type="checkbox"]');
-                        if (inputs.length === 0) return;
-                        
-                        let allChecked = true;
-                        inputs.forEach(i => { if (!i.checked) allChecked = false; });
-                        
-                        inputs.forEach(i => i.checked = !allChecked);
-                    };
-                }
-            }
-            
-            // Uncategorized Symbols (fallback)
-            const uncategorized = globalMasterSymbols.filter(sym => !renderedSymbols.has(sym));
-            if (uncategorized.length > 0) {
-                const headerRow = document.createElement('div');
-                headerRow.style.display = 'flex';
-                headerRow.style.justifyContent = 'space-between';
-                headerRow.style.alignItems = 'flex-end';
-                headerRow.style.marginTop = '0.5rem';
-                headerRow.style.marginBottom = '0.25rem';
-
-                const groupTitle = document.createElement('div');
-                groupTitle.style.color = '#64748b';
-                groupTitle.style.fontSize = '0.75rem';
-                groupTitle.style.fontWeight = 'bold';
-                groupTitle.innerText = "OTHER";
-                
-                const toggleBtn = document.createElement('span');
-                toggleBtn.style.color = '#64748b';
-                toggleBtn.style.fontSize = '0.7rem';
-                toggleBtn.style.cursor = 'pointer';
-                toggleBtn.style.textDecoration = 'underline';
-                toggleBtn.innerText = 'Toggle All';
-                
-                headerRow.appendChild(groupTitle);
-                headerRow.appendChild(toggleBtn);
-                container.appendChild(headerRow);
-                
-                const groupGrid = document.createElement('div');
-                groupGrid.style.display = 'grid';
-                groupGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(90px, 1fr))';
-                groupGrid.style.gap = '0.5rem';
-                groupGrid.style.marginBottom = '0.5rem';
-                
-                uncategorized.forEach(sym => {
-                    const label = document.createElement('label');
-                    label.style.display = 'flex';
-                    label.style.alignItems = 'center';
-                    label.style.gap = '0.5rem';
-                    label.style.color = '#fff';
-                    label.style.fontSize = '0.80rem';
-                    label.style.cursor = 'pointer';
-                    
-                    const cb = document.createElement('input');
-                    cb.type = 'checkbox';
-                    cb.value = sym;
-                    
-                    if (globalSessionSymbols.length > 0) {
-                        cb.checked = globalSessionSymbols.includes(sym);
-                    } else {
-                        cb.checked = true;
-                    }
-                    
-                    label.appendChild(cb);
-                    label.appendChild(document.createTextNode(sym));
-                    groupGrid.appendChild(label);
-                });
-                
-                container.appendChild(groupGrid);
-                
-                toggleBtn.onclick = () => {
-                    const inputs = groupGrid.querySelectorAll('input[type="checkbox"]');
-                    if (inputs.length === 0) return;
-                    let allChecked = true;
-                    inputs.forEach(i => { if (!i.checked) allChecked = false; });
-                    inputs.forEach(i => i.checked = !allChecked);
-                };
-            }
-
-            // Build Weekly Schedule Table
-            const schedContainer = document.getElementById('schedule-container');
-            schedContainer.innerHTML = "";
-            for (let i = 0; i < 7; i++) {
-                const pyDay = i.toString();
-                let isEnabled = i < 5; // Mon-Fri default
-                let ranges = [];
-                if (Object.keys(globalSessionSchedule).length > 0 && globalSessionSchedule[pyDay]) {
-                    isEnabled = globalSessionSchedule[pyDay].enabled;
-                    ranges = globalSessionSchedule[pyDay].ranges || [];
-                }
-
-                const dayRow = document.createElement('div');
-                dayRow.style.display = 'flex';
-                dayRow.style.flexDirection = 'column';
-                dayRow.style.borderBottom = '1px solid #1e293b';
-                dayRow.style.paddingBottom = '0.5rem';
-                dayRow.setAttribute('data-day', pyDay);
-
-                const header = document.createElement('div');
-                header.style.display = 'flex';
-                header.style.justifyContent = 'space-between';
-                header.style.alignItems = 'center';
-                header.style.marginBottom = '0.25rem';
-                
-                header.innerHTML = `
-                    <label style="color:#fff; font-size:0.85rem; display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-                        <input type="checkbox" class="day-enabled-cb" value="${pyDay}" ${isEnabled ? 'checked' : ''} style="accent-color:#3b82f6;">
-                        ${DAY_NAMES[i]}
-                    </label>
-                    <button onclick="addScheduleRangeRow(this)" style="background:transparent; border:1px solid #3b82f6; color:#3b82f6; border-radius:4px; font-size:0.7rem; padding:0.1rem 0.4rem; cursor:pointer;">+ Time</button>
-                `;
-                dayRow.appendChild(header);
-
-                const rangesContainer = document.createElement('div');
-                rangesContainer.className = 'ranges-container';
-                rangesContainer.style.display = 'flex';
-                rangesContainer.style.flexDirection = 'column';
-                rangesContainer.style.gap = '0.25rem';
-                
-                ranges.forEach(r => {
-                    const rDiv = document.createElement('div');
-                    rDiv.style.display = 'flex';
-                    rDiv.style.gap = '0.5rem';
-                    rDiv.innerHTML = `
-                        <input type="time" class="time-start" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="${utcToLocalStr(r.start)}">
-                        <span style="color:#64748b; font-size:0.8rem;">to</span>
-                        <input type="time" class="time-end" style="flex:1; padding:0.2rem; background:#1e293b; color:#fff; border:1px solid #334155; font-size:0.8rem;" value="${utcToLocalStr(r.end)}">
-                        <button onclick="this.parentElement.remove()" style="background:transparent; border:none; color:#ef4444; cursor:pointer;">&times;</button>
-                    `;
-                    rangesContainer.appendChild(rDiv);
-                });
-                dayRow.appendChild(rangesContainer);
-                schedContainer.appendChild(dayRow);
-            }
-
-            let btnSubmit = document.getElementById('modal-submit-btn');
-
-            document.getElementById('inp-tp').value = globalSessionTp;
-            document.getElementById('inp-sl').value = globalSessionSl;
-            document.getElementById('inp-max-sym').value = globalSessionMax;
-            document.getElementById('inp-auto-restart').checked = globalSessionAutoRestart;
-            document.getElementById('inp-smart-flush').checked = globalSessionSmartFlush;
-            document.getElementById('inp-flush-mins').value = globalSessionFlushMins;
-            document.getElementById('inp-flush-tol').value = globalSessionFlushTol;
-            document.getElementById('inp-auto-pause-mins').value = globalSessionAutoPauseMins;
-            document.getElementById('flush-settings').style.display = globalSessionSmartFlush ? 'flex' : 'none';
-
-            if (isSessionActive) {
-                document.getElementById('modal-title').innerText = "Edit Active Session";
-                btnSubmit.innerText = "Save Changes";
-            } else {
-                document.getElementById('modal-title').innerText = "Start New Session";
-                btnSubmit.innerText = "Start";
-            }
-
-            document.getElementById('session-modal').style.display = 'flex';
-        }
-
-        function closeSessionModal() {
-            document.getElementById('session-modal').style.display = 'none';
-        }
-
-        async function submitSession() {
-            const tp = parseFloat(document.getElementById('inp-tp').value);
-            const sl = parseFloat(document.getElementById('inp-sl').value);
-            const maxSym = parseInt(document.getElementById('inp-max-sym').value);
-            
-            const checkboxes = document.querySelectorAll('#sym-checkboxes input[type="checkbox"]:checked');
-            const selectedSymbols = Array.from(checkboxes).map(cb => cb.value);
-            
-            const scheduleData = {};
-            let hasEnabledDay = false;
-            document.querySelectorAll('#schedule-container > div').forEach(row => {
-                const pyDay = row.getAttribute('data-day');
-                const enabled = row.querySelector('.day-enabled-cb').checked;
-                const ranges = [];
-                row.querySelectorAll('.ranges-container > div').forEach(rDiv => {
-                    const s = rDiv.querySelector('.time-start').value;
-                    const e = rDiv.querySelector('.time-end').value;
-                    ranges.push({"start": localToUtcStr(s), "end": localToUtcStr(e)});
-                });
-                scheduleData[pyDay] = { "enabled": enabled, "ranges": ranges };
-                if (enabled) hasEnabledDay = true;
-            });
-
-            const autoRestart = document.getElementById('inp-auto-restart').checked;
-            const smartFlush = document.getElementById('inp-smart-flush').checked;
-            const flushMins = parseInt(document.getElementById('inp-flush-mins').value);
-            const flushTol = parseInt(document.getElementById('inp-flush-tol').value);
-            const autoPauseMins = parseInt(document.getElementById('inp-auto-pause-mins').value) || 0;
-
-            if (isNaN(tp) || isNaN(sl) || isNaN(maxSym) || tp <= 0 || sl <= 0 || maxSym <= 0) {
-                alert("Please enter valid positive numbers for TP, SL, and Max Pairs.");
-                return;
-            }
-            if (selectedSymbols.length === 0) {
-                alert("Please select at least one trading pair!");
-                return;
-            }
-            if (!hasEnabledDay) {
-                alert("Please enable at least one active weekday!");
-                return;
-            }
-            
-            let confirmMsg = "Session config saved!\n\nDo you want to turn ON the Master Bot Switch right now?\n\n(Click Cancel/No to remain Paused)";
-            if (isSessionActive) {
-                confirmMsg = "Session Config updated!\n\nDo you want to ensure the Master Bot Switch is ON? (Click Cancel to pause the bot)";
-            }
-            const confirmActivate = confirm(confirmMsg);
-
-            closeSessionModal();
-            try {
-                const endpoint = isSessionActive ? '/api/session/update' : '/api/session/start';
-                await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        tp: tp, 
-                        sl: sl, 
-                        max_symbols: maxSym, 
-                        symbols: selectedSymbols, 
-                        schedule: scheduleData, 
-                        auto_restart: autoRestart,
-                        smart_flush: smartFlush,
-                        flush_minutes: flushMins,
-                        flush_tolerance_pct: flushTol,
-                        auto_pause_minutes: autoPauseMins,
-                        bot_active: confirmActivate
-                    })
-                });
-                fetchSignals();
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function endSession() {
-            if (!confirm("Are you sure you want to end the current session targets? Trades will remain open.")) return;
-            try {
-                await fetch('/api/session/stop', { method: 'POST' });
-                fetchSignals();
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function openMt5Modal() {
-            try {
-                const res = await fetch('/api/mt5_config');
-                const data = await res.json();
-                document.getElementById('inp-mt5-login').value = data.MT5_LOGIN || "";
-                document.getElementById('inp-mt5-pass').value = ""; // Don't show password
-                document.getElementById('inp-mt5-server').value = data.MT5_SERVER || "";
-            } catch (e) {}
-            document.getElementById('mt5-modal').style.display = 'flex';
-        }
-
-        function closeMt5Modal() {
-            document.getElementById('mt5-modal').style.display = 'none';
-        }
-
-        async function submitMt5Config() {
-            const login = document.getElementById('inp-mt5-login').value;
-            const pass = document.getElementById('inp-mt5-pass').value;
-            const server = document.getElementById('inp-mt5-server').value;
-            
-            if (!login || !server) {
-                alert("Login and Server are required.");
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/mt5_config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        MT5_LOGIN: login,
-                        MT5_PASS: pass,
-                        MT5_SERVER: server
-                    })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    closeMt5Modal();
-                    alert("MT5 config applied successfully! The bot has automatically reconnected using the new credentials.");
-                } else {
-                    alert("Error: " + (result.error || "Failed to update config."));
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        // Fetch immediately and then every 1 second if on trading tab
-        fetchSignals();
-        setInterval(() => {
-            if (activeTab === 'trading') fetchSignals();
-        }, 1000);
-    </script>
+</script>
 </body>
 </html>
