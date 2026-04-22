@@ -3,242 +3,339 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XAUUSD SMC Scalping Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>XAUUSD Premium Scalper</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0A0C10; /* Brutalist deep slate/black */
-            --panel-bg: #0A0C10; 
-            --border-color: #1e293b;
-            --hover-bg: #111827;
-            --text-primary: #cbd5e1;
-            --text-secondary: #64748b;
-            --green: #00ff9d; /* Institutional neon green */
-            --red: #ff3355;   /* Crimson red */
-            --amber: #fbbf24;
-            --blue: #3b82f6;
-            --gray: #475569;
+            --bg-dark: #050505;
+            --bg-gradient: radial-gradient(circle at top right, #111827 0%, #050505 60%);
+            --panel-bg: rgba(17, 24, 39, 0.4);
+            --panel-border: rgba(255, 255, 255, 0.05);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+            --glass-blur: blur(12px);
         }
+
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
-            padding: 1rem;
-            background: var(--bg-color);
-            color: var(--text-primary);
-            font-family: 'Inter', system-ui, sans-serif;
+            padding: 1.5rem 1rem;
+            background: var(--bg-dark);
+            background-image: var(--bg-gradient);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
             line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 1.25rem;
+            animation: fadeIn 0.5s ease-out;
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Glassmorphic Panels */
         .panel {
             background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 2px;
-            padding: 0.75rem;
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .panel:hover {
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
         }
 
         .panel-header {
             font-size: 0.85rem;
             font-weight: 600;
-            margin-bottom: 0.75rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 0.5rem;
-            color: var(--text-primary);
+            margin-bottom: 1rem;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.1em;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .mono {
-            font-family: 'Roboto Mono', monospace;
-        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Colors */
-        .text-green { color: var(--green); }
-        .text-red { color: var(--red); }
-        .text-amber { color: var(--amber); }
-        .text-gray { color: var(--gray); }
+        /* Typography Colors */
+        .text-green { color: var(--accent-green); text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+        .text-red { color: var(--accent-red); text-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+        .text-amber { color: var(--accent-amber); }
+        .text-cyan { color: var(--accent-cyan); text-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
+        .text-gray { color: var(--text-muted); }
 
-        /* Header */
+        /* Header Specifics */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.6) 0%, rgba(0, 0, 0, 0.4) 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
-
-        .bot-toggle {
-            background-color: transparent;
-            padding: 0.25rem 1rem;
-            font-size: 0.9rem;
-            font-weight: 600;
-            border-radius: 2px;
-            border: 1px solid;
-            cursor: pointer;
-            transition: all 0.1s;
-            text-transform: uppercase;
-            font-family: 'Inter', sans-serif;
-            color: var(--green);
-            border-color: var(--green);
-        }
-        .bot-toggle.on {
-            color: var(--green);
-            border-color: var(--green);
-        }
-        .bot-toggle.off {
-            color: var(--gray);
-            border-color: var(--gray);
-        }
-        .bot-toggle.on:hover {
-            background-color: rgba(0, 255, 157, 0.1);
-        }
-        .bot-toggle.off:hover {
-            background-color: rgba(71, 85, 105, 0.2);
-        }
-
-        /* Data Grids */
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
-        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
-        .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
-        .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.5rem; }
         
-        .stat-box {
-            background: #0d1117;
-            border: 1px solid var(--border-color);
-            border-radius: 2px;
-            padding: 0.6rem;
-            text-align: center;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            transition: border-color 0.1s;
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #fff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .stat-box:hover {
-            border-color: var(--text-secondary);
-        }
-        .stat-label {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .stat-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-top: 0.35rem;
-            font-family: 'Roboto Mono', monospace;
-            text-shadow: 0 0 1px rgba(0,0,0,0.5);
+
+        .header-subtitle {
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            margin-top: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         /* Buttons */
-        .btn-danger {
-            background: transparent;
-            color: var(--red);
-            border: 1px solid var(--red);
-            padding: 0.35rem 1rem;
-            border-radius: 2px;
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
             font-weight: 500;
             cursor: pointer;
-            width: 100%;
-            margin-top: 0.5rem;
-            text-transform: uppercase;
+            transition: all 0.2s ease;
             font-family: 'Inter', sans-serif;
-            font-size: 0.75rem;
+            backdrop-filter: blur(4px);
         }
-        .btn-danger:hover { 
-            background: rgba(255, 51, 85, 0.1); 
+        
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .bot-toggle {
+            padding: 0.5rem 1.25rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .bot-toggle.on {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-green);
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+        }
+        .bot-toggle.off {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            width: 100%;
+            margin-top: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .btn-danger:hover {
+            background: var(--accent-red);
+            color: white;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Grids */
+        .grid { display: grid; gap: 0.75rem; }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .grid-6 { grid-template-columns: repeat(6, 1fr); }
+
+        @media (max-width: 768px) {
+            .grid-4, .grid-5, .grid-6 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: 1fr; }
+            .header { flex-direction: column; gap: 1rem; align-items: flex-start; }
+        }
+
+        /* Stat Boxes */
+        .stat-box {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 0.75rem;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+        
+        .stat-box:hover {
+            background: rgba(255, 255, 255, 0.02);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.15rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Banners */
+        .banner {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--accent-red);
+            color: var(--accent-red);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: none;
+            backdrop-filter: blur(4px);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
         /* Tables */
+        .table-container {
+            overflow-x: auto;
+            margin: 0 -0.5rem;
+        }
         table {
             width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75rem;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.8rem;
         }
         th, td {
-            padding: 0.35rem;
+            padding: 0.75rem 1rem;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            white-space: nowrap;
         }
         th {
-            color: var(--text-secondary);
+            color: var(--text-muted);
             font-weight: 500;
-        }
-
-        .banner {
-            background: rgba(255, 51, 85, 0.1);
-            border: 1px solid var(--red);
-            color: var(--red);
-            padding: 0.5rem;
-            border-radius: 2px;
-            text-align: center;
-            font-weight: 500;
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-            display: none;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.7rem;
         }
+        tr:last-child td { border-bottom: none; }
+        tbody tr { transition: background 0.1s; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
 
-        /* Modal */
+        /* Modals */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
             display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
         .modal {
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 2px;
-            padding: 1.5rem;
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
             width: 90%;
-            max-width: 500px;
+            max-width: 450px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal h3 {
+            margin: 0 0 1.5rem 0;
+            color: #fff;
+            font-weight: 600;
+            font-size: 1.1rem;
         }
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .form-group label {
             font-size: 0.8rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 500;
         }
         .form-group input, .form-group select {
-            background: var(--hover-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 0.4rem 0.5rem;
-            border-radius: 2px;
-            font-family: 'Roboto Mono', monospace;
-            width: 120px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            width: 140px;
             text-align: right;
+            transition: border-color 0.2s;
         }
-        .btn-primary {
-            background: var(--green);
-            color: #0A0C10;
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+        .btn-modal {
+            background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
+            color: white;
             border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 2px;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             width: 100%;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
             margin-top: 1rem;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+            transition: all 0.2s;
         }
-        .btn-primary:hover { opacity: 0.9; }
+        .btn-modal:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4); }
     </style>
 </head>
 <body>
@@ -248,41 +345,39 @@
     <!-- HEADER -->
     <div class="panel header">
         <div>
-            <h1 style="margin: 0; font-size: 1.25rem; color: var(--text-primary); font-weight: 600;">XAUUSD SMC Scalping Bot</h1>
-            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; font-family: 'Roboto Mono', monospace;" id="account-info">
-                Loading account info...
-            </div>
+            <h1>XAUUSD Institutional</h1>
+            <div class="header-subtitle" id="account-info">Establishing connection...</div>
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-            <button class="bot-toggle off" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="openMt5Modal()">MT5 Settings</button>
-            <button class="bot-toggle off" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="openConfigModal()">Bot Config</button>
-            <button id="bot-toggle" class="bot-toggle on" onclick="toggleBot()">BOT ON</button>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button class="btn" onclick="openMt5Modal()">MT5 Link</button>
+            <button class="btn" onclick="openConfigModal()">Parameters</button>
+            <button id="bot-toggle" class="btn bot-toggle on" onclick="toggleBot()">SYSTEM ON</button>
         </div>
     </div>
 
-    <!-- DAILY LIMIT BANNER -->
+    <!-- BANNER -->
     <div id="daily-stop-banner" class="banner"></div>
 
-    <!-- CURRENT POSITION -->
+    <!-- POSITION -->
     <div class="panel">
-        <div class="panel-header">Current Position</div>
+        <div class="panel-header">Active Position</div>
         <div id="position-content">
-            <div style="text-align: center; color: var(--text-secondary); padding: 1rem;">
-                No open position — scanning for setups.
+            <div style="text-align: center; color: var(--text-muted); padding: 2rem 0; font-style: italic;">
+                Seeking high-probability setups...
             </div>
         </div>
     </div>
 
-    <!-- MARKET CONTEXT -->
+    <!-- DIAGNOSTICS -->
     <div class="panel">
         <div class="panel-header">Market Context</div>
-        <div class="grid-4" id="market-context-content">
+        <div class="grid grid-4" id="market-context-content">
             <div class="stat-box">
-                <div class="stat-label">H1 Trend</div>
+                <div class="stat-label">H1 Bias</div>
                 <div class="stat-value mono" id="ctx-bias">--</div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">Zone Status</div>
+                <div class="stat-label">Structure</div>
                 <div class="stat-value mono" id="ctx-zone">--</div>
             </div>
             <div class="stat-box">
@@ -290,121 +385,85 @@
                 <div class="stat-value mono" id="ctx-filters">--</div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">Current Price</div>
-                <div class="stat-value mono" id="ctx-price">--</div>
+                <div class="stat-label">Live Quote</div>
+                <div class="stat-value mono text-cyan" id="ctx-price">--</div>
             </div>
         </div>
     </div>
 
-    <!-- TODAY'S STATS -->
+    <!-- DAILY PERFORMANCE -->
     <div class="panel">
-        <div class="panel-header">Today's Stats</div>
-        <div class="grid-3" id="today-stats-content">
-            <!-- Injected by JS -->
+        <div class="panel-header">Today's Performance</div>
+        <div class="grid grid-3" id="today-stats-content">
+            <div class="stat-box"><div class="stat-label">Syncing</div><div class="stat-value">--</div></div>
         </div>
     </div>
 
-    <!-- TRADE HISTORY -->
+    <!-- CONFIG READOUT -->
+    <div class="panel">
+        <div class="panel-header">System Rules</div>
+        <div class="grid grid-5" id="config-content">
+            <!-- Injected -->
+        </div>
+    </div>
+
+    <!-- HISTORY -->
     <div class="panel">
         <div class="panel-header">
-            Trade History (Last 30 Days)
-            <span id="history-summary" style="font-size: 0.8rem; font-weight: 400; color: var(--text-secondary);"></span>
+            Trade Ledger
+            <span id="history-summary" style="font-size: 0.7rem; color: var(--accent-cyan); font-family: 'JetBrains Mono', monospace;"></span>
         </div>
-        <div style="overflow-x: auto;">
+        <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th>Time</th>
-                        <th>Dir</th>
+                        <th>Timestamp</th>
+                        <th>Type</th>
                         <th>Entry</th>
                         <th>Exit</th>
                         <th>P/L</th>
-                        <th>Reason</th>
+                        <th>Note</th>
                     </tr>
                 </thead>
                 <tbody id="history-table">
-                    <!-- Injected by JS -->
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- CONFIG VIEW -->
-    <div class="panel">
-        <div class="panel-header">Configuration</div>
-        <div class="grid-5" id="config-content">
-            <!-- Injected by JS -->
-        </div>
-    </div>
-
 </div>
 
-<!-- Config Modal -->
-<div class="modal-overlay" id="config-modal" onclick="if(event.target===this) closeConfigModal()">
-    <div class="modal">
-        <h3 style="margin-top: 0; color: var(--text-primary); text-transform: uppercase; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Edit Configuration</h3>
-        
-        <div class="form-group">
-            <label>Risk % Per Trade</label>
-            <input type="number" step="0.1" id="cfg_RISK_PCT_PER_TRADE">
-        </div>
-        <div class="form-group">
-            <label>Max Daily Loss %</label>
-            <input type="number" step="0.1" id="cfg_MAX_DAILY_LOSS_PCT">
-        </div>
-        <div class="form-group">
-            <label>Max Trades/Day</label>
-            <input type="number" step="1" id="cfg_MAX_TRADES_PER_DAY">
-        </div>
-        <div class="form-group">
-            <label>Max Consec Losses</label>
-            <input type="number" step="1" id="cfg_MAX_CONSECUTIVE_LOSSES">
-        </div>
-        <div class="form-group">
-            <label>Min RR</label>
-            <input type="number" step="0.1" id="cfg_MIN_RR">
-        </div>
-        <div class="form-group">
-            <label>Max RR</label>
-            <input type="number" step="0.1" id="cfg_MAX_RR">
-        </div>
-        <div class="form-group">
-            <label>Min M15 ATR ($)</label>
-            <input type="number" step="0.1" id="cfg_MIN_ATR_M15_USD">
-        </div>
-        <div class="form-group">
-            <label>Max Spread ($)</label>
-            <input type="number" step="0.1" id="cfg_MAX_SPREAD_USD">
-        </div>
-        <div class="form-group">
-            <label>News Filter</label>
-            <select id="cfg_NEWS_ENABLED">
-                <option value="true">ON</option>
-                <option value="false">OFF</option>
-            </select>
-        </div>
-        
-        <button class="btn-primary" onclick="saveConfig()">Save Settings</button>
-    </div>
-<!-- MT5 Config Modal -->
+<!-- MT5 MODAL -->
 <div class="modal-overlay" id="mt5-modal" onclick="if(event.target===this) closeMt5Modal()">
     <div class="modal">
-        <h3 style="margin-top: 0; color: var(--text-primary); text-transform: uppercase; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">MT5 Settings</h3>
-        
+        <h3>Broker Connection</h3>
+        <div class="form-group"><label>Account ID</label><input type="text" id="mt5_login"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="mt5_pass" placeholder="Unchanged"></div>
+        <div class="form-group"><label>Server</label><input type="text" id="mt5_server"></div>
+        <button class="btn-modal" onclick="saveMt5Config()" id="btn-mt5-save">Initialize MT5</button>
+    </div>
+</div>
+
+<!-- CONFIG MODAL -->
+<div class="modal-overlay" id="config-modal" onclick="if(event.target===this) closeConfigModal()">
+    <div class="modal">
+        <h3>Risk & Logic Parameters</h3>
+        <div class="form-group"><label>Risk Per Trade (%)</label><input type="number" step="0.1" id="cfg_RISK_PCT_PER_TRADE"></div>
+        <div class="form-group"><label>Max Daily Loss (%)</label><input type="number" step="0.1" id="cfg_MAX_DAILY_LOSS_PCT"></div>
+        <div class="form-group"><label>Trade Limit / Day</label><input type="number" step="1" id="cfg_MAX_TRADES_PER_DAY"></div>
+        <div class="form-group"><label>Consecutive Stops</label><input type="number" step="1" id="cfg_MAX_CONSECUTIVE_LOSSES"></div>
+        <div class="form-group"><label>Minimum RR</label><input type="number" step="0.1" id="cfg_MIN_RR"></div>
+        <div class="form-group"><label>Maximum RR</label><input type="number" step="0.1" id="cfg_MAX_RR"></div>
+        <div class="form-group"><label>Min ATR Volatility</label><input type="number" step="0.1" id="cfg_MIN_ATR_M15_USD"></div>
+        <div class="form-group"><label>Spread Ceiling ($)</label><input type="number" step="0.1" id="cfg_MAX_SPREAD_USD"></div>
         <div class="form-group">
-            <label>Login ID</label>
-            <input type="text" id="mt5_login" placeholder="Account Number">
+            <label>High Impact News</label>
+            <select id="cfg_NEWS_ENABLED">
+                <option value="true">AVOID</option>
+                <option value="false">TRADE</option>
+            </select>
         </div>
-        <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="mt5_pass" placeholder="Leave blank to keep same">
-        </div>
-        <div class="form-group">
-            <label>Server</label>
-            <input type="text" id="mt5_server" placeholder="Exness-MT5Trial">
-        </div>
-        
-        <button class="btn-primary" onclick="saveMt5Config()" id="btn-mt5-save">Save & Connect</button>
+        <button class="btn-modal" onclick="saveConfig()">Apply to Engine</button>
     </div>
 </div>
 
@@ -434,54 +493,52 @@
         isBotEnabled = data.bot_enabled;
         const btn = document.getElementById('bot-toggle');
         if (isBotEnabled) {
-            btn.className = 'bot-toggle on';
-            btn.innerText = 'BOT ON';
+            btn.className = 'btn bot-toggle on';
+            btn.innerText = 'SYSTEM ACTIVE';
         } else {
-            btn.className = 'bot-toggle off';
-            btn.innerText = 'BOT OFF';
+            btn.className = 'btn bot-toggle off';
+            btn.innerText = 'SYSTEM HALTED';
         }
 
         // Account
         if (data.account && data.account.login) {
             document.getElementById('account-info').innerText = 
-                `${data.account.login} | ${data.account.server} | Equity: $${data.account.equity.toFixed(2)}`;
+                `${data.account.server} | Acc: ${data.account.login} | Equity: $${data.account.equity.toFixed(2)}`;
         }
 
-        // Config
+        // Config Grid
         if (data.config) {
             const cfg = data.config;
-            const cfgDiv = document.getElementById('config-content');
-            cfgDiv.innerHTML = `
-                <div class="stat-box"><div class="stat-label">Risk</div><div class="stat-value">${cfg.RISK_PCT_PER_TRADE}%</div></div>
-                <div class="stat-box"><div class="stat-label">Daily Loss Lim</div><div class="stat-value">${cfg.MAX_DAILY_LOSS_PCT}%</div></div>
-                <div class="stat-box"><div class="stat-label">Max Trades</div><div class="stat-value">${cfg.MAX_TRADES_PER_DAY}</div></div>
-                <div class="stat-box"><div class="stat-label">Max Consec Loss</div><div class="stat-value">${cfg.MAX_CONSECUTIVE_LOSSES}</div></div>
-                <div class="stat-box"><div class="stat-label">News Filter</div><div class="stat-value">${cfg.NEWS_ENABLED ? '<span class="text-green">ON</span>' : '<span class="text-red">OFF</span>'}</div></div>
-                <div class="stat-box"><div class="stat-label">Min RR</div><div class="stat-value">${cfg.MIN_RR}</div></div>
-                <div class="stat-box"><div class="stat-label">Max RR</div><div class="stat-value">${cfg.MAX_RR}</div></div>
-                <div class="stat-box"><div class="stat-label">Min M15 ATR</div><div class="stat-value">$${cfg.MIN_ATR_M15_USD}</div></div>
+            document.getElementById('config-content').innerHTML = `
+                <div class="stat-box"><div class="stat-label">Risk Budget</div><div class="stat-value text-cyan">${cfg.RISK_PCT_PER_TRADE}%</div></div>
+                <div class="stat-box"><div class="stat-label">Drawdown Cap</div><div class="stat-value">${cfg.MAX_DAILY_LOSS_PCT}%</div></div>
+                <div class="stat-box"><div class="stat-label">Trade Limit</div><div class="stat-value">${cfg.MAX_TRADES_PER_DAY}</div></div>
+                <div class="stat-box"><div class="stat-label">Consec Stops</div><div class="stat-value">${cfg.MAX_CONSECUTIVE_LOSSES}</div></div>
+                <div class="stat-box"><div class="stat-label">News Avoid</div><div class="stat-value">${cfg.NEWS_ENABLED ? '<span class="text-green">ON</span>' : '<span class="text-red">OFF</span>'}</div></div>
+                <div class="stat-box"><div class="stat-label">Min Reward</div><div class="stat-value">${cfg.MIN_RR}R</div></div>
+                <div class="stat-box"><div class="stat-label">Max Reward</div><div class="stat-value">${cfg.MAX_RR}R</div></div>
+                <div class="stat-box"><div class="stat-label">Min Range</div><div class="stat-value">$${cfg.MIN_ATR_M15_USD}</div></div>
                 <div class="stat-box"><div class="stat-label">Max Spread</div><div class="stat-value">$${cfg.MAX_SPREAD_USD}</div></div>
             `;
             
-            // Update modal fields silently if closed
             if (document.getElementById('config-modal').style.display !== 'flex') {
-                document.getElementById('cfg_RISK_PCT_PER_TRADE').value = data.config.RISK_PCT_PER_TRADE;
-                document.getElementById('cfg_MAX_DAILY_LOSS_PCT').value = data.config.MAX_DAILY_LOSS_PCT;
-                document.getElementById('cfg_MAX_TRADES_PER_DAY').value = data.config.MAX_TRADES_PER_DAY;
-                document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value = data.config.MAX_CONSECUTIVE_LOSSES;
-                document.getElementById('cfg_MIN_RR').value = data.config.MIN_RR;
-                document.getElementById('cfg_MAX_RR').value = data.config.MAX_RR;
-                document.getElementById('cfg_MIN_ATR_M15_USD').value = data.config.MIN_ATR_M15_USD;
-                document.getElementById('cfg_MAX_SPREAD_USD').value = data.config.MAX_SPREAD_USD;
-                document.getElementById('cfg_NEWS_ENABLED').value = data.config.NEWS_ENABLED ? "true" : "false";
+                document.getElementById('cfg_RISK_PCT_PER_TRADE').value = cfg.RISK_PCT_PER_TRADE;
+                document.getElementById('cfg_MAX_DAILY_LOSS_PCT').value = cfg.MAX_DAILY_LOSS_PCT;
+                document.getElementById('cfg_MAX_TRADES_PER_DAY').value = cfg.MAX_TRADES_PER_DAY;
+                document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value = cfg.MAX_CONSECUTIVE_LOSSES;
+                document.getElementById('cfg_MIN_RR').value = cfg.MIN_RR;
+                document.getElementById('cfg_MAX_RR').value = cfg.MAX_RR;
+                document.getElementById('cfg_MIN_ATR_M15_USD').value = cfg.MIN_ATR_M15_USD;
+                document.getElementById('cfg_MAX_SPREAD_USD').value = cfg.MAX_SPREAD_USD;
+                document.getElementById('cfg_NEWS_ENABLED').value = cfg.NEWS_ENABLED ? "true" : "false";
             }
         }
 
-        // Daily Stop Banner
+        // Banner
         const banner = document.getElementById('daily-stop-banner');
         if (data.today_stats && data.today_stats.stopped_by_limit) {
             banner.style.display = 'block';
-            banner.innerText = `Daily Stop Active: ${data.today_stats.reason}`;
+            banner.innerText = `LOCKED: ${data.today_stats.reason}`;
         } else {
             banner.style.display = 'none';
         }
@@ -494,11 +551,10 @@
             const pnlColor = isProfit ? 'text-green' : 'text-red';
             const sign = isProfit ? '+' : '';
             
-            // Distances
-            const tpDist = Math.abs(p.tp - p.entry_price);
-            const slDist = Math.abs(p.entry_price - p.sl);
-            
+            let tpDist = Math.abs(p.tp - p.entry_price);
+            let slDist = Math.abs(p.entry_price - p.sl);
             let tpPct = 0, slPct = 0;
+            
             if (p.direction === 'BUY') {
                 if (p.current_price > p.entry_price) tpPct = ((p.current_price - p.entry_price) / tpDist) * 100;
                 else slPct = ((p.entry_price - p.current_price) / slDist) * 100;
@@ -509,106 +565,51 @@
             tpPct = Math.max(0, Math.min(100, tpPct)).toFixed(1);
             slPct = Math.max(0, Math.min(100, slPct)).toFixed(1);
 
-            const duration = Math.floor((Date.now() / 1000) - p.time);
-            const mins = Math.floor(duration / 60);
-
             posDiv.innerHTML = `
-                <div class="grid-6">
-                    <div class="stat-box">
-                        <div class="stat-label">Direction</div>
-                        <div class="stat-value text-${p.direction === 'BUY' ? 'green' : 'red'}">${p.direction}</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Unrealized P/L</div>
-                        <div class="stat-value mono ${pnlColor}">${sign}$${p.pnl.toFixed(2)}</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Entry</div>
-                        <div class="stat-value mono">${p.entry_price.toFixed(3)}</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Current</div>
-                        <div class="stat-value mono">${p.current_price.toFixed(3)}</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Target (${tpPct}%)</div>
-                        <div class="stat-value mono text-green">${p.tp.toFixed(3)}</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Stop (-${slPct}%)</div>
-                        <div class="stat-value mono text-red">${p.sl.toFixed(3)}</div>
-                    </div>
+                <div class="grid grid-6">
+                    <div class="stat-box"><div class="stat-label">Direction</div><div class="stat-value text-${p.direction === 'BUY' ? 'green' : 'red'}">${p.direction}</div></div>
+                    <div class="stat-box"><div class="stat-label">Net P/L</div><div class="stat-value mono ${pnlColor}">${sign}$${p.pnl.toFixed(2)}</div></div>
+                    <div class="stat-box"><div class="stat-label">Entry</div><div class="stat-value mono">${p.entry_price.toFixed(2)}</div></div>
+                    <div class="stat-box"><div class="stat-label">Current</div><div class="stat-value mono">${p.current_price.toFixed(2)}</div></div>
+                    <div class="stat-box"><div class="stat-label">Take Profit</div><div class="stat-value mono text-green">${p.tp.toFixed(2)} <span style="font-size:0.6rem">(${tpPct}%)</span></div></div>
+                    <div class="stat-box"><div class="stat-label">Stop Loss</div><div class="stat-value mono text-red">${p.sl.toFixed(2)} <span style="font-size:0.6rem">(${slPct}%)</span></div></div>
                 </div>
-                <div style="text-align: center; margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
-                    Duration: ${mins} minutes
-                </div>
-                <button class="btn-danger" onclick="emergencyClose()">🚨 Emergency Close Position</button>
+                <button class="btn btn-danger" onclick="emergencyClose()">Force Liquidation</button>
             `;
         } else {
-            posDiv.innerHTML = `
-                <div style="text-align: center; color: var(--text-secondary); padding: 1rem;">
-                    No open position — scanning for setups.
-                </div>
-            `;
+            posDiv.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">No active exposure.</div>`;
         }
 
         // Today's Stats
         if (data.today_stats) {
             const ts = data.today_stats;
-            const tsDiv = document.getElementById('today-stats-content');
             const pnlColor = ts.realized_pnl >= 0 ? 'text-green' : 'text-red';
-            tsDiv.innerHTML = `
-                <div class="stat-box">
-                    <div class="stat-label">Trades</div>
-                    <div class="stat-value">${ts.trades_today} / ${data.config ? data.config.MAX_TRADES_PER_DAY : '-'}</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">W / L</div>
-                    <div class="stat-value"><span class="text-green">${ts.wins}</span> / <span class="text-red">${ts.losses}</span></div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Realized P/L</div>
-                    <div class="stat-value mono ${pnlColor}">$${ts.realized_pnl.toFixed(2)}</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Consecutive Loss</div>
-                    <div class="stat-value text-${ts.consecutive_losses > 0 ? 'amber' : 'gray'}">${ts.consecutive_losses}</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Drawdown</div>
-                    <div class="stat-value mono text-${ts.daily_drawdown_pct > 0 ? 'red' : 'gray'}">-${ts.daily_drawdown_pct.toFixed(2)}%</div>
-                </div>
+            document.getElementById('today-stats-content').innerHTML = `
+                <div class="stat-box"><div class="stat-label">Executions</div><div class="stat-value">${ts.trades_today}</div></div>
+                <div class="stat-box"><div class="stat-label">Win/Loss</div><div class="stat-value"><span class="text-green">${ts.wins}</span> - <span class="text-red">${ts.losses}</span></div></div>
+                <div class="stat-box"><div class="stat-label">Realized P/L</div><div class="stat-value mono ${pnlColor}">$${ts.realized_pnl.toFixed(2)}</div></div>
             `;
         }
 
         // Market Context
         if (data.market_context) {
             const mc = data.market_context;
-            
-            let biasColor = mc.bias_h1 === 'BULLISH' ? 'text-green' : (mc.bias_h1 === 'BEARISH' ? 'text-red' : 'text-gray');
-            document.getElementById('ctx-bias').innerHTML = `<span class="${biasColor}">${mc.bias_h1}</span>`;
-            
-            let zoneColor = mc.bias_tradeable ? 'text-green' : 'text-amber';
-            let zoneText = mc.bias_tradeable ? 'Valid Zone' : 'Invalid Zone';
-            document.getElementById('ctx-zone').innerHTML = `<span class="${zoneColor}">${zoneText}</span>`;
-            
-            let fColor = mc.filters_passed ? 'text-green' : 'text-red';
-            let fText = mc.filters_passed ? 'OK' : mc.filters_reason;
-            document.getElementById('ctx-filters').innerHTML = `<span class="${fColor}">${fText}</span>`;
-            
-            document.getElementById('ctx-price').innerText = mc.current_price ? mc.current_price.toFixed(3) : '--';
+            const biasCol = mc.bias_h1 === 'BULLISH' ? 'text-green' : (mc.bias_h1 === 'BEARISH' ? 'text-red' : 'text-gray');
+            document.getElementById('ctx-bias').innerHTML = `<span class="${biasCol}">${mc.bias_h1}</span>`;
+            document.getElementById('ctx-zone').innerHTML = `<span class="${mc.bias_tradeable ? 'text-green' : 'text-amber'}">${mc.bias_tradeable ? 'Aligned' : 'Waiting'}</span>`;
+            document.getElementById('ctx-filters').innerHTML = `<span class="${mc.filters_passed ? 'text-green' : 'text-red'}">${mc.filters_passed ? 'Clear' : mc.filters_reason}</span>`;
+            document.getElementById('ctx-price').innerText = mc.current_price ? mc.current_price.toFixed(2) : '--';
         }
     }
 
     function renderHistory(data) {
         if (data.summary) {
-            document.getElementById('history-summary').innerText = 
-                `— ${data.summary.total_trades} trades | Winrate: ${data.summary.winrate.toFixed(1)}% | P/L: $${data.summary.total_pnl.toFixed(2)}`;
+            document.getElementById('history-summary').innerText = `[VOL: ${data.summary.total_trades} | WR: ${data.summary.winrate.toFixed(1)}% | NET: $${data.summary.total_pnl.toFixed(2)}]`;
         }
         
         const tbody = document.getElementById('history-table');
         if (!data.recent_trades || data.recent_trades.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">No recent trades</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Ledger empty</td></tr>';
             return;
         }
 
@@ -620,125 +621,80 @@
             const sign = t.pnl >= 0 ? '+' : '';
             return `
                 <tr>
-                    <td class="mono" style="font-size:0.75rem; color:var(--text-secondary);">${timeStr}</td>
+                    <td class="mono text-gray">${timeStr}</td>
                     <td class="mono ${dirColor}">${t.direction}</td>
-                    <td class="mono">${t.entry_price.toFixed(3)}</td>
-                    <td class="mono">${t.exit_price.toFixed(3)}</td>
+                    <td class="mono">${t.entry_price.toFixed(2)}</td>
+                    <td class="mono">${t.exit_price.toFixed(2)}</td>
                     <td class="mono ${pnlColor}">${sign}$${t.pnl.toFixed(2)}</td>
-                    <td style="font-size:0.75rem;">${t.exit_reason}</td>
+                    <td style="color:var(--text-muted); font-size: 0.7rem">${t.exit_reason}</td>
                 </tr>
             `;
         }).join('');
     }
 
     async function toggleBot() {
-        const newState = !isBotEnabled;
-        if (!confirm(`Turn bot ${newState ? 'ON' : 'OFF'}?`)) return;
+        if (!confirm(`Switch system ${!isBotEnabled ? 'ON' : 'OFF'}?`)) return;
         try {
-            await fetch('/api/toggle', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({enabled: newState})
-            });
+            await fetch('/api/toggle', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({enabled: !isBotEnabled}) });
             fetchData();
         } catch (e) { console.error(e); }
     }
 
     async function emergencyClose() {
-        if (!confirm('🚨 WARNING: Are you sure you want to market close the open position?')) return;
+        if (!confirm('🚨 CRITICAL: Force liquidation of open position at market price?')) return;
         try {
             await fetch('/api/close', { method: 'POST' });
-            alert("Close requested. Main loop will execute shortly.");
+            alert("Signal sent to execution engine.");
         } catch (e) { console.error(e); }
     }
 
-    function openConfigModal() {
-        document.getElementById('config-modal').style.display = 'flex';
-    }
-
-    function closeConfigModal() {
-        document.getElementById('config-modal').style.display = 'none';
-    }
-
-    async function saveConfig() {
-        const payload = {
-            RISK_PCT_PER_TRADE: document.getElementById('cfg_RISK_PCT_PER_TRADE').value,
-            MAX_DAILY_LOSS_PCT: document.getElementById('cfg_MAX_DAILY_LOSS_PCT').value,
-            MAX_TRADES_PER_DAY: document.getElementById('cfg_MAX_TRADES_PER_DAY').value,
-            MAX_CONSECUTIVE_LOSSES: document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value,
-            MIN_RR: document.getElementById('cfg_MIN_RR').value,
-            MAX_RR: document.getElementById('cfg_MAX_RR').value,
-            MIN_ATR_M15_USD: document.getElementById('cfg_MIN_ATR_M15_USD').value,
-            MAX_SPREAD_USD: document.getElementById('cfg_MAX_SPREAD_USD').value,
-            NEWS_ENABLED: document.getElementById('cfg_NEWS_ENABLED').value
-        };
-
-        try {
-            await fetch('/api/config', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            closeConfigModal();
-            fetchData();
-        } catch (e) { console.error(e); }
-    }
-
-    // Polling
-    fetchData();
-    fetchHistory();
-    setInterval(fetchData, 2000);
-    setInterval(fetchHistory, 60000);
-
-    // MT5 Config Logic
-    async function openMt5Modal() {
-        document.getElementById('mt5-modal').style.display = 'flex';
-        try {
-            const res = await fetch('/api/mt5_config');
-            const data = await res.json();
-            document.getElementById('mt5_login').value = data.MT5_LOGIN || '';
-            document.getElementById('mt5_server').value = data.MT5_SERVER || '';
-            document.getElementById('mt5_pass').value = ''; // Don't pre-fill password
-        } catch (e) { console.error(e); }
-    }
-
-    function closeMt5Modal() {
-        document.getElementById('mt5-modal').style.display = 'none';
-    }
+    function openMt5Modal() { document.getElementById('mt5-modal').style.display = 'flex'; }
+    function closeMt5Modal() { document.getElementById('mt5-modal').style.display = 'none'; }
+    function openConfigModal() { document.getElementById('config-modal').style.display = 'flex'; }
+    function closeConfigModal() { document.getElementById('config-modal').style.display = 'none'; }
 
     async function saveMt5Config() {
         const btn = document.getElementById('btn-mt5-save');
-        btn.innerText = 'Connecting...';
-        btn.disabled = true;
-
-        const payload = {
-            MT5_LOGIN: document.getElementById('mt5_login').value,
-            MT5_PASS: document.getElementById('mt5_pass').value,
-            MT5_SERVER: document.getElementById('mt5_server').value
-        };
-
+        btn.innerText = 'Connecting...'; btn.disabled = true;
         try {
             const res = await fetch('/api/mt5_config', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    MT5_LOGIN: document.getElementById('mt5_login').value,
+                    MT5_PASS: document.getElementById('mt5_pass').value,
+                    MT5_SERVER: document.getElementById('mt5_server').value
+                })
             });
             const data = await res.json();
-            if (data.success) {
-                alert("MT5 Connected Successfully!");
-                closeMt5Modal();
-                fetchData();
-            } else {
-                alert("Error: " + (data.error || "Failed to connect"));
-            }
-        } catch (e) { 
-            console.error(e); 
-            alert("Network error");
-        } finally {
-            btn.innerText = 'Save & Connect';
-            btn.disabled = false;
-        }
+            if (data.success) { alert("Connected!"); closeMt5Modal(); fetchData(); }
+            else { alert("Error: " + data.error); }
+        } catch(e) { alert("Network error"); }
+        finally { btn.innerText = 'Initialize MT5'; btn.disabled = false; }
     }
+
+    async function saveConfig() {
+        try {
+            await fetch('/api/config', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    RISK_PCT_PER_TRADE: document.getElementById('cfg_RISK_PCT_PER_TRADE').value,
+                    MAX_DAILY_LOSS_PCT: document.getElementById('cfg_MAX_DAILY_LOSS_PCT').value,
+                    MAX_TRADES_PER_DAY: document.getElementById('cfg_MAX_TRADES_PER_DAY').value,
+                    MAX_CONSECUTIVE_LOSSES: document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value,
+                    MIN_RR: document.getElementById('cfg_MIN_RR').value,
+                    MAX_RR: document.getElementById('cfg_MAX_RR').value,
+                    MIN_ATR_M15_USD: document.getElementById('cfg_MIN_ATR_M15_USD').value,
+                    MAX_SPREAD_USD: document.getElementById('cfg_MAX_SPREAD_USD').value,
+                    NEWS_ENABLED: document.getElementById('cfg_NEWS_ENABLED').value
+                })
+            });
+            closeConfigModal(); fetchData();
+        } catch(e) { console.error(e); }
+    }
+
+    fetchData(); fetchHistory();
+    setInterval(fetchData, 2000);
+    setInterval(fetchHistory, 60000);
 </script>
 </body>
 </html>
