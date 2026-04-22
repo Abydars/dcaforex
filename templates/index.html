@@ -367,23 +367,34 @@
         .btn-modal:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4); }
         /* Sessions Repeater */
         .session-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: 2fr 1.5fr auto 1.5fr auto;
             gap: 0.5rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
             align-items: center;
         }
         .session-row input {
             width: 100%;
-            padding: 0.4rem;
-            font-size: 0.75rem;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        .session-row input[type="text"] {
+            text-align: left;
         }
         .session-row button {
-            background: transparent;
+            background: rgba(239, 68, 68, 0.1);
             color: var(--accent-red);
-            border: none;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
             cursor: pointer;
             font-size: 1rem;
-            padding: 0 0.5rem;
+            padding: 0.3rem 0.6rem;
+            transition: background 0.2s;
+        }
+        .session-row button:hover {
+            background: var(--accent-red);
+            color: white;
         }
     </style>
 </head>
@@ -518,10 +529,13 @@
             </select>
         </div>
         
-        <div style="margin-bottom: 1.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
-            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; display: block; margin-bottom: 0.5rem;">Trading Sessions (UTC)</label>
+        <div style="margin-bottom: 1.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.25rem;">
+            <label style="font-size: 0.85rem; color: var(--text-main); font-weight: 600; display: block; margin-bottom: 0.25rem;">Trading Sessions</label>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Set your preferred trading windows. Times will automatically save as UTC for the engine, but are displayed in your <strong>Local Timezone</strong> here.
+            </div>
             <div id="sessions-container"></div>
-            <button class="btn" style="margin-top: 0.5rem; font-size: 0.75rem; padding: 0.4rem;" onclick="addSessionRow()">+ Add Session</button>
+            <button class="btn" style="margin-top: 0.5rem; font-size: 0.75rem; padding: 0.5rem; border-style: dashed;" onclick="addSessionRow()">+ Add Session Window</button>
         </div>
 
         <button class="btn-modal" onclick="saveConfig()">Apply to Engine</button>
@@ -596,6 +610,9 @@
                 cont.innerHTML = '';
                 if (cfg.SESSIONS_UTC) {
                     cfg.SESSIONS_UTC.forEach(s => addSessionRow(s[0], s[1], s[2], s[3], s[4]));
+                } else {
+                    addSessionRow("LONDON", 7, 0, 11, 0); // fallback defaults
+                    addSessionRow("NY", 12, 30, 16, 0);
                 }
             }
         }
@@ -732,11 +749,21 @@
         const sessions = [];
         document.querySelectorAll('.session-row').forEach(row => {
             const name = row.querySelector('.sess-name').value;
-            const sh = parseInt(row.querySelector('.sess-sh').value) || 0;
-            const sm = parseInt(row.querySelector('.sess-sm').value) || 0;
-            const eh = parseInt(row.querySelector('.sess-eh').value) || 0;
-            const em = parseInt(row.querySelector('.sess-em').value) || 0;
-            if (name) sessions.push([name, sh, sm, eh, em]);
+            const startLocal = row.querySelector('.sess-start').value;
+            const endLocal = row.querySelector('.sess-end').value;
+            
+            if (name && startLocal && endLocal) {
+                // Convert local HH:MM to UTC HH, MM
+                const [shL, smL] = startLocal.split(':').map(Number);
+                const dStart = new Date();
+                dStart.setHours(shL, smL, 0, 0);
+                
+                const [ehL, emL] = endLocal.split(':').map(Number);
+                const dEnd = new Date();
+                dEnd.setHours(ehL, emL, 0, 0);
+
+                sessions.push([name, dStart.getUTCHours(), dStart.getUTCMinutes(), dEnd.getUTCHours(), dEnd.getUTCMinutes()]);
+            }
         });
 
         try {
@@ -759,19 +786,30 @@
         } catch(e) { console.error(e); }
     }
 
-    function addSessionRow(name='', sh=0, sm=0, eh=0, em=0) {
+    function addSessionRow(name='', utc_sh=null, utc_sm=null, utc_eh=null, utc_em=null) {
+        let startLocal = "";
+        let endLocal = "";
+        
+        // Convert UTC inputs back to local time strings if they exist
+        if (utc_sh !== null && utc_sm !== null) {
+            const dS = new Date();
+            dS.setUTCHours(utc_sh, utc_sm, 0, 0);
+            startLocal = dS.getHours().toString().padStart(2, '0') + ':' + dS.getMinutes().toString().padStart(2, '0');
+        }
+        if (utc_eh !== null && utc_em !== null) {
+            const dE = new Date();
+            dE.setUTCHours(utc_eh, utc_em, 0, 0);
+            endLocal = dE.getHours().toString().padStart(2, '0') + ':' + dE.getMinutes().toString().padStart(2, '0');
+        }
+
         const div = document.createElement('div');
         div.className = 'session-row';
         div.innerHTML = `
-            <input type="text" class="sess-name" placeholder="Name (e.g. NY)" value="${name}" style="width: 35%;">
-            <input type="number" class="sess-sh" placeholder="HH" min="0" max="23" value="${sh}">
-            <span style="color:var(--text-muted)">:</span>
-            <input type="number" class="sess-sm" placeholder="MM" min="0" max="59" value="${sm}">
-            <span style="color:var(--text-muted)">-</span>
-            <input type="number" class="sess-eh" placeholder="HH" min="0" max="23" value="${eh}">
-            <span style="color:var(--text-muted)">:</span>
-            <input type="number" class="sess-em" placeholder="MM" min="0" max="59" value="${em}">
-            <button onclick="this.parentElement.remove()">×</button>
+            <input type="text" class="sess-name" placeholder="Name (e.g. NY)" value="${name}">
+            <input type="time" class="sess-start" value="${startLocal}">
+            <span style="color:var(--text-muted); text-align:center;">to</span>
+            <input type="time" class="sess-end" value="${endLocal}">
+            <button title="Remove session" onclick="this.parentElement.remove()">×</button>
         `;
         document.getElementById('sessions-container').appendChild(div);
     }
