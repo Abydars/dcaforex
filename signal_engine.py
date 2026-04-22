@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import config
+import ui_state
 from bias import BiasResult, get_bias
 from liquidity import (
     FVG,
@@ -89,17 +90,21 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     # ── Step 4: Find recent liquidity sweep on M5 ──
     sweep = find_recent_sweep(m5, direction_smc)
     if sweep is None:
+        ui_state.last_market_context["sweep"] = "NO RECENT SWEEP"
         logger.debug(f"❌ No recent {direction_smc} sweep on M5")
         return None
 
+    ui_state.last_market_context["sweep"] = f"SWEPT {sweep.swing.kind} @ {sweep.swing.price:.2f}"
     logger.debug(f"Sweep found: {sweep}")
 
     # ── Step 5: Find unmitigated FVG after sweep ──
     fvg = find_entry_fvg_after_sweep(m5, direction_smc, sweep)
     if fvg is None:
+        ui_state.last_market_context["fvg"] = "WAITING FOR FVG"
         logger.debug(f"❌ No unmitigated FVG after sweep")
         return None
 
+    ui_state.last_market_context["fvg"] = f"FVG {fvg.bottom:.2f}-{fvg.top:.2f}"
     logger.debug(f"FVG found: {fvg}")
 
     # ── Step 6: Validate FVG is still reachable ──

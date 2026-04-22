@@ -315,19 +315,27 @@
         </div>
 
         <div class="panel">
-            <div class="panel-header">Market Context</div>
-            <div class="grid grid-4" id="market-context-content">
+            <div class="panel-header">Strategy Flow & Market Context</div>
+            <div class="grid grid-3" id="market-context-content">
                 <div class="stat-box">
-                    <div class="stat-label">H1 Bias</div>
+                    <div class="stat-label">H1 Trend Bias</div>
                     <div class="stat-value mono" id="ctx-bias">--</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-label">Structure</div>
+                    <div class="stat-label">M15 P/D Zone</div>
                     <div class="stat-value mono" id="ctx-zone">--</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-label">Session Filters</div>
+                    <div class="stat-label">System Filters</div>
                     <div class="stat-value mono" id="ctx-filters">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">M5 Liquidity Sweep</div>
+                    <div class="stat-value mono" id="ctx-sweep" style="font-size: 11px;">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">M5 FVG Validation</div>
+                    <div class="stat-value mono" id="ctx-fvg" style="font-size: 11px;">--</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-label">Live Quote</div>
@@ -537,8 +545,15 @@
             const mc = data.market_context;
             const biasCol = mc.bias_h1 === 'BULLISH' ? 'text-green' : (mc.bias_h1 === 'BEARISH' ? 'text-red' : 'text-muted');
             document.getElementById('ctx-bias').innerHTML = `<span class="${biasCol}">${mc.bias_h1}</span>`;
-            document.getElementById('ctx-zone').innerHTML = `<span class="${mc.bias_tradeable ? 'text-green' : 'text-amber'}">${mc.bias_tradeable ? 'ALIGNED' : 'WAITING'}</span>`;
-            document.getElementById('ctx-filters').innerHTML = `<span class="${mc.filters_passed ? 'text-green' : 'text-red'}">${mc.filters_passed ? 'CLEAR' : mc.filters_reason}</span>`;
+            
+            const zoneCol = mc.zone === 'DISCOUNT' ? 'text-green' : (mc.zone === 'PREMIUM' ? 'text-red' : 'text-muted');
+            document.getElementById('ctx-zone').innerHTML = `<span class="${zoneCol}">${mc.zone}</span>`;
+            
+            document.getElementById('ctx-filters').innerHTML = `<span class="${mc.filters_passed ? 'text-green' : 'text-red'}">${mc.filters_passed ? 'CLEAR' : mc.filters_reason.toUpperCase()}</span>`;
+            
+            document.getElementById('ctx-sweep').innerText = mc.sweep ? mc.sweep.toUpperCase() : '--';
+            document.getElementById('ctx-fvg').innerText = mc.fvg ? mc.fvg.toUpperCase() : '--';
+            
             document.getElementById('ctx-price').innerText = mc.current_price ? mc.current_price.toFixed(2) : '--';
         }
     }

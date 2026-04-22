@@ -217,15 +217,19 @@ def main():
                 "bias_tradeable": bias.is_tradeable if bias else False,
                 "filters_passed": passed,
                 "filters_reason": reason,
+                "zone": ("DISCOUNT" if getattr(bias, 'h1_trend', '') == 'BULLISH' else "PREMIUM") if getattr(bias, 'in_valid_zone', False) else "AWAITING ZONE",
+                "sweep": "--",
+                "fvg": "--",
                 "time": time.time()
             }
+
+            # ── 5. Generate signal (Updates Context) ──
+            sig = generate_signal(config.SYMBOL)
 
             if not passed:
                 logger.info(f"⏸️  Filters blocked: {reason}")
                 continue
 
-            # ── 5. Generate signal ──
-            sig = generate_signal(config.SYMBOL)
             if sig is None:
                 logger.debug("No valid setup this candle")
                 continue
