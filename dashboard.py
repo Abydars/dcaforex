@@ -2,6 +2,7 @@ from flask import Flask, jsonify, render_template, request, session, redirect, u
 import logging
 import os
 import time
+import json
 
 import ui_state
 import config
@@ -176,6 +177,18 @@ def update_config():
                 dotenv.set_key(env_file, key, env_val)
             except ValueError:
                 pass # skip invalid numbers
+                
+    if "SESSIONS_UTC" in data:
+        try:
+            sessions_data = data["SESSIONS_UTC"]
+            if isinstance(sessions_data, list):
+                # Ensure it's a list of tuples for config
+                val = [tuple(s) for s in sessions_data]
+                setattr(config, "SESSIONS_UTC", val)
+                # Save as JSON string
+                dotenv.set_key(env_file, "SESSIONS_UTC", json.dumps(sessions_data))
+        except Exception as e:
+            print(f"Failed to update SESSIONS_UTC: {e}")
                 
     return jsonify({"success": True})
 

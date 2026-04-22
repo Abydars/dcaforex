@@ -365,6 +365,26 @@
             transition: all 0.2s;
         }
         .btn-modal:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4); }
+        /* Sessions Repeater */
+        .session-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            align-items: center;
+        }
+        .session-row input {
+            width: 100%;
+            padding: 0.4rem;
+            font-size: 0.75rem;
+        }
+        .session-row button {
+            background: transparent;
+            color: var(--accent-red);
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -497,6 +517,13 @@
                 <option value="false">TRADE</option>
             </select>
         </div>
+        
+        <div style="margin-bottom: 1.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; display: block; margin-bottom: 0.5rem;">Trading Sessions (UTC)</label>
+            <div id="sessions-container"></div>
+            <button class="btn" style="margin-top: 0.5rem; font-size: 0.75rem; padding: 0.4rem;" onclick="addSessionRow()">+ Add Session</button>
+        </div>
+
         <button class="btn-modal" onclick="saveConfig()">Apply to Engine</button>
     </div>
 </div>
@@ -550,6 +577,7 @@
                 <div class="stat-box"><div class="stat-label">Consec Stops</div><div class="stat-value">${cfg.MAX_CONSECUTIVE_LOSSES}</div></div>
                 <div class="stat-box"><div class="stat-label">Min Reward</div><div class="stat-value">${cfg.MIN_RR}R</div></div>
                 <div class="stat-box"><div class="stat-label">News Rule</div><div class="stat-value">${cfg.NEWS_ENABLED ? '<span class="text-green">AVOID</span>' : '<span class="text-red">TRADE</span>'}</div></div>
+                <div class="stat-box" style="grid-column: span 2;"><div class="stat-label">Sessions</div><div class="stat-value mono" style="font-size: 0.8rem;">${cfg.SESSIONS_UTC ? cfg.SESSIONS_UTC.map(s => s[0]).join(', ') : 'None'}</div></div>
             `;
             
             if (document.getElementById('config-modal').style.display !== 'flex') {
@@ -562,6 +590,13 @@
                 document.getElementById('cfg_MIN_ATR_M15_USD').value = cfg.MIN_ATR_M15_USD;
                 document.getElementById('cfg_MAX_SPREAD_USD').value = cfg.MAX_SPREAD_USD;
                 document.getElementById('cfg_NEWS_ENABLED').value = cfg.NEWS_ENABLED ? "true" : "false";
+                
+                // Render sessions
+                const cont = document.getElementById('sessions-container');
+                cont.innerHTML = '';
+                if (cfg.SESSIONS_UTC) {
+                    cfg.SESSIONS_UTC.forEach(s => addSessionRow(s[0], s[1], s[2], s[3], s[4]));
+                }
             }
         }
 
@@ -694,6 +729,16 @@
     }
 
     async function saveConfig() {
+        const sessions = [];
+        document.querySelectorAll('.session-row').forEach(row => {
+            const name = row.querySelector('.sess-name').value;
+            const sh = parseInt(row.querySelector('.sess-sh').value) || 0;
+            const sm = parseInt(row.querySelector('.sess-sm').value) || 0;
+            const eh = parseInt(row.querySelector('.sess-eh').value) || 0;
+            const em = parseInt(row.querySelector('.sess-em').value) || 0;
+            if (name) sessions.push([name, sh, sm, eh, em]);
+        });
+
         try {
             await fetch('/api/config', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -706,11 +751,29 @@
                     MAX_RR: document.getElementById('cfg_MAX_RR').value,
                     MIN_ATR_M15_USD: document.getElementById('cfg_MIN_ATR_M15_USD').value,
                     MAX_SPREAD_USD: document.getElementById('cfg_MAX_SPREAD_USD').value,
-                    NEWS_ENABLED: document.getElementById('cfg_NEWS_ENABLED').value
+                    NEWS_ENABLED: document.getElementById('cfg_NEWS_ENABLED').value,
+                    SESSIONS_UTC: sessions
                 })
             });
             closeConfigModal(); fetchData();
         } catch(e) { console.error(e); }
+    }
+
+    function addSessionRow(name='', sh=0, sm=0, eh=0, em=0) {
+        const div = document.createElement('div');
+        div.className = 'session-row';
+        div.innerHTML = `
+            <input type="text" class="sess-name" placeholder="Name (e.g. NY)" value="${name}" style="width: 35%;">
+            <input type="number" class="sess-sh" placeholder="HH" min="0" max="23" value="${sh}">
+            <span style="color:var(--text-muted)">:</span>
+            <input type="number" class="sess-sm" placeholder="MM" min="0" max="59" value="${sm}">
+            <span style="color:var(--text-muted)">-</span>
+            <input type="number" class="sess-eh" placeholder="HH" min="0" max="23" value="${eh}">
+            <span style="color:var(--text-muted)">:</span>
+            <input type="number" class="sess-em" placeholder="MM" min="0" max="59" value="${em}">
+            <button onclick="this.parentElement.remove()">×</button>
+        `;
+        document.getElementById('sessions-container').appendChild(div);
     }
 
     fetchData(); fetchHistory();

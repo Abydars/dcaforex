@@ -14,6 +14,7 @@ Rules (non-negotiable):
 
 import logging
 import os
+import json
 import sys
 
 from dotenv import load_dotenv
@@ -88,14 +89,26 @@ MIN_ATR_M15_USD: float = float(_get_env("MIN_ATR_M15_USD", default="1.50"))
 # Spread filter (absolute cap in USD)
 MAX_SPREAD_USD: float = float(_get_env("MAX_SPREAD_USD", default="0.50"))
 
-# Sessions (UTC). Pakistan = UTC+5.
-# Gold scalping prime windows:
-#   London open push: 07:00-11:00 UTC (12:00-16:00 PKT)
-#   NY open push:     12:30-16:00 UTC (17:30-21:00 PKT)
-SESSIONS_UTC = [
-    ("LONDON", 7, 0, 11, 0),
-    ("NY",     12, 30, 16, 0),
-]
+# Sessions (UTC).
+# Expected format in .env: SESSIONS_UTC='[["LONDON", 7, 0, 11, 0], ["NY", 12, 30, 16, 0]]'
+_raw_sessions = os.getenv("SESSIONS_UTC")
+if _raw_sessions:
+    try:
+        # JSON parse expects lists
+        parsed = json.loads(_raw_sessions)
+        # Convert lists to tuples
+        SESSIONS_UTC = [tuple(s) for s in parsed]
+    except Exception as e:
+        print(f"Error parsing SESSIONS_UTC from env: {e}")
+        SESSIONS_UTC = [
+            ("LONDON", 7, 0, 11, 0),
+            ("NY",     12, 30, 16, 0),
+        ]
+else:
+    SESSIONS_UTC = [
+        ("LONDON", 7, 0, 11, 0),
+        ("NY",     12, 30, 16, 0),
+    ]
 
 # News filter
 NEWS_ENABLED: bool = _get_env("NEWS_ENABLED", default="true").lower() == "true"
