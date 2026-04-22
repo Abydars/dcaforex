@@ -123,10 +123,17 @@ def main():
 
     last_m5_ts = 0
     last_status_log = 0.0
+    is_first_loop = True
 
     try:
         while _running:
             loop_start = time.time()
+            
+            # Keep UI live quote updated every tick
+            tick = get_tick(config.SYMBOL)
+            current_price = (tick.bid + tick.ask) / 2.0 if tick else 0.0
+            if getattr(ui_state, "last_market_context", None) and current_price > 0:
+                ui_state.last_market_context["current_price"] = current_price
 
             # ── Detect new M5 candle close (add grace period for ticks to settle) ──
             m5_data = mt5.copy_rates_from_pos(config.SYMBOL, mt5.TIMEFRAME_M5, 0, 2)
@@ -192,7 +199,7 @@ def main():
                 continue
 
             # ── 3. Only scan on new M5 candle + grace period ──
-            if not new_m5_closed:
+            if not new_m5_closed and not is_first_loop:
                 time.sleep(config.LOOP_INTERVAL_SEC)
                 continue
 
@@ -225,6 +232,7 @@ def main():
 
             # ── 5. Generate signal (Updates Context) ──
             sig = generate_signal(config.SYMBOL)
+            is_first_loop = False
 
             if not passed:
                 logger.info(f"⏸️  Filters blocked: {reason}")
