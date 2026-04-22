@@ -1,13 +1,16 @@
 """
 ============================================================
- DCA Forex Bot — MT5 Connector
+ MT5 Connector — XAUUSD SMC Bot
 ============================================================
-Handles initialization, authentication, and graceful shutdown
-of the MetaTrader5 terminal connection for Exness accounts.
+- Initializes the MT5 terminal connection
+- Auto-detects broker suffix (XAUUSD, XAUUSDm, XAUUSD.c, etc.)
+- Provides timeframe mapping + rate fetchers
+============================================================
 """
 
 import logging
 import sys
+from typing import Optional
 
 try:
     import MetaTrader5 as mt5
@@ -20,53 +23,49 @@ import config
 logger = logging.getLogger("MT5_Connector")
 
 # ─── Timeframe Mapping ──────────────────────────────────────
-_TF_MAP = {
-    "M1": mt5.TIMEFRAME_M1,
-    "M5": mt5.TIMEFRAME_M5,
-    "M15": mt5.TIMEFRAME_M15,
-    "M30": mt5.TIMEFRAME_M30,
-    "H1": mt5.TIMEFRAME_H1,
-    "H4": mt5.TIMEFRAME_H4,
-    "D1": mt5.TIMEFRAME_D1,
-}
+TF_M5 = mt5.TIMEFRAME_M5
+TF_M15 = mt5.TIMEFRAME_M15
+TF_H1 = mt5.TIMEFRAME_H1
 
-_HTF_MAP = {
-    mt5.TIMEFRAME_M1: mt5.TIMEFRAME_M5,
-    mt5.TIMEFRAME_M5: mt5.TIMEFRAME_M15,
-    mt5.TIMEFRAME_M15: mt5.TIMEFRAME_H1,
-    mt5.TIMEFRAME_M30: mt5.TIMEFRAME_H4,
-    mt5.TIMEFRAME_H1: mt5.TIMEFRAME_H4,
-    mt5.TIMEFRAME_H4: mt5.TIMEFRAME_D1,
-    mt5.TIMEFRAME_D1: mt5.TIMEFRAME_W1,
-}
+# Common broker suffixes to probe when the exact symbol isn't found
+_SYMBOL_SUFFIXES = [
+    "", "m", "c", "z", "i", "pro", "ecn", "raw", "x",
+    ".a", ".r", ".ecn", ".pro", ".x", "_x", "_raw", "_i", "-i",
+    "b", "k", "s", "#",
+]
 
 
-def get_mt5_timeframe() -> int:
-    """Resolve the string timeframe from config to an MT5 constant."""
-    tf = _TF_MAP.get(config.TIMEFRAME_STR)
-    if tf is None:
-        logger.critical(
-            f"Unsupported TIMEFRAME '{config.TIMEFRAME_STR}'. "
-            f"Use one of: {list(_TF_MAP.keys())}"
-        )
-        sys.exit(1)
-    return tf
+def _resolve_symbol(base: str) -> Optional[str]:
+    """Try every common broker suffix and return the first one that exists."""
+    for suf in _SYMBOL_SUFFIXES:
+        candidate = f"{base}{suf}"
+        info = mt5.symbol_info(candidate)
+        if info is not None:
+            return candidate
+    return None
 
 
-def get_mt5_htf(current_tf: int) -> int:
-    """Get the higher timeframe mapping for trend context."""
-    return _HTF_MAP.get(current_tf, mt5.TIMEFRAME_H1)
+def _register_symbol(symbol: str) -> bool:
+    """Ensure the trading symbol is visible in Market Watch."""
+    info = mt5.symbol_info(symbol)
+    if info is None:
+        logger.error(f"Symbol '{symbol}' not found on broker server.")
+        return False
+
+    if not info.visible:
+        if not mt5.symbol_select(symbol, True):
+            logger.error(f"Cannot add '{symbol}' to Market Watch. Error: {mt5.last_error()}")
+            return False
+        logger.info(f"Symbol '{symbol}' added to Market Watch.")
+    return True
 
 
-def initialize_mt5(exit_on_fail: bool = True):
-    """
-    Starts the MT5 terminal and authenticates headlessly
-    against the configured Exness account.
-    """
+def initialize_mt5(exit_on_fail: bool = True) -> bool:
+    """Start MT5 terminal, authenticate, and register the XAUUSD symbol."""
     logger.info("Initializing MetaTrader5 connection...")
 
     if not config.MT5_LOGIN or not config.MT5_PASS or not config.MT5_SERVER:
-        logger.warning("MT5 Credentials missing. Please configure via Dashboard.")
+        logger.critical("MT5 credentials missing. Fill in MT5_LOGIN / MT5_PASS / MT5_SERVER in .env")
         if exit_on_fail:
             sys.exit(1)
         return False
@@ -76,11 +75,8 @@ def initialize_mt5(exit_on_fail: bool = True):
         password=config.MT5_PASS,
         server=config.MT5_SERVER,
     )
-
     if not authorized:
-        logger.critical(
-            f"MT5 initialization / authorization failed. Error: {mt5.last_error()}"
-        )
+        logger.critical(f"MT5 init failed. Error: {mt5.last_error()}")
         mt5.shutdown()
         if exit_on_fail:
             sys.exit(1)
@@ -88,7 +84,7 @@ def initialize_mt5(exit_on_fail: bool = True):
 
     logger.info("MT5 initialized ✓")
 
-    # ── Account Verification ──
+    # ── Account info ──
     account = mt5.account_info()
     if account is None:
         logger.critical(f"Cannot retrieve account info. Error: {mt5.last_error()}")
@@ -98,97 +94,46 @@ def initialize_mt5(exit_on_fail: bool = True):
         return False
 
     logger.info(
-        f"Account {account.login} @ {account.company} | "
+        f"Account {account.login} @ {account.server} | "
         f"Balance: {account.balance:.2f} {account.currency} | "
-        f"Equity: {account.equity:.2f}"
+        f"Equity: {account.equity:.2f} | Leverage: 1:{account.leverage}"
     )
 
-    # ── Algo Trading Check ──
+    # ── Algo trading check ──
     terminal = mt5.terminal_info()
     if terminal is None or not terminal.trade_allowed:
+        logger.critical("Algo trading disabled in MT5 Terminal. Tools → Options → Expert Advisors.")
+        mt5.shutdown()
+        if exit_on_fail:
+            sys.exit(1)
+        return False
+
+    # ── Resolve XAUUSD symbol with broker suffix ──
+    resolved = _resolve_symbol(config.SYMBOL_BASE)
+    if resolved is None:
         logger.critical(
-            "Algo trading is disabled in MT5 Terminal. "
-            "Enable it via Tools → Options → Expert Advisors."
+            f"Could not find '{config.SYMBOL_BASE}' on broker with any common suffix. "
+            f"Check Market Watch or set SYMBOL_BASE explicitly."
         )
         mt5.shutdown()
         if exit_on_fail:
             sys.exit(1)
         return False
 
-    # ─── Symbol Registration ──
-    valid_symbols = []
-    # Always scan from the unmutated CORRELATION_GROUPS to avoid hot-reload state issues
-    master_list = list({sym for group in config.CORRELATION_GROUPS.values() for sym in group})
-    master_list.sort()
-    for sym in master_list:
-        if _register_symbol(sym):
-            valid_symbols.append(sym)
-            
-    config.SYMBOLS = valid_symbols
-    
-    # ─── Session Auto-Migration ───
-    import signal_state
-    if signal_state.session_symbols:
-        base_symbols = []
-        for group in getattr(config, "BASE_GROUPS", {}).values():
-            base_symbols.extend(group)
-            
-        new_session_symbols = []
-        for old_sym in signal_state.session_symbols:
-            my_base = None
-            # Identify the base string (e.g. 'EURUSD' from 'EURUSDm')
-            for b in base_symbols:
-                if old_sym.startswith(b):
-                    my_base = b
-                    break
-            
-            if my_base:
-                # Find the first valid symbol on the new broker that matches this base
-                migrated = False
-                for valid_sym in valid_symbols:
-                    if valid_sym.startswith(my_base):
-                        new_session_symbols.append(valid_sym)
-                        migrated = True
-                        break
-                if not migrated:
-                    # If the new broker doesn't have this pair at all, keep the old one (or drop it)
-                    # We keep it so it doesn't just disappear silently
-                    new_session_symbols.append(old_sym)
-            else:
-                new_session_symbols.append(old_sym)
-                
-        # Deduplicate and update
-        new_session_symbols = list(set(new_session_symbols))
-        if set(new_session_symbols) != set(signal_state.session_symbols):
-            logger.info(f"🔄 Migrated Session Symbols to new broker suffix: {new_session_symbols}")
-            signal_state.session_symbols = new_session_symbols
-            signal_state.save_session()
-
-    logger.info(f"MT5 connection fully established ✓ ({len(valid_symbols)} Valid Symbols Registered)")
-    return True
-
-
-def _register_symbol(symbol: str) -> bool:
-    """Ensure the trading symbol is visible in Market Watch."""
-    info = mt5.symbol_info(symbol)
-    if info is None:
-        logger.warning(
-            f"Symbol '{symbol}' not found on broker server. "
-            f"Skipping this symbol from the active pool."
-        )
+    if not _register_symbol(resolved):
+        mt5.shutdown()
+        if exit_on_fail:
+            sys.exit(1)
         return False
 
-    if not info.visible:
-        if not mt5.symbol_select(symbol, True):
-            logger.error(
-                f"Cannot add '{symbol}' to Market Watch. Error: {mt5.last_error()}"
-            )
-            return False
-        logger.info(f"Symbol '{symbol}' added to Market Watch.")
-    else:
-        # logger.debug(f"Symbol '{symbol}' already visible.")
-        pass
-        
+    config.SYMBOL = resolved
+    info = mt5.symbol_info(resolved)
+    logger.info(
+        f"✓ Symbol resolved: {resolved} | Digits: {info.digits} | "
+        f"Point: {info.point} | Contract: {info.trade_contract_size} | "
+        f"Stops level: {info.trade_stops_level} pts"
+    )
+
     return True
 
 
@@ -197,3 +142,25 @@ def shutdown_mt5():
     logger.info("Shutting down MT5 connection...")
     mt5.shutdown()
     logger.info("MT5 shutdown complete ✓")
+
+
+# ─── Rate Fetchers ──────────────────────────────────────────
+def get_rates(symbol: str, timeframe: int, count: int):
+    """Fetch N most recent candles. Returns numpy structured array or None."""
+    rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
+    if rates is None or len(rates) < count:
+        return None
+    return rates
+
+
+def get_tick(symbol: str):
+    """Current bid/ask tick."""
+    return mt5.symbol_info_tick(symbol)
+
+
+def get_spread_usd(symbol: str) -> float:
+    """Live spread in USD (dollars for gold)."""
+    tick = get_tick(symbol)
+    if tick is None:
+        return 999.0
+    return tick.ask - tick.bid

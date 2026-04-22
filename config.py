@@ -1,22 +1,27 @@
 """
 ============================================================
- DCA Forex Bot — Configuration
+ XAUUSD SMC Scalping Bot — Configuration
 ============================================================
-Simplified config: user provides CAPITAL + SYMBOL.
-Everything else is auto-calculated at runtime.
+Strategy:
+  H1 Bias → M15 Zone Validation → M5 Liquidity Sweep + FVG Entry
+Rules (non-negotiable):
+  - Fixed risk per trade (no DCA, no martingale, no averaging)
+  - Single open position at a time
+  - Hard SL on every trade
+  - Daily loss limits enforce capital protection
+============================================================
 """
 
 import logging
 import os
 import sys
-from datetime import time as dtime
 
 from dotenv import load_dotenv
 
-# Configure logging
+# ─── Logging ────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(name)-18s | %(levelname)-7s | %(message)s",
+    format="%(asctime)s | %(name)-16s | %(levelname)-7s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("Config")
@@ -38,66 +43,73 @@ MT5_LOGIN: int = int(_get_env("MT5_LOGIN", default="0", required=False))
 MT5_PASS: str = _get_env("MT5_PASS", default="", required=False)
 MT5_SERVER: str = _get_env("MT5_SERVER", default="", required=False)
 
-# ─── User Inputs (only these matter) ────────────────────────
-TIMEFRAME_STR: str = _get_env("TIMEFRAME", default="M5").upper()
-SIGNAL_MODE: str = _get_env("SIGNAL_MODE", default="candle").lower()
-SYNC_DELAY_SECONDS: float = float(_get_env("SYNC_DELAY_SECONDS", default="3.0"))
+# ─── Trading Symbol ─────────────────────────────────────────
+# Note: Exness typically uses "XAUUSDm" (mini), "XAUUSD", or "XAUUSD.c"
+# The bot will auto-detect the correct suffix at startup.
+SYMBOL_BASE: str = _get_env("SYMBOL_BASE", default="XAUUSD")
+SYMBOL: str = ""  # Resolved at runtime by mt5_connector
 
+# ─── Risk Management ────────────────────────────────────────
+RISK_PCT_PER_TRADE: float = float(_get_env("RISK_PCT_PER_TRADE", default="0.5"))  # 0.5% of equity
+MAX_DAILY_LOSS_PCT: float = float(_get_env("MAX_DAILY_LOSS_PCT", default="2.0"))  # -2% daily → stop
+MAX_TRADES_PER_DAY: int = int(_get_env("MAX_TRADES_PER_DAY", default="3"))
+MAX_CONSECUTIVE_LOSSES: int = int(_get_env("MAX_CONSECUTIVE_LOSSES", default="2"))
 
-MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="550055"))
-# ─── Dashboard Protection ───────────────────────────────────
-DASHBOARD_PASSWORD: str = _get_env("DASHBOARD_PASSWORD", default="*&*&*&", required=False)
+# ─── Strategy Parameters ────────────────────────────────────
+MIN_RR: float = float(_get_env("MIN_RR", default="2.0"))  # Minimum risk:reward ratio
+MAX_RR: float = float(_get_env("MAX_RR", default="5.0"))  # Cap unrealistic targets
 
-# ─── Anti-Correlation Module ────────────────────────────────
-BASE_GROUPS = {
-    # Major Pairs (USD Quote vs USD Base)
-    "USD_DIRECT": ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"],
-    "USD_INDIRECT": ["USDJPY", "USDCAD", "USDCHF"],
-    
-    # Currency Crosses
-    "EUR_CROSS": ["EURGBP", "EURJPY", "EURCHF", "EURAUD", "EURNZD", "EURCAD"],
-    "GBP_CROSS": ["GBPJPY", "GBPCHF", "GBPAUD", "GBPNZD", "GBPCAD"],
-    "JPY_CROSS": ["AUDJPY", "NZDJPY", "CADJPY", "CHFJPY"],
-    
-    # Commodities / Metals
-    "METALS": ["XAUUSD", "XAGUSD", "GOLD", "SILVER"],
-    "OIL": ["USOIL", "UKOIL", "WTI", "BRENT"],
-    
-    # Indices
-    "US_INDICES": ["US30", "USTEC", "US100", "SPX500", "NAS100", "DJI"],
-    "EU_INDICES": ["GER30", "GER40", "UK100", "FRA40", "DAX30", "DAX40"],
-    
-    # Crypto
-    "CRYPTO": ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"]
-}
+# Swing detection (fractal-based)
+FRACTAL_LEFT: int = 3
+FRACTAL_RIGHT: int = 3
 
-# Common MT4/MT5 Broker Suffixes
-SUFFIXES = [
-    "", "m", "c", "z", "i", "pro", "ecn", "raw", "x", 
-    ".a", ".r", ".ecn", ".pro", ".x", "_x", "_raw", "_i", "-i",
-    "b", "k", "s"
+# Lookback bars per timeframe
+H1_LOOKBACK: int = 100   # ~4 days of H1 for bias
+M15_LOOKBACK: int = 80   # ~20 hours of M15 for structure
+M5_LOOKBACK: int = 60    # ~5 hours of M5 for entries
+
+# FVG parameters
+FVG_MIN_SIZE_USD: float = 0.30   # Minimum FVG size on gold ($0.30 = 30 cents)
+FVG_MAX_AGE_BARS: int = 20       # FVG expires after 20 M5 bars
+
+# Liquidity sweep parameters
+SWEEP_MIN_WICK_USD: float = 0.20  # Wick must extend at least $0.20 beyond swing
+SWEEP_LOOKBACK_BARS: int = 30     # Look for sweeps against last 30 M5 bars
+
+# Stop loss buffer beyond sweep point (in USD)
+SL_BUFFER_USD: float = 0.50      # $0.50 buffer past sweep high/low
+
+# ─── Filters ────────────────────────────────────────────────
+# Volatility filter
+MIN_ATR_M15_USD: float = float(_get_env("MIN_ATR_M15_USD", default="1.50"))
+
+# Spread filter (absolute cap in USD)
+MAX_SPREAD_USD: float = float(_get_env("MAX_SPREAD_USD", default="0.50"))
+
+# Sessions (UTC). Pakistan = UTC+5.
+# Gold scalping prime windows:
+#   London open push: 07:00-11:00 UTC (12:00-16:00 PKT)
+#   NY open push:     12:30-16:00 UTC (17:30-21:00 PKT)
+SESSIONS_UTC = [
+    ("LONDON", 7, 0, 11, 0),
+    ("NY",     12, 30, 16, 0),
 ]
 
-CORRELATION_GROUPS = {}
-for group_name, base_symbols in BASE_GROUPS.items():
-    CORRELATION_GROUPS[group_name] = []
-    for sym in base_symbols:
-        for suf in SUFFIXES:
-            CORRELATION_GROUPS[group_name].append(sym + suf)
+# News filter
+NEWS_ENABLED: bool = _get_env("NEWS_ENABLED", default="true").lower() == "true"
+NEWS_BUFFER_BEFORE_MIN: int = 15
+NEWS_BUFFER_AFTER_MIN: int = 30
+NEWS_URL: str = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+NEWS_IMPACT_FILTER = ["High"]  # Only skip around High-impact news
+NEWS_CURRENCIES = ["USD"]       # Gold is USD-denominated; XAU news is rare
 
-# Auto-compute Master Available Symbols explicitly from our Correlation Groups dictionary
-SYMBOLS: list = list({sym for group in CORRELATION_GROUPS.values() for sym in group})
-SYMBOLS.sort()
-MASTER_SYMBOLS = SYMBOLS.copy()
-SYMBOL: str = SYMBOLS[0] if len(SYMBOLS) > 0 else "EURUSDm"
+# ─── Order Execution ────────────────────────────────────────
+MAGIC_NUMBER: int = int(_get_env("MAGIC_NUMBER", default="770077"))
+MAX_SLIPPAGE_POINTS: int = int(_get_env("MAX_SLIPPAGE_POINTS", default="30"))
 
-# ─── Auto-Calculated (filled at runtime by auto_params) ─────
-CAPITAL: float = 0.0
+# ─── Loop Timing ────────────────────────────────────────────
+LOOP_INTERVAL_SEC: float = 1.0  # Main loop tick
+M5_CANDLE_GRACE_SEC: int = 3    # Wait N seconds after M5 close before evaluating
 
-LOT_SIZE: float = 0.0
-STEP_PIPS: float = 0.0
-MAX_ORDERS: int = 0
-EXIT_PIPS: float = 0.0
-PIP_SIZE: float = 0.0
-PIP_VALUE: float = 0.0
-SPREAD_PIPS: float = 0.0
+# ─── Trade Log ──────────────────────────────────────────────
+DB_PATH: str = _get_env("DB_PATH", default="trades.db", required=False)

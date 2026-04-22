@@ -1,308 +1,170 @@
 """
 ============================================================
- DCA Forex Bot — Signal Engine
+ Signal Engine — SMC Setup Orchestrator
 ============================================================
-Entry signal detection with two modes:
+Combines bias + structure + liquidity + FVG into a final
+tradeable signal (or None).
 
-  MODE = "pattern"  → Strict candlestick patterns (Engulfing, Hammer)
-  MODE = "candle"   → Simple candle color (green = BUY, red = SELL)
-
-For fast DCA strategies, "candle" mode is recommended since
-the goal is to get in quickly and let DCA handle the rest.
+Flow:
+  1. Get H1/M15 bias (is trend clear? are we in P/D zone?)
+  2. On M5: find recent liquidity sweep in bias direction
+  3. On M5: find unmitigated FVG formed after sweep
+  4. Calculate entry / SL / TP
+  5. Validate RR meets minimum threshold
+  6. Return signal or None
 ============================================================
 """
 
 import logging
-import time
-
-import MetaTrader5 as mt5
+from dataclasses import dataclass
+from typing import Optional
 
 import config
-from mt5_connector import get_mt5_timeframe, get_mt5_htf
-import signal_state
+from bias import BiasResult, get_bias
+from liquidity import (
+    FVG,
+    LiquiditySweep,
+    find_entry_fvg_after_sweep,
+    find_next_liquidity_target,
+    find_recent_sweep,
+)
+from mt5_connector import get_rates, get_tick, TF_M5
 
 logger = logging.getLogger("SignalEngine")
 
-# ─── Signal Mode ────────────────────────────────────────────
-# "candle"  = Simple: green candle = BUY, red = SELL (fast entry)
-# "pattern" = Strict: only engulfing / hammer patterns (selective)
-SIGNAL_MODE = getattr(config, "SIGNAL_MODE", "candle")
+
+@dataclass
+class TradeSignal:
+    direction: str         # 'BUY' or 'SELL'
+    entry: float           # Entry price (current market or FVG)
+    sl: float              # Stop loss
+    tp: float              # Take profit
+    rr: float              # Actual RR of this setup
+    setup_note: str        # Human-readable rationale
+    sweep: LiquiditySweep
+    fvg: FVG
+
+    def __repr__(self):
+        return (
+            f"Signal({self.direction} @{self.entry:.2f} "
+            f"SL={self.sl:.2f} TP={self.tp:.2f} RR={self.rr:.2f})"
+        )
 
 
-# def _calc_ema(rates, period: int) -> float:
-#     if rates is None or len(rates) < period:
-#         return 0.0
-#     closes = [r['close'] for r in rates]
-#     sma = sum(closes[:period]) / period
-#     ema = sma
-#     multiplier = 2 / (period + 1)
-#     for price in closes[period:]:
-#         ema = (price - ema) * multiplier + ema
-#     return ema
+def _bias_direction_to_smc(bias: str) -> str:
+    """Map H1 bias to entry direction and SMC sweep direction."""
+    return 'BULLISH' if bias == 'BULLISH' else 'BEARISH'
 
 
-# def _calc_adx(rates, period: int = 14) -> float:
-#     if rates is None or len(rates) < period * 2:
-#         return 0.0
-#     trs, pos_dm, neg_dm = [], [], []
-#     for i in range(1, len(rates)):
-#         h, l, pc = rates[i]['high'], rates[i]['low'], rates[i-1]['close']
-#         ph, pl = rates[i-1]['high'], rates[i-1]['low']
-#         tr = max(h - l, abs(h - pc), abs(l - pc))
-#         up_m, down_m = h - ph, pl - l
-#         pdm = up_m if (up_m > down_m and up_m > 0) else 0
-#         ndm = down_m if (down_m > up_m and down_m > 0) else 0
-#         trs.append(tr)
-#         pos_dm.append(pdm)
-#         neg_dm.append(ndm)
-
-#     def smooth(data, length):
-#         res = [sum(data[:length])]
-#         for val in data[length:]:
-#             res.append(res[-1] - (res[-1] / length) + val)
-#         return res
-
-#     smoothed_tr = smooth(trs, period)
-#     smoothed_pdm = smooth(pos_dm, period)
-#     smoothed_ndm = smooth(neg_dm, period)
-
-#     dx_values = []
-#     for i in range(len(smoothed_tr)):
-#         if smoothed_tr[i] == 0:
-#             dx_values.append(0)
-#             continue
-#         pdi = 100 * smoothed_pdm[i] / smoothed_tr[i]
-#         ndi = 100 * smoothed_ndm[i] / smoothed_tr[i]
-#         dx_values.append(100 * abs(pdi - ndi) / (pdi + ndi) if (pdi + ndi) > 0 else 0)
-
-#     if len(dx_values) < period:
-#         return 0.0
-#     adx = sum(dx_values[:period]) / period
-#     for val in dx_values[period:]:
-#         adx = ((adx * (period - 1)) + val) / period
-#     return adx
-
-
-def get_entry_signal(target_symbol: str = None) -> dict | None:
+def generate_signal(symbol: str) -> Optional[TradeSignal]:
     """
-    Fetch the last few candles and detect an entry signal
-    on the most recently CLOSED candle (index -2).
-
-    Returns: {"direction": "BUY"|"SELL", "surge_ratio": float} or None
+    End-to-end signal generation. Returns a TradeSignal if all conditions
+    are met, else None with detailed logging of why.
     """
-    symbol = target_symbol if target_symbol else config.SYMBOL
-    tf = get_mt5_timeframe()
-    
-    def _set(msg: str, color: str = "gray"):
-        signal_state.latest_signal_status[symbol] = {
-            "status": msg,
-            "color": color,
-            "time": None
-        }
+    # ── Step 1: Current price ──
+    tick = get_tick(symbol)
+    if tick is None:
+        logger.debug("No tick available")
+        return None
+    current_price = (tick.bid + tick.ask) / 2.0
 
-    # ─── 1. Fetch Higher Timeframe Context ───
-    htf = get_mt5_htf(tf)
-    htf_rates = mt5.copy_rates_from_pos(symbol, htf, 0, 50)
-    
-    trend = "NONE"
-    if htf_rates is not None and len(htf_rates) == 50:
-        htf_closes = [float(x['close']) for x in htf_rates]
-        htf_sma50 = sum(htf_closes) / len(htf_closes)
-        current_htf_close = htf_closes[-1]
-        trend = "UP" if current_htf_close > htf_sma50 else "DOWN"
+    # ── Step 2: Bias check (H1 + M15) ──
+    bias = get_bias(symbol, current_price)
+    logger.debug(f"Bias: {bias.reason}")
+
+    if not bias.is_tradeable:
+        logger.debug(f"❌ Bias not tradeable: {bias.reason}")
+        return None
+
+    direction_smc = _bias_direction_to_smc(bias.h1_trend)
+    direction_order = 'BUY' if bias.h1_trend == 'BULLISH' else 'SELL'
+
+    # ── Step 3: M5 candles ──
+    m5 = get_rates(symbol, TF_M5, config.M5_LOOKBACK)
+    if m5 is None:
+        logger.debug("M5 data unavailable")
+        return None
+
+    # ── Step 4: Find recent liquidity sweep on M5 ──
+    sweep = find_recent_sweep(m5, direction_smc)
+    if sweep is None:
+        logger.debug(f"❌ No recent {direction_smc} sweep on M5")
+        return None
+
+    logger.debug(f"Sweep found: {sweep}")
+
+    # ── Step 5: Find unmitigated FVG after sweep ──
+    fvg = find_entry_fvg_after_sweep(m5, direction_smc, sweep)
+    if fvg is None:
+        logger.debug(f"❌ No unmitigated FVG after sweep")
+        return None
+
+    logger.debug(f"FVG found: {fvg}")
+
+    # ── Step 6: Validate FVG is still reachable ──
+    # For a BUY setup, price must still be above the FVG top (FVG is below)
+    # or within the FVG (retest in progress)
+    if direction_smc == 'BULLISH':
+        if current_price < fvg.bottom:
+            logger.debug(f"❌ Price ${current_price:.2f} already below FVG bottom ${fvg.bottom:.2f}")
+            return None
     else:
-        logger.warning(f"Could not fetch enough HTF candles for {symbol}. Proceeding without trend filter.")
-
-    # ─── 2. Fetch Lower Timeframe Context ───
-    # Fetch 20 candles for ATR computation
-    rates = mt5.copy_rates_from_pos(symbol, tf, 0, 20)
-
-    if rates is None or len(rates) < 18:
-        logger.warning(f"Insufficient candle data for {symbol}. Received: {rates}")
-        return None
-
-    # The signal bar = last CLOSED candle (index -2)
-    # Index -1 is the current live/forming bar
-    prev = rates[-3]
-    curr = rates[-2]
-
-    curr_open = curr["open"]
-    curr_close = curr["close"]
-    curr_high = curr["high"]
-    curr_low = curr["low"]
-
-    body = abs(curr_close - curr_open)
-    full_range = curr_high - curr_low
-
-    if full_range == 0:
-        logger.debug(f"[{symbol}] Zero-range candle (doji), skipping.")
-        return None
-
-    # Calculate Tick Volume Surge globally
-    recent_vols = [r['tick_volume'] for r in rates[-12:-2]]
-    avg_vol = sum(recent_vols) / len(recent_vols) if len(recent_vols) > 0 else 1
-    curr_vol = curr['tick_volume']
-    surge_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
-
-    # ─── 2.5 Dynamic Spread Filter ───
-    # Prevent entries when the spread is anomalously high for the specific symbol (e.g., during news)
-    symbol_info = mt5.symbol_info(symbol)
-    tick = mt5.symbol_info_tick(symbol)
-    if symbol_info and tick:
-        live_spread_pts = (tick.ask - tick.bid) / symbol_info.point
-        historical_spreads = [r['spread'] for r in rates[-20:-1] if r['spread'] > 0]
-        avg_spread_pts = sum(historical_spreads) / len(historical_spreads) if historical_spreads else live_spread_pts
-        
-        # If Current spread is more than double the normal historical spread
-        if avg_spread_pts > 0 and live_spread_pts > avg_spread_pts * 2.5:
-            logger.debug(f"[{symbol}] Spread Filter Block: Live={live_spread_pts:.1f}pts > Avg={avg_spread_pts:.1f}pts")
-            _set(f"Blocked: High Spread ({live_spread_pts:.1f} > Avg {avg_spread_pts:.1f})", "orange")
+        if current_price > fvg.top:
+            logger.debug(f"❌ Price ${current_price:.2f} already above FVG top ${fvg.top:.2f}")
             return None
 
-    # ─── 3. Strong Trend / Momentum Filters (EMA 200 + ADX) ───
-    # We pass up to -1 to evaluate based on all closed candles
-    # ema200 = _calc_ema(rates[:-1], period=200)
-    # adx_value = _calc_adx(rates[:-1], period=14)
-    
-    # # We define an aggressive uptrend if price is > EMA 200 and ADX > 25
-    # is_strong_uptrend = (curr_close > ema200) and (adx_value > 25.0)
-    # # We define an aggressive downtrend if price is < EMA 200 and ADX > 25
-    # is_strong_downtrend = (curr_close < ema200) and (adx_value > 25.0)
+    # ── Step 7: Calculate entry, SL, TP ──
+    if direction_smc == 'BULLISH':
+        # Entry at FVG mid (we'll use market if we're already in/below it)
+        # but for this scalping setup, we enter at current price to avoid missing it
+        entry = current_price
+        sl = sweep.sweep_extreme - config.SL_BUFFER_USD
+        # TP: next liquidity target (swing high above)
+        target = find_next_liquidity_target(m5, direction_smc, entry)
+        if target is None:
+            # Fall back to min RR target
+            target = entry + (entry - sl) * config.MIN_RR
+        tp = target
+    else:
+        entry = current_price
+        sl = sweep.sweep_extreme + config.SL_BUFFER_USD
+        target = find_next_liquidity_target(m5, direction_smc, entry)
+        if target is None:
+            target = entry - (sl - entry) * config.MIN_RR
+        tp = target
 
-    # if is_strong_uptrend:
-    #     logger.debug(f"[{symbol}] Strong UPTREND (Price > EMA200 & ADX={adx_value:.1f} > 25)")
-    #     _set(f"Strong UPTREND (Price > EMA200 & ADX={adx_value:.1f} > 25)", "green")
-    # if is_strong_downtrend:
-    #     logger.debug(f"[{symbol}] Strong DOWNTREND (Price < EMA200 & ADX={adx_value:.1f} > 25)")
-    #     _set(f"Strong DOWNTREND (Price < EMA200 & ADX={adx_value:.1f} > 25)", "red")
+    # ── Step 8: RR validation ──
+    risk_dist = abs(entry - sl)
+    reward_dist = abs(tp - entry)
+    if risk_dist <= 0:
+        logger.debug("Zero risk distance — rejecting")
+        return None
+    rr = reward_dist / risk_dist
 
-    # ─── MODE: Smart Candle Color (Trend + Momentum + Wick Rejection) ─
-    upper_wick = curr_high - max(curr_open, curr_close)
-    lower_wick = min(curr_open, curr_close) - curr_low
+    if rr < config.MIN_RR:
+        logger.debug(f"❌ RR {rr:.2f} < min {config.MIN_RR}")
+        return None
 
-    if SIGNAL_MODE == "candle":
-        # Calculate ATR (Average True Range) for recent 14 candles to detect FLAT markets
-        trs = []
-        for i in range(2, 16):
-            idx = -i
-            h = rates[idx]["high"]
-            l = rates[idx]["low"]
-            pc = rates[idx - 1]["close"]
-            tr = max(h - l, abs(h - pc), abs(l - pc))
-            trs.append(tr)
-        atr = sum(trs) / len(trs) if len(trs) > 0 else 0
-
-        # Calculate recent average body (momentum filter)
-        recent_bodies = [abs(r['close'] - r['open']) for r in rates[-7:-2]]
-        avg_body = sum(recent_bodies) / len(recent_bodies) if len(recent_bodies) > 0 else 0
-
-        if curr_close > curr_open:
-            if body < (atr * 0.5):
-                _set("Green Candle: Market Flat (Low Volatility)", "gray")
-                return None
-            if trend == "DOWN":
-                _set("Green Candle: Blocked by HTF DOWN Trend", "orange")
-                return None
-            if body <= avg_body:
-                _set("Green Candle: Weak Momentum (Small Body)", "gray")
-                return None
-            # Strict momentum continuation: candle MUST break previous high
-            if curr_close <= prev["high"]:
-                _set("Green Candle: Failed to break Prev High", "gray")
-                return None
-            # Reject if there is noticeable selling pressure at the top
-            if upper_wick >= body * 0.5:
-                _set("Green Candle: Upper Wick Rejection", "orange")
-                return None
-            # if is_strong_downtrend:
-            #     _set("🚫 Blocked: Strong Downtrend Filter (ADX>25)", "red")
-            #     return None
-            _set(f"🚀 BUY Signal Triggered! (Surge: {surge_ratio:.2f}x)", "green")
-            return {"direction": "BUY", "surge_ratio": surge_ratio}
-        elif curr_close < curr_open:
-            if body < (atr * 0.5):
-                _set("Red Candle: Market Flat (Low Volatility)", "gray")
-                return None
-            if trend == "UP":
-                _set("Red Candle: Blocked by HTF UP Trend", "orange")
-                return None
-            if body <= avg_body:
-                _set("Red Candle: Weak Momentum (Small Body)", "gray")
-                return None
-            # Strict momentum continuation: candle MUST break previous low
-            if curr_close >= prev["low"]:
-                _set("Red Candle: Failed to break Prev Low", "gray")
-                return None
-            # Reject if there is noticeable buying pressure at the bottom
-            if lower_wick >= body * 0.5:
-                _set("Red Candle: Lower Wick Rejection", "orange")
-                return None
-            # if is_strong_uptrend:
-            #     _set("🚫 Blocked: Strong Uptrend Filter (ADX>25)", "red")
-            #     return None
-            _set(f"🚀 SELL Signal Triggered! (Surge: {surge_ratio:.2f}x)", "green")
-            return {"direction": "SELL", "surge_ratio": surge_ratio}
+    # Cap unrealistic RR — target might be too far, use cap
+    if rr > config.MAX_RR:
+        if direction_smc == 'BULLISH':
+            tp = entry + risk_dist * config.MAX_RR
         else:
-            _set("Waiting: Doji", "gray")
-            return None
+            tp = entry - risk_dist * config.MAX_RR
+        rr = config.MAX_RR
 
-    # ─── MODE: Candlestick Patterns ──────────────────────
-    prev_open, prev_close = prev["open"], prev["close"]
-    body_ratio = body / full_range
-
-    # Bullish Engulfing
-    if (
-        prev_close < prev_open
-        and curr_close > curr_open
-        and curr_close > prev_open
-        and curr_open <= prev_close
-    ):
-        # if is_strong_downtrend:
-        #     _set("Pattern Blocked: Bullish Engulfing in strong Downtrend", "red")
-        #     return None
-        _set("✅ BUllish Engulfing Pattern Detected!", "green")
-        return {"direction": "BUY", "surge_ratio": surge_ratio}
-
-    # Bearish Engulfing
-    if (
-        prev_close > prev_open
-        and curr_close < curr_open
-        and curr_close < prev_open
-        and curr_open >= prev_close
-    ):
-        # if is_strong_uptrend:
-        #     _set("Pattern Blocked: Bearish Engulfing in strong Uptrend", "red")
-        #     return None
-        _set("✅ Bearish Engulfing Pattern Detected!", "green")
-        return {"direction": "SELL", "surge_ratio": surge_ratio}
-
-    # Hammer (Bullish)
-    upper_wick = curr_high - max(curr_open, curr_close)
-    lower_wick = min(curr_open, curr_close) - curr_low
-
-    if (
-        body_ratio < 0.35
-        and lower_wick >= 2.0 * body
-        and upper_wick <= body * 0.5
-    ):
-        # if is_strong_downtrend:
-        #     _set("Pattern Blocked: Bullish Hammer in strong Downtrend", "red")
-        #     return None
-        _set("✅ Bullish Hammer Pattern Detected!", "green")
-        return {"direction": "BUY", "surge_ratio": surge_ratio}
-
-    # Shooting Star (Bearish)
-    if (
-        body_ratio < 0.35
-        and upper_wick >= 2.0 * body
-        and lower_wick <= body * 0.5
-    ):
-        # if is_strong_uptrend:
-        #     _set("Pattern Blocked: Shooting Star in strong Uptrend", "red")
-        #     return None
-        _set("✅ Shooting Star Pattern Detected!", "green")
-        return {"direction": "SELL", "surge_ratio": surge_ratio}
-
-    _set("Scanning...", "gray")
-    return None
-
+    signal = TradeSignal(
+        direction=direction_order,
+        entry=entry,
+        sl=sl,
+        tp=tp,
+        rr=rr,
+        setup_note=(
+            f"H1 {bias.h1_trend} | Swept {sweep.swing.kind} @ ${sweep.swing.price:.2f} "
+            f"| FVG {fvg.bottom:.2f}-{fvg.top:.2f} | RR {rr:.2f}"
+        ),
+        sweep=sweep,
+        fvg=fvg,
+    )
+    logger.info(f"🎯 SIGNAL: {signal} | {signal.setup_note}")
+    return signal
