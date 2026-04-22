@@ -225,8 +225,8 @@ def main():
                 "filters_passed": passed,
                 "filters_reason": reason,
                 "zone": ("DISCOUNT" if getattr(bias, 'h1_trend', '') == 'BULLISH' else "PREMIUM") if getattr(bias, 'in_valid_zone', False) else "AWAITING ZONE",
-                "sweep": "--",
-                "fvg": "--",
+                "sweep": "AWAITING CONDITIONS",
+                "fvg": "AWAITING CONDITIONS",
                 "time": time.time()
             }
 

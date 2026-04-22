@@ -75,6 +75,17 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     logger.debug(f"Bias: {bias.reason}")
 
     if not bias.is_tradeable:
+        if bias.h1_trend == 'UNKNOWN':
+            msg = "AWAITING H1 TREND"
+        elif not getattr(bias, 'm15_aligned', False):
+            msg = "AWAITING M15 ALIGNMENT"
+        elif not getattr(bias, 'in_valid_zone', False):
+            msg = "AWAITING P/D ZONE"
+        else:
+            msg = "AWAITING CONDITIONS"
+            
+        ui_state.last_market_context["sweep"] = msg
+        ui_state.last_market_context["fvg"] = msg
         logger.debug(f"❌ Bias not tradeable: {bias.reason}")
         return None
 
