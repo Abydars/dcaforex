@@ -7,16 +7,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0d1117;
-            --panel-bg: #161b22;
-            --border-color: #30363d;
-            --text-primary: #c9d1d9;
-            --text-secondary: #8b949e;
-            --green: #238636;
-            --red: #da3633;
-            --amber: #d29922;
-            --blue: #1f6feb;
-            --gray: #6e7681;
+            --bg-color: #0A0C10; /* Brutalist deep slate/black */
+            --panel-bg: #0A0C10; 
+            --border-color: #1e293b;
+            --hover-bg: #111827;
+            --text-primary: #cbd5e1;
+            --text-secondary: #64748b;
+            --green: #00ff9d; /* Institutional neon green */
+            --red: #ff3355;   /* Crimson red */
+            --amber: #fbbf24;
+            --blue: #3b82f6;
+            --gray: #475569;
         }
 
         body {
@@ -39,17 +40,19 @@
         .panel {
             background: var(--panel-bg);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 2px;
             padding: 1rem;
         }
 
         .panel-header {
-            font-size: 1rem;
+            font-size: 0.85rem;
             font-weight: 600;
             margin-bottom: 0.75rem;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.5rem;
-            color: #fff;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -60,10 +63,10 @@
         }
 
         /* Colors */
-        .text-green { color: #3fb950; }
-        .text-red { color: #ff7b72; }
-        .text-amber { color: #d29922; }
-        .text-gray { color: var(--text-secondary); }
+        .text-green { color: var(--green); }
+        .text-red { color: var(--red); }
+        .text-amber { color: var(--amber); }
+        .text-gray { color: var(--gray); }
 
         /* Header */
         .header {
@@ -73,22 +76,32 @@
         }
 
         .bot-toggle {
-            padding: 0.75rem 2rem;
-            font-size: 1.2rem;
-            font-weight: 700;
-            border-radius: 6px;
-            border: none;
+            background-color: transparent;
+            padding: 0.25rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 2px;
+            border: 1px solid;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.1s;
             text-transform: uppercase;
+            font-family: 'Inter', sans-serif;
+            color: var(--green);
+            border-color: var(--green);
         }
         .bot-toggle.on {
-            background: var(--green);
-            color: #fff;
+            color: var(--green);
+            border-color: var(--green);
         }
         .bot-toggle.off {
-            background: var(--gray);
-            color: #fff;
+            color: var(--gray);
+            border-color: var(--gray);
+        }
+        .bot-toggle.on:hover {
+            background-color: rgba(0, 255, 157, 0.1);
+        }
+        .bot-toggle.off:hover {
+            background-color: rgba(71, 85, 105, 0.2);
         }
 
         /* Data Grids */
@@ -96,36 +109,43 @@
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
         
         .stat-box {
-            background: #0d1117;
+            background: var(--bg-color);
             border: 1px solid var(--border-color);
-            border-radius: 4px;
+            border-radius: 2px;
             padding: 0.5rem;
             text-align: center;
         }
         .stat-label {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-secondary);
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         .stat-value {
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 1.05rem;
+            font-weight: 500;
             margin-top: 0.25rem;
+            font-family: 'Roboto Mono', monospace;
         }
 
         /* Buttons */
         .btn-danger {
-            background: var(--red);
-            color: #fff;
-            border: none;
+            background: transparent;
+            color: var(--red);
+            border: 1px solid var(--red);
             padding: 0.5rem 1rem;
-            border-radius: 4px;
-            font-weight: 600;
+            border-radius: 2px;
+            font-weight: 500;
             cursor: pointer;
             width: 100%;
             margin-top: 1rem;
+            text-transform: uppercase;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
         }
-        .btn-danger:hover { background: #b32a28; }
+        .btn-danger:hover { 
+            background: rgba(255, 51, 85, 0.1); 
+        }
 
         /* Tables */
         table {
@@ -144,16 +164,72 @@
         }
 
         .banner {
-            background: rgba(218, 54, 51, 0.1);
+            background: rgba(255, 51, 85, 0.1);
             border: 1px solid var(--red);
-            color: #ff7b72;
-            padding: 0.75rem;
-            border-radius: 4px;
+            color: var(--red);
+            padding: 0.5rem;
+            border-radius: 2px;
             text-align: center;
-            font-weight: 600;
+            font-weight: 500;
+            font-size: 0.85rem;
             margin-bottom: 1rem;
             display: none;
+            text-transform: uppercase;
         }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 500px;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-group label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-group input, .form-group select {
+            background: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.4rem 0.5rem;
+            border-radius: 2px;
+            font-family: 'Roboto Mono', monospace;
+            width: 120px;
+            text-align: right;
+        }
+        .btn-primary {
+            background: var(--green);
+            color: #0A0C10;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 2px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            margin-top: 1rem;
+        }
+        .btn-primary:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
@@ -163,8 +239,8 @@
     <!-- HEADER -->
     <div class="panel header">
         <div>
-            <h1 style="margin: 0; font-size: 1.5rem; color: #fff;">XAUUSD SMC Scalping Bot</h1>
-            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;" id="account-info">
+            <h1 style="margin: 0; font-size: 1.25rem; color: var(--text-primary); font-weight: 600;">XAUUSD SMC Scalping Bot</h1>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; font-family: 'Roboto Mono', monospace;" id="account-info">
                 Loading account info...
             </div>
         </div>
@@ -242,15 +318,64 @@
 
     <!-- CONFIG VIEW -->
     <div class="panel">
-        <div class="panel-header" style="cursor: pointer;" onclick="document.getElementById('config-content').style.display = document.getElementById('config-content').style.display === 'none' ? 'block' : 'none';">
-            Configuration (Click to Expand)
+        <div class="panel-header">
+            Configuration
+            <button class="bot-toggle" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="openConfigModal()">Edit Config</button>
         </div>
-        <div id="config-content" style="display: none; font-size: 0.85rem; color: var(--text-secondary);">
-            <div style="margin-bottom: 0.5rem; color: var(--amber);">To change these values, edit .env and restart the bot.</div>
-            <pre id="config-pre" style="background: #0d1117; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; overflow-x: auto;"></pre>
+        <div id="config-content" style="font-size: 0.85rem; color: var(--text-secondary);">
+            <pre id="config-pre" style="background: var(--bg-color); padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 2px; overflow-x: auto; font-family: 'Roboto Mono', monospace;"></pre>
         </div>
     </div>
 
+</div>
+
+<!-- Config Modal -->
+<div class="modal-overlay" id="config-modal" onclick="if(event.target===this) closeConfigModal()">
+    <div class="modal">
+        <h3 style="margin-top: 0; color: var(--text-primary); text-transform: uppercase; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Edit Configuration</h3>
+        
+        <div class="form-group">
+            <label>Risk % Per Trade</label>
+            <input type="number" step="0.1" id="cfg_RISK_PCT_PER_TRADE">
+        </div>
+        <div class="form-group">
+            <label>Max Daily Loss %</label>
+            <input type="number" step="0.1" id="cfg_MAX_DAILY_LOSS_PCT">
+        </div>
+        <div class="form-group">
+            <label>Max Trades/Day</label>
+            <input type="number" step="1" id="cfg_MAX_TRADES_PER_DAY">
+        </div>
+        <div class="form-group">
+            <label>Max Consec Losses</label>
+            <input type="number" step="1" id="cfg_MAX_CONSECUTIVE_LOSSES">
+        </div>
+        <div class="form-group">
+            <label>Min RR</label>
+            <input type="number" step="0.1" id="cfg_MIN_RR">
+        </div>
+        <div class="form-group">
+            <label>Max RR</label>
+            <input type="number" step="0.1" id="cfg_MAX_RR">
+        </div>
+        <div class="form-group">
+            <label>Min M15 ATR ($)</label>
+            <input type="number" step="0.1" id="cfg_MIN_ATR_M15_USD">
+        </div>
+        <div class="form-group">
+            <label>Max Spread ($)</label>
+            <input type="number" step="0.1" id="cfg_MAX_SPREAD_USD">
+        </div>
+        <div class="form-group">
+            <label>News Filter</label>
+            <select id="cfg_NEWS_ENABLED">
+                <option value="true">ON</option>
+                <option value="false">OFF</option>
+            </select>
+        </div>
+        
+        <button class="btn-primary" onclick="saveConfig()">Save Settings</button>
+    </div>
 </div>
 
 <script>
@@ -295,6 +420,18 @@
         // Config
         if (data.config) {
             document.getElementById('config-pre').innerText = JSON.stringify(data.config, null, 2);
+            // Update modal fields silently if closed
+            if (document.getElementById('config-modal').style.display !== 'flex') {
+                document.getElementById('cfg_RISK_PCT_PER_TRADE').value = data.config.RISK_PCT_PER_TRADE;
+                document.getElementById('cfg_MAX_DAILY_LOSS_PCT').value = data.config.MAX_DAILY_LOSS_PCT;
+                document.getElementById('cfg_MAX_TRADES_PER_DAY').value = data.config.MAX_TRADES_PER_DAY;
+                document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value = data.config.MAX_CONSECUTIVE_LOSSES;
+                document.getElementById('cfg_MIN_RR').value = data.config.MIN_RR;
+                document.getElementById('cfg_MAX_RR').value = data.config.MAX_RR;
+                document.getElementById('cfg_MIN_ATR_M15_USD').value = data.config.MIN_ATR_M15_USD;
+                document.getElementById('cfg_MAX_SPREAD_USD').value = data.config.MAX_SPREAD_USD;
+                document.getElementById('cfg_NEWS_ENABLED').value = data.config.NEWS_ENABLED ? "true" : "false";
+            }
         }
 
         // Daily Stop Banner
@@ -469,6 +606,38 @@
         try {
             await fetch('/api/close', { method: 'POST' });
             alert("Close requested. Main loop will execute shortly.");
+        } catch (e) { console.error(e); }
+    }
+
+    function openConfigModal() {
+        document.getElementById('config-modal').style.display = 'flex';
+    }
+
+    function closeConfigModal() {
+        document.getElementById('config-modal').style.display = 'none';
+    }
+
+    async function saveConfig() {
+        const payload = {
+            RISK_PCT_PER_TRADE: document.getElementById('cfg_RISK_PCT_PER_TRADE').value,
+            MAX_DAILY_LOSS_PCT: document.getElementById('cfg_MAX_DAILY_LOSS_PCT').value,
+            MAX_TRADES_PER_DAY: document.getElementById('cfg_MAX_TRADES_PER_DAY').value,
+            MAX_CONSECUTIVE_LOSSES: document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value,
+            MIN_RR: document.getElementById('cfg_MIN_RR').value,
+            MAX_RR: document.getElementById('cfg_MAX_RR').value,
+            MIN_ATR_M15_USD: document.getElementById('cfg_MIN_ATR_M15_USD').value,
+            MAX_SPREAD_USD: document.getElementById('cfg_MAX_SPREAD_USD').value,
+            NEWS_ENABLED: document.getElementById('cfg_NEWS_ENABLED').value
+        };
+
+        try {
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            closeConfigModal();
+            fetchData();
         } catch (e) { console.error(e); }
     }
 
