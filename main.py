@@ -24,6 +24,7 @@ import time
 import MetaTrader5 as mt5
 
 import config
+import signal_state
 import trade_log
 from execution import (
     close_position,
@@ -146,6 +147,22 @@ def main():
                         f"SL {position.sl:.2f} TP {position.tp:.2f} | "
                         f"P/L ${position.profit:+.2f}"
                     )
+                
+                tick = get_tick(config.SYMBOL)
+                current_price = 0.0
+                if tick:
+                    current_price = tick.bid if position.type == mt5.ORDER_TYPE_SELL else tick.ask
+                
+                signal_state.latest_signal_status[config.SYMBOL] = {
+                    "status": f"Holding {'BUY' if position.type == mt5.ORDER_TYPE_BUY else 'SELL'}",
+                    "color": "green" if position.profit >= 0 else "red",
+                    "time": position.time,
+                    "pnl": position.profit,
+                    "tp": position.tp,
+                    "sl": position.sl,
+                    "entry_price": position.price_open,
+                    "current_price": current_price
+                }
 
                 # Nothing else to do — SL/TP are on the broker side
                 time.sleep(config.LOOP_INTERVAL_SEC)
@@ -163,6 +180,11 @@ def main():
                 if loop_start - last_status_log >= 300.0:  # Log every 5 min
                     last_status_log = loop_start
                     logger.info(f"⏸️  Trading paused: {reason} | {risk_mgr.status_line()}")
+                signal_state.latest_signal_status[config.SYMBOL] = {
+                    "status": f"Risk Blocked: {reason}",
+                    "color": "gray",
+                    "time": time.time()
+                }
                 time.sleep(config.LOOP_INTERVAL_SEC)
                 continue
 
@@ -178,6 +200,11 @@ def main():
             passed, reason = all_filters_pass(config.SYMBOL)
             if not passed:
                 logger.info(f"⏸️  Filters blocked: {reason}")
+                signal_state.latest_signal_status[config.SYMBOL] = {
+                    "status": f"Filters Blocked: {reason}",
+                    "color": "gray",
+                    "time": time.time()
+                }
                 continue
 
             # ── 5. Generate signal ──

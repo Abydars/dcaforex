@@ -705,10 +705,38 @@
                 }
 
                 let pnlText = "--";
+                let tpSlText = "";
                 if (info.pnl !== undefined && info.status.includes("Holding")) {
                     const sign = info.pnl >= 0 ? '+' : '';
                     const color = info.pnl >= 0 ? 'var(--green)' : 'var(--red)';
                     pnlText = `<span class="mono" style="color: ${color}; font-weight: 600;">${sign}$${info.pnl.toFixed(2)}</span>`;
+                    
+                    if (info.tp && info.sl && info.entry_price && info.current_price) {
+                        const isBuy = info.status.includes("BUY");
+                        const totalDistance = Math.abs(info.tp - info.entry_price);
+                        const slDistance = Math.abs(info.entry_price - info.sl);
+                        
+                        let tpPct = 0;
+                        let slPct = 0;
+                        if (isBuy) {
+                            if (info.current_price > info.entry_price) {
+                                tpPct = ((info.current_price - info.entry_price) / totalDistance) * 100;
+                            } else {
+                                slPct = ((info.entry_price - info.current_price) / slDistance) * 100;
+                            }
+                        } else {
+                            if (info.current_price < info.entry_price) {
+                                tpPct = ((info.entry_price - info.current_price) / totalDistance) * 100;
+                            } else {
+                                slPct = ((info.current_price - info.entry_price) / slDistance) * 100;
+                            }
+                        }
+                        
+                        tpPct = Math.max(0, Math.min(100, tpPct));
+                        slPct = Math.max(0, Math.min(100, slPct));
+                        
+                        tpSlText = `<br><span style="font-size:0.7rem; color:#94a3b8; font-family:'Roboto Mono', monospace;">Target: ${info.tp.toFixed(3)} <span style="color:#00ff9d;">(${tpPct.toFixed(1)}%)</span> | Stop: ${info.sl.toFixed(3)} <span style="color:#ff3355;">(-${slPct.toFixed(1)}%)</span></span>`;
+                    }
                 }
 
                 let row = document.getElementById('row-' + sym);
@@ -729,7 +757,7 @@
                     <td>
                         <span class="badge ${info.color === 'gray' ? 'scanning' : ''}">${stateLabel}</span>
                     </td>
-                    <td class="status-col mono" style="color: #a1a1aa;">${info.status}</td>
+                    <td class="status-col mono" style="color: #a1a1aa;">${info.status}${tpSlText}</td>
                     <td style="white-space: nowrap;">${pnlText}</td>
                     <td class="time-col mono" style="color: #71717a;">${info.time ? formattedTime : '--:--:--'}</td>
                     <td>
