@@ -43,11 +43,16 @@ MT5_LOGIN: int = int(_get_env("MT5_LOGIN", default="0", required=False))
 MT5_PASS: str = _get_env("MT5_PASS", default="", required=False)
 MT5_SERVER: str = _get_env("MT5_SERVER", default="", required=False)
 
+DASHBOARD_PASSWORD: str = _get_env("DASHBOARD_PASSWORD", default="admin123", required=False)
+
 # ─── Trading Symbol ─────────────────────────────────────────
 # Note: Exness typically uses "XAUUSDm" (mini), "XAUUSD", or "XAUUSD.c"
 # The bot will auto-detect the correct suffix at startup.
 SYMBOL_BASE: str = _get_env("SYMBOL_BASE", default="XAUUSD")
 SYMBOL: str = ""  # Resolved at runtime by mt5_connector
+
+SYMBOLS = [SYMBOL_BASE]
+CORRELATION_GROUPS = {}
 
 # ─── Risk Management ────────────────────────────────────────
 RISK_PCT_PER_TRADE: float = float(_get_env("RISK_PCT_PER_TRADE", default="0.5"))  # 0.5% of equity
