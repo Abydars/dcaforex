@@ -28,8 +28,15 @@ def check_session() -> Tuple[bool, str]:
     for name, sh, sm, eh, em in config.SESSIONS_UTC:
         start = time(sh, sm)
         end = time(eh, em)
-        if start <= now <= end:
-            return True, f"Session: {name}"
+        
+        if start <= end:
+            # Normal session (e.g. 07:00 to 11:00)
+            if start <= now <= end:
+                return True, f"Session: {name}"
+        else:
+            # Cross-midnight session (e.g. 19:00 to 18:59)
+            if now >= start or now <= end:
+                return True, f"Session: {name}"
 
     return False, "Outside trading sessions"
 
