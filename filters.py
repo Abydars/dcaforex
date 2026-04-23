@@ -15,7 +15,7 @@ from typing import List, Tuple
 import requests
 
 import config
-from mt5_connector import get_rates, get_spread_usd, TF_M15
+from mt5_connector import get_rates, get_spread_usd, TF_M15, get_tick
 
 logger = logging.getLogger("Filters")
 
@@ -44,9 +44,17 @@ def check_session() -> Tuple[bool, str]:
 # ─── Spread Filter ─────────────────────────────────────────
 def check_spread(symbol: str) -> Tuple[bool, str]:
     spread = get_spread_usd(symbol)
-    if spread > config.MAX_SPREAD_USD:
-        return False, f"Spread too wide: ${spread:.2f} > ${config.MAX_SPREAD_USD:.2f}"
-    return True, f"Spread OK: ${spread:.2f}"
+    tick = get_tick(symbol)
+    if tick is None:
+        return False, "No tick for spread check"
+    price = (tick.bid + tick.ask) / 2.0
+
+    pct_threshold = price * (config.MAX_SPREAD_PCT / 100.0)
+    effective_max = min(max(pct_threshold, 0.0), config.MAX_SPREAD_FLOOR_USD)
+
+    if spread > effective_max:
+        return False, f"Spread ${spread:.2f} > max ${effective_max:.2f}"
+    return True, f"Spread ${spread:.2f} OK (max ${effective_max:.2f})"
 
 
 # ─── Volatility Filter (ATR on M15) ────────────────────────
@@ -67,9 +75,21 @@ def _compute_atr(candles, period: int = 14) -> float:
 def check_volatility(symbol: str) -> Tuple[bool, str]:
     m15 = get_rates(symbol, TF_M15, 20)
     atr = _compute_atr(m15, period=14)
-    if atr < config.MIN_ATR_M15_USD:
-        return False, f"ATR(M15)=${atr:.2f} < min ${config.MIN_ATR_M15_USD:.2f} (market flat)"
-    return True, f"ATR(M15)=${atr:.2f} OK"
+
+    tick = get_tick(symbol)
+    if tick is None:
+        return False, "No tick for volatility check"
+    price = (tick.bid + tick.ask) / 2.0
+
+    pct_threshold = price * (config.MIN_ATR_M15_PCT / 100.0)
+    threshold = max(config.MIN_ATR_M15_FLOOR_USD, pct_threshold)
+
+    if atr < threshold:
+        return False, (
+            f"ATR(M15)=${atr:.2f} < required ${threshold:.2f} "
+            f"({config.MIN_ATR_M15_PCT}% of price)"
+        )
+    return True, f"ATR(M15)=${atr:.2f} OK (min ${threshold:.2f})"
 
 
 # ─── News Filter ───────────────────────────────────────────

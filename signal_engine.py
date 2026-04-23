@@ -93,14 +93,15 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     direction_smc = _bias_direction_to_smc(bias.h1_trend)
     direction_order = 'BUY' if bias.h1_trend == 'BULLISH' else 'SELL'
 
-    # ── Step 3: M5 candles ──
+    # ── Step 3: M5 candles + ATR ──
     m5 = get_rates(symbol, TF_M5, config.M5_LOOKBACK)
     if m5 is None:
         logger.debug("M5 data unavailable")
         return None
+    m5_atr = _compute_atr(m5, period=14)
 
     # ── Step 4: Find recent liquidity sweep on M5 ──
-    sweep = find_recent_sweep(m5, direction_smc)
+    sweep = find_recent_sweep(m5, direction_smc, atr=m5_atr)
     if sweep is None:
         ui_state.last_market_context["sweep"] = "NO RECENT SWEEP"
         logger.debug(f"❌ No recent {direction_smc} sweep on M5")
@@ -110,9 +111,7 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     logger.debug(f"Sweep found: {sweep}")
 
     # ── Step 5: Find unmitigated FVG after sweep ──
-    m15 = get_rates(symbol, TF_M15, 20)
-    atr_m15 = _compute_atr(m15, period=14)
-    fvg = find_entry_fvg_after_sweep(m5, direction_smc, sweep, atr=atr_m15)
+    fvg = find_entry_fvg_after_sweep(m5, direction_smc, sweep, atr=m5_atr)
     if fvg is None:
         ui_state.last_market_context["fvg"] = "WAITING FOR FVG"
         logger.debug(f"❌ No unmitigated FVG after sweep")
@@ -134,11 +133,14 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
             return None
 
     # ── Step 7: Calculate entry, SL, TP ──
+    atr_buffer = m5_atr * config.SL_BUFFER_ATR_FRAC if m5_atr > 0 else 0.0
+    sl_buffer = max(config.SL_BUFFER_FLOOR_USD, atr_buffer)
+
     if direction_smc == 'BULLISH':
         # Entry at FVG mid (we'll use market if we're already in/below it)
         # but for this scalping setup, we enter at current price to avoid missing it
         entry = current_price
-        sl = sweep.sweep_extreme - config.SL_BUFFER_USD
+        sl = sweep.sweep_extreme - sl_buffer
         # TP: next liquidity target (swing high above)
         target = find_next_liquidity_target(m5, direction_smc, entry)
         if target is None:
@@ -147,7 +149,7 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
         tp = target
     else:
         entry = current_price
-        sl = sweep.sweep_extreme + config.SL_BUFFER_USD
+        sl = sweep.sweep_extreme + sl_buffer
         target = find_next_liquidity_target(m5, direction_smc, entry)
         if target is None:
             target = entry - (sl - entry) * config.MIN_RR
@@ -181,7 +183,8 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
         rr=rr,
         setup_note=(
             f"H1 {bias.h1_trend} | Swept {sweep.swing.kind} @ ${sweep.swing.price:.2f} "
-            f"| FVG {fvg.bottom:.2f}-{fvg.top:.2f} | RR {rr:.2f}"
+            f"| FVG {fvg.bottom:.2f}-{fvg.top:.2f} | RR {rr:.2f} "
+            f"| M5_ATR=${m5_atr:.2f} | SL buf ${sl_buffer:.2f}"
         ),
         sweep=sweep,
         fvg=fvg,

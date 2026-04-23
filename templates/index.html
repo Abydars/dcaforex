@@ -404,8 +404,41 @@
         <div class="form-group"><label>Consecutive Stops</label><input type="number" step="1" id="cfg_MAX_CONSECUTIVE_LOSSES"></div>
         <div class="form-group"><label>Minimum RR</label><input type="number" step="0.1" id="cfg_MIN_RR"></div>
         <div class="form-group"><label>Maximum RR</label><input type="number" step="0.1" id="cfg_MAX_RR"></div>
-        <div class="form-group"><label>Min ATR Volatility</label><input type="number" step="0.1" id="cfg_MIN_ATR_M15_USD"></div>
-        <div class="form-group"><label>Spread Ceiling ($)</label><input type="number" step="0.1" id="cfg_MAX_SPREAD_USD"></div>
+        <div class="form-group">
+            <label>FVG Min (ATR fraction)</label>
+            <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                <input type="number" step="0.01" id="cfg_FVG_MIN_ATR_FRAC">
+                <span id="eff_fvg" style="font-size:9px; color:var(--text-muted); margin-top:2px;">--</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Sweep Wick (ATR fraction)</label>
+            <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                <input type="number" step="0.01" id="cfg_SWEEP_WICK_ATR_FRAC">
+                <span id="eff_sweep" style="font-size:9px; color:var(--text-muted); margin-top:2px;">--</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>SL Buffer (ATR fraction)</label>
+            <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                <input type="number" step="0.01" id="cfg_SL_BUFFER_ATR_FRAC">
+                <span id="eff_sl" style="font-size:9px; color:var(--text-muted); margin-top:2px;">--</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Min ATR M15 (% of price)</label>
+            <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                <input type="number" step="0.01" id="cfg_MIN_ATR_M15_PCT">
+                <span id="eff_atr" style="font-size:9px; color:var(--text-muted); margin-top:2px;">--</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Max Spread (% of price)</label>
+            <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                <input type="number" step="0.01" id="cfg_MAX_SPREAD_PCT">
+                <span id="eff_spread" style="font-size:9px; color:var(--text-muted); margin-top:2px;">--</span>
+            </div>
+        </div>
         <div class="form-group">
             <label>High Impact News</label>
             <select id="cfg_NEWS_ENABLED">
@@ -481,8 +514,11 @@
                 document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value = cfg.MAX_CONSECUTIVE_LOSSES;
                 document.getElementById('cfg_MIN_RR').value = cfg.MIN_RR;
                 document.getElementById('cfg_MAX_RR').value = cfg.MAX_RR;
-                document.getElementById('cfg_MIN_ATR_M15_USD').value = cfg.MIN_ATR_M15_USD;
-                document.getElementById('cfg_MAX_SPREAD_USD').value = cfg.MAX_SPREAD_USD;
+                document.getElementById('cfg_FVG_MIN_ATR_FRAC').value = cfg.FVG_MIN_ATR_FRAC;
+                document.getElementById('cfg_SWEEP_WICK_ATR_FRAC').value = cfg.SWEEP_WICK_ATR_FRAC;
+                document.getElementById('cfg_SL_BUFFER_ATR_FRAC').value = cfg.SL_BUFFER_ATR_FRAC;
+                document.getElementById('cfg_MIN_ATR_M15_PCT').value = cfg.MIN_ATR_M15_PCT;
+                document.getElementById('cfg_MAX_SPREAD_PCT').value = cfg.MAX_SPREAD_PCT;
                 document.getElementById('cfg_NEWS_ENABLED').value = cfg.NEWS_ENABLED ? "true" : "false";
                 
                 const cont = document.getElementById('sessions-container');
@@ -493,6 +529,15 @@
                     addSessionRow("LONDON", 7, 0, 11, 0);
                     addSessionRow("NY", 12, 30, 16, 0);
                 }
+            }
+            
+            if (cfg.effective) {
+                const eff = cfg.effective;
+                document.getElementById('eff_fvg').innerText = `(= $${eff.fvg_usd.toFixed(2)} at M5 ATR $${eff.m5_atr.toFixed(2)})`;
+                document.getElementById('eff_sweep').innerText = `(= $${eff.sweep_usd.toFixed(2)} at M5 ATR $${eff.m5_atr.toFixed(2)})`;
+                document.getElementById('eff_sl').innerText = `(= $${eff.sl_usd.toFixed(2)} at M5 ATR $${eff.m5_atr.toFixed(2)})`;
+                document.getElementById('eff_atr').innerText = `(= $${eff.atr_m15_usd.toFixed(2)} at price $${eff.price.toFixed(2)})`;
+                document.getElementById('eff_spread').innerText = `(= $${eff.spread_usd.toFixed(2)} at price $${eff.price.toFixed(2)})`;
             }
         }
 
@@ -671,8 +716,11 @@
                     MAX_CONSECUTIVE_LOSSES: document.getElementById('cfg_MAX_CONSECUTIVE_LOSSES').value,
                     MIN_RR: document.getElementById('cfg_MIN_RR').value,
                     MAX_RR: document.getElementById('cfg_MAX_RR').value,
-                    MIN_ATR_M15_USD: document.getElementById('cfg_MIN_ATR_M15_USD').value,
-                    MAX_SPREAD_USD: document.getElementById('cfg_MAX_SPREAD_USD').value,
+                    FVG_MIN_ATR_FRAC: document.getElementById('cfg_FVG_MIN_ATR_FRAC').value,
+                    SWEEP_WICK_ATR_FRAC: document.getElementById('cfg_SWEEP_WICK_ATR_FRAC').value,
+                    SL_BUFFER_ATR_FRAC: document.getElementById('cfg_SL_BUFFER_ATR_FRAC').value,
+                    MIN_ATR_M15_PCT: document.getElementById('cfg_MIN_ATR_M15_PCT').value,
+                    MAX_SPREAD_PCT: document.getElementById('cfg_MAX_SPREAD_PCT').value,
                     NEWS_ENABLED: document.getElementById('cfg_NEWS_ENABLED').value,
                     SESSIONS_UTC: sessions
                 })

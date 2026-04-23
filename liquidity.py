@@ -49,10 +49,9 @@ class LiquiditySweep:
 # ─── FVG Detection ─────────────────────────────────────────
 def detect_fvgs(
     candles,
-    min_size: float = None,
+    atr: float = 0.0,
     max_age: int = None,
     only_unmitigated: bool = True,
-    atr: float = None,
 ) -> List[FVG]:
     """
     Detect Fair Value Gaps in the candle array.
@@ -67,9 +66,9 @@ def detect_fvgs(
     If only_unmitigated=True, filters out FVGs where later price action
     has already filled the gap.
     """
-    if min_size is None:
-        atr_based = (atr * config.FVG_MIN_SIZE_ATR_FRAC) if atr else 0.0
-        min_size = max(config.FVG_MIN_SIZE_USD, atr_based)
+    # Compute effective min size
+    atr_based = atr * config.FVG_MIN_ATR_FRAC if atr > 0 else 0.0
+    min_size = max(config.FVG_FLOOR_USD, atr_based)
     if max_age is None:
         max_age = config.FVG_MAX_AGE_BARS
 
@@ -143,8 +142,8 @@ def detect_fvgs(
 def find_recent_sweep(
     candles,
     direction: str,
+    atr: float = 0.0,
     lookback: int = None,
-    min_wick: float = None,
 ) -> Optional[LiquiditySweep]:
     """
     Find the most recent liquidity sweep in the given direction.
@@ -160,8 +159,9 @@ def find_recent_sweep(
     """
     if lookback is None:
         lookback = config.SWEEP_LOOKBACK_BARS
-    if min_wick is None:
-        min_wick = config.SWEEP_MIN_WICK_USD
+
+    atr_based = atr * config.SWEEP_WICK_ATR_FRAC if atr > 0 else 0.0
+    min_wick = max(config.SWEEP_WICK_FLOOR_USD, atr_based)
 
     n = len(candles)
     if n < 5:
@@ -230,7 +230,7 @@ def find_entry_fvg_after_sweep(
     candles,
     direction: str,
     sweep: LiquiditySweep,
-    atr: float = None,
+    atr: float = 0.0,
 ) -> Optional[FVG]:
     """
     After a sweep, look for an unmitigated FVG in the same direction

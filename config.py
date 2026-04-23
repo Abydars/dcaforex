@@ -71,25 +71,36 @@ H1_LOOKBACK: int = 100   # ~4 days of H1 for bias
 M15_LOOKBACK: int = 80   # ~20 hours of M15 for structure
 M5_LOOKBACK: int = 60    # ~5 hours of M5 for entries
 
-# FVG parameters
-FVG_MIN_SIZE_USD: float = 0.15        # Absolute floor
-FVG_MIN_SIZE_ATR_FRAC: float = 0.08   # Or 8% of current M15 ATR
-FVG_MAX_AGE_BARS: int = 20       # FVG expires after 20 M5 bars
+# ─── FVG (M5) ───────────────────────────────────────────────
+# An FVG qualifies if its size ≥ max(FVG_MIN_ATR_FRAC * M5_ATR, FVG_FLOOR_USD)
+FVG_MIN_ATR_FRAC: float = 0.10        # FVG must be ≥ 10% of M5 ATR
+FVG_FLOOR_USD: float = 0.10           # But never smaller than $0.10
+FVG_MAX_AGE_BARS: int = 20            # Keep as-is
 
-# Liquidity sweep parameters
-SWEEP_MIN_WICK_USD: float = 0.15  # Wick must extend at least $0.15 beyond swing
-SWEEP_MAX_SWINGS_BACK: int = 3    # Check up to this many recent swings
-SWEEP_LOOKBACK_BARS: int = 30     # Look for sweeps against last 30 M5 bars
+# ─── Liquidity Sweep (M5) ───────────────────────────────────
+# Wick must extend past swing by ≥ max(SWEEP_WICK_ATR_FRAC * M5_ATR, SWEEP_WICK_FLOOR_USD)
+SWEEP_WICK_ATR_FRAC: float = 0.08     # 8% of M5 ATR
+SWEEP_WICK_FLOOR_USD: float = 0.10    # Absolute floor
+SWEEP_MAX_SWINGS_BACK: int = 3        # Keep as-is
+SWEEP_LOOKBACK_BARS: int = 30         # Keep as-is
 
-# Stop loss buffer beyond sweep point (in USD)
-SL_BUFFER_USD: float = 0.25      # $0.25 buffer past sweep high/low
+# ─── Stop Loss Buffer (M5) ──────────────────────────────────
+# SL placed at sweep extreme ± max(SL_BUFFER_ATR_FRAC * M5_ATR, SL_BUFFER_FLOOR_USD)
+SL_BUFFER_ATR_FRAC: float = 0.15      # 15% of M5 ATR
+SL_BUFFER_FLOOR_USD: float = 0.15     # Absolute floor
 
 # ─── Filters ────────────────────────────────────────────────
-# Volatility filter
-MIN_ATR_M15_USD: float = float(_get_env("MIN_ATR_M15_USD", default="1.50"))
+# ─── Volatility Floor (M15) ─────────────────────────────────
+# Skip trading if M15 ATR is less than MIN_ATR_M15_PCT % of current price.
+# e.g., 0.06% of $2800 = $1.68; at $1800 = $1.08. Auto-scales across price levels.
+MIN_ATR_M15_PCT: float = float(_get_env("MIN_ATR_M15_PCT", default="0.06"))
+MIN_ATR_M15_FLOOR_USD: float = 0.80   # Sanity floor
 
-# Spread filter (absolute cap in USD)
-MAX_SPREAD_USD: float = float(_get_env("MAX_SPREAD_USD", default="0.50"))
+# ─── Spread Filter ──────────────────────────────────────────
+# Skip if spread > MAX_SPREAD_PCT % of current price.
+# 0.02% of $2800 = $0.56; naturally widens threshold when gold rallies.
+MAX_SPREAD_PCT: float = float(_get_env("MAX_SPREAD_PCT", default="0.02"))
+MAX_SPREAD_FLOOR_USD: float = 0.30    # Always reject if spread > this
 
 # Sessions (UTC).
 # Expected format in .env: SESSIONS_UTC='[["LONDON", 7, 0, 11, 0], ["NY", 12, 30, 16, 0]]'

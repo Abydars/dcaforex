@@ -84,6 +84,23 @@ def get_state():
     # Today's stats
     stats = risk_mgr.stats
 
+    # Calculate current effective thresholds
+    import filters
+    m5 = mt5_connector.get_rates(config.SYMBOL, mt5_connector.TF_M5, 20)
+    m15 = mt5_connector.get_rates(config.SYMBOL, mt5_connector.TF_M15, 20)
+    m5_atr = filters._compute_atr(m5, period=14)
+    m15_atr = filters._compute_atr(m15, period=14)
+    
+    tick = mt5.symbol_info_tick(config.SYMBOL)
+    price = (tick.bid + tick.ask) / 2.0 if tick else 0.0
+
+    fvg_eff = max(config.FVG_FLOOR_USD, m5_atr * config.FVG_MIN_ATR_FRAC) if m5_atr else config.FVG_FLOOR_USD
+    sweep_eff = max(config.SWEEP_WICK_FLOOR_USD, m5_atr * config.SWEEP_WICK_ATR_FRAC) if m5_atr else config.SWEEP_WICK_FLOOR_USD
+    sl_eff = max(config.SL_BUFFER_FLOOR_USD, m5_atr * config.SL_BUFFER_ATR_FRAC) if m5_atr else config.SL_BUFFER_FLOOR_USD
+    
+    atr_m15_eff = max(config.MIN_ATR_M15_FLOOR_USD, price * (config.MIN_ATR_M15_PCT / 100.0))
+    spread_eff = min(max(price * (config.MAX_SPREAD_PCT / 100.0), 0.0), config.MAX_SPREAD_FLOOR_USD)
+
     # Configuration summary
     config_summary = {
         "RISK_PCT_PER_TRADE": config.RISK_PCT_PER_TRADE,
@@ -92,10 +109,22 @@ def get_state():
         "MAX_CONSECUTIVE_LOSSES": config.MAX_CONSECUTIVE_LOSSES,
         "MIN_RR": config.MIN_RR,
         "MAX_RR": config.MAX_RR,
-        "MIN_ATR_M15_USD": config.MIN_ATR_M15_USD,
-        "MAX_SPREAD_USD": config.MAX_SPREAD_USD,
+        "FVG_MIN_ATR_FRAC": config.FVG_MIN_ATR_FRAC,
+        "SWEEP_WICK_ATR_FRAC": config.SWEEP_WICK_ATR_FRAC,
+        "SL_BUFFER_ATR_FRAC": config.SL_BUFFER_ATR_FRAC,
+        "MIN_ATR_M15_PCT": config.MIN_ATR_M15_PCT,
+        "MAX_SPREAD_PCT": config.MAX_SPREAD_PCT,
         "NEWS_ENABLED": config.NEWS_ENABLED,
         "SESSIONS_UTC": config.SESSIONS_UTC,
+        "effective": {
+            "m5_atr": m5_atr,
+            "fvg_usd": fvg_eff,
+            "sweep_usd": sweep_eff,
+            "sl_usd": sl_eff,
+            "price": price,
+            "atr_m15_usd": atr_m15_eff,
+            "spread_usd": spread_eff
+        }
     }
 
     return jsonify({
@@ -159,8 +188,11 @@ def update_config():
         "MAX_CONSECUTIVE_LOSSES": (int, "MAX_CONSECUTIVE_LOSSES"),
         "MIN_RR": (float, "MIN_RR"),
         "MAX_RR": (float, "MAX_RR"),
-        "MIN_ATR_M15_USD": (float, "MIN_ATR_M15_USD"),
-        "MAX_SPREAD_USD": (float, "MAX_SPREAD_USD"),
+        "FVG_MIN_ATR_FRAC": (float, "FVG_MIN_ATR_FRAC"),
+        "SWEEP_WICK_ATR_FRAC": (float, "SWEEP_WICK_ATR_FRAC"),
+        "SL_BUFFER_ATR_FRAC": (float, "SL_BUFFER_ATR_FRAC"),
+        "MIN_ATR_M15_PCT": (float, "MIN_ATR_M15_PCT"),
+        "MAX_SPREAD_PCT": (float, "MAX_SPREAD_PCT"),
         "NEWS_ENABLED": (lambda x: str(x).lower() == "true", "NEWS_ENABLED")
     }
     

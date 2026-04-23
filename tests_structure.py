@@ -174,7 +174,7 @@ def test_bullish_fvg():
         (13, 14, 12, 13),   # 3
         (13, 14, 12, 13),   # 4
     ])
-    fvgs = detect_fvgs(candles, min_size=0.5, only_unmitigated=False)
+    fvgs = detect_fvgs(candles, atr=5.0, only_unmitigated=False)
     bull = [f for f in fvgs if f.direction == 'BULLISH']
     assert len(bull) >= 1, f"Expected at least 1 bullish FVG, got {fvgs}"
     assert bull[0].bottom == 11
@@ -189,7 +189,7 @@ def test_bearish_fvg():
         (10, 11, 9, 10),    # 3
         (10, 11, 9, 10),    # 4
     ])
-    fvgs = detect_fvgs(candles, min_size=0.5, only_unmitigated=False)
+    fvgs = detect_fvgs(candles, atr=5.0, only_unmitigated=False)
     bear = [f for f in fvgs if f.direction == 'BEARISH']
     assert len(bear) >= 1, f"Expected at least 1 bearish FVG, got {fvgs}"
 
@@ -203,7 +203,7 @@ def test_mitigated_fvg_excluded():
         (12, 13, 10, 11),   # 3 ← fills the FVG (low 10 dips into 11-12 zone)
         (11, 12, 10, 11),   # 4
     ])
-    fvgs = detect_fvgs(candles, min_size=0.5, only_unmitigated=True)
+    fvgs = detect_fvgs(candles, atr=5.0, only_unmitigated=True)
     # Should be empty because mitigated
     assert not any(f.direction == 'BULLISH' for f in fvgs)
 
@@ -226,7 +226,7 @@ def test_bullish_sweep():
         (20, 22, 19, 21),   # 10
         (21, 23, 20, 22),   # 11
     ])
-    sweep = find_recent_sweep(candles, direction='BULLISH', min_wick=0.5)
+    sweep = find_recent_sweep(candles, direction='BULLISH', atr=6.25)
     assert sweep is not None, "Expected a sweep"
     assert sweep.direction == 'BULLISH'
     assert sweep.sweep_index == 9
@@ -271,15 +271,13 @@ def test_sweep_checks_multiple_prior_swings():
         (12, 14, 11, 13),   # 13
         (13, 15, 12, 14),   # 14
     ])
-    sweep = find_recent_sweep(candles, direction='BULLISH', min_wick=0.5)
+    sweep = find_recent_sweep(candles, direction='BULLISH', atr=6.25)
     assert sweep is not None, "Expected sweep to be detected from older swing A"
     assert sweep.swing.price == 10, f"Expected to sweep A (10), got {sweep.swing.price}"
 
 
-def test_fvg_min_size_atr_adaptive():
-    """When atr is provided, min FVG size should scale with ATR.
-    Verify that an FVG just above floor is detected when ATR is low,
-    but rejected when ATR is high."""
+def test_fvg_atr_adaptive_low_vol():
+    """When ATR is low, small FVGs above floor should be detected."""
     candles = _mk_candles([
         (10, 11.0, 9, 10),    # 0 (prev) -> prev high = 11.0
         (11, 14, 11, 13),     # 1 (middle)
@@ -288,13 +286,60 @@ def test_fvg_min_size_atr_adaptive():
         (13, 14, 12, 13),     # 4
     ])
     
-    # Low ATR (1.0 -> 0.08 min size, floor is 0.15, so 0.20 > 0.15)
-    fvgs_low = detect_fvgs(candles, atr=1.0, only_unmitigated=False)
+    # With atr=0.5: threshold = max(0.10, 0.5*0.10) = 0.10. FVG 0.20 passes.
+    fvgs_low = detect_fvgs(candles, atr=0.5, only_unmitigated=False)
     assert len(fvgs_low) == 1, "Expected FVG to be detected with low ATR"
     
-    # High ATR (5.0 -> 0.40 min size, so 0.20 < 0.40)
-    fvgs_high = detect_fvgs(candles, atr=5.0, only_unmitigated=False)
+    # With atr=3.0: threshold = max(0.10, 3.0*0.10) = 0.30. FVG 0.20 rejected.
+    fvgs_high = detect_fvgs(candles, atr=3.0, only_unmitigated=False)
     assert len(fvgs_high) == 0, "Expected FVG to be ignored with high ATR"
+
+
+def test_fvg_floor_enforced():
+    """Even when ATR=0, the absolute floor applies."""
+    # FVG of 0.05
+    candles = _mk_candles([
+        (10, 11.0, 9, 10),
+        (11, 14, 11, 13),
+        (13, 14, 11.05, 13), # gap = 11.05 - 11.0 = 0.05
+        (13, 14, 12, 13),
+    ])
+    fvgs_below = detect_fvgs(candles, atr=0.0, only_unmitigated=False)
+    assert len(fvgs_below) == 0
+
+    # FVG of 0.15
+    candles_above = _mk_candles([
+        (10, 11.0, 9, 10),
+        (11, 14, 11, 13),
+        (13, 14, 11.15, 13), # gap = 11.15 - 11.0 = 0.15
+        (13, 14, 12, 13),
+    ])
+    fvgs_above = detect_fvgs(candles_above, atr=0.0, only_unmitigated=False)
+    assert len(fvgs_above) == 1
+
+
+def test_sweep_wick_atr_adaptive():
+    """Sweep wick threshold scales with ATR."""
+    # Wick = 8, Swing = 10, Sweep extent = 2.0
+    candles = _mk_candles([
+        (20, 21, 19, 20),   # 0 (Padding)
+        (20, 21, 19, 20),   # 1 (Padding)
+        (20, 21, 19, 20),   # 2 (Padding)
+        (18, 18, 10, 16),   # 3 Swing low A = 10
+        (16, 17, 15, 17),   # 4
+        (17, 19, 16, 18),   # 5
+        (18, 20, 18, 19),   # 6 A confirmed
+        (22, 22, 8, 12),    # 7 Sweep: wick 8 (extends by 2.0 below 10), close 12 > 10
+        (12, 14, 11, 13),   # 8
+        (12, 14, 11, 13),   # 9
+    ])
+    # atr=10.0 => threshold = max(0.10, 10 * 0.08) = 0.80. 2.0 > 0.80 -> passes
+    sweep_low = find_recent_sweep(candles, direction='BULLISH', atr=10.0)
+    assert sweep_low is not None
+
+    # atr=40.0 => threshold = max(0.10, 40 * 0.08) = 3.20. 2.0 < 3.20 -> fails
+    sweep_high = find_recent_sweep(candles, direction='BULLISH', atr=40.0)
+    assert sweep_high is None
 
 
 # ─── Run All ───────────────────────────────────────────────
