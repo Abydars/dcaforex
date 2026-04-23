@@ -243,6 +243,60 @@ def test_discount_zone():
     assert is_in_premium(12.0, zone) is False
 
 
+def test_sweep_checks_multiple_prior_swings():
+    """A sweep should be detectable even when the nearest prior swing
+    wasn't the one swept — as long as it's within SWEEP_MAX_SWINGS_BACK."""
+    candles = _mk_candles([
+        (20, 21, 19, 20),   # 0
+        (20, 20, 18, 19),   # 1
+        (19, 19, 17, 18),   # 2
+        # Swing Low A (price = 10)
+        (18, 18, 10, 16),   # 3 <- A
+        (16, 17, 15, 17),   # 4
+        (17, 19, 16, 18),   # 5
+        (18, 20, 18, 19),   # 6 (A confirmed)
+        
+        # Swing Low B (price = 15)
+        (19, 21, 18, 20),   # 7
+        (20, 22, 15, 19),   # 8 <- B
+        (19, 20, 18, 20),   # 9
+        (20, 22, 19, 21),   # 10
+        (21, 23, 20, 22),   # 11 (B confirmed)
+        
+        # Sweep candle: wicks below A (10) and B (15).
+        # Wick = 8, Close = 12.
+        # Since close (12) > 10, it sweeps A.
+        # But close (12) is NOT > 15, so it fails the sweep check for B.
+        (22, 22, 8, 12),    # 12
+        (12, 14, 11, 13),   # 13
+        (13, 15, 12, 14),   # 14
+    ])
+    sweep = find_recent_sweep(candles, direction='BULLISH', min_wick=0.5)
+    assert sweep is not None, "Expected sweep to be detected from older swing A"
+    assert sweep.swing.price == 10, f"Expected to sweep A (10), got {sweep.swing.price}"
+
+
+def test_fvg_min_size_atr_adaptive():
+    """When atr is provided, min FVG size should scale with ATR.
+    Verify that an FVG just above floor is detected when ATR is low,
+    but rejected when ATR is high."""
+    candles = _mk_candles([
+        (10, 11.0, 9, 10),    # 0 (prev) -> prev high = 11.0
+        (11, 14, 11, 13),     # 1 (middle)
+        (13, 14, 11.2, 13),   # 2 (next) -> next low = 11.2, Gap = 0.20
+        (13, 14, 12, 13),     # 3
+        (13, 14, 12, 13),     # 4
+    ])
+    
+    # Low ATR (1.0 -> 0.08 min size, floor is 0.15, so 0.20 > 0.15)
+    fvgs_low = detect_fvgs(candles, atr=1.0, only_unmitigated=False)
+    assert len(fvgs_low) == 1, "Expected FVG to be detected with low ATR"
+    
+    # High ATR (5.0 -> 0.40 min size, so 0.20 < 0.40)
+    fvgs_high = detect_fvgs(candles, atr=5.0, only_unmitigated=False)
+    assert len(fvgs_high) == 0, "Expected FVG to be ignored with high ATR"
+
+
 # ─── Run All ───────────────────────────────────────────────
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]

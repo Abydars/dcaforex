@@ -72,15 +72,17 @@ M15_LOOKBACK: int = 80   # ~20 hours of M15 for structure
 M5_LOOKBACK: int = 60    # ~5 hours of M5 for entries
 
 # FVG parameters
-FVG_MIN_SIZE_USD: float = 0.30   # Minimum FVG size on gold ($0.30 = 30 cents)
+FVG_MIN_SIZE_USD: float = 0.15        # Absolute floor
+FVG_MIN_SIZE_ATR_FRAC: float = 0.08   # Or 8% of current M15 ATR
 FVG_MAX_AGE_BARS: int = 20       # FVG expires after 20 M5 bars
 
 # Liquidity sweep parameters
-SWEEP_MIN_WICK_USD: float = 0.20  # Wick must extend at least $0.20 beyond swing
+SWEEP_MIN_WICK_USD: float = 0.15  # Wick must extend at least $0.15 beyond swing
+SWEEP_MAX_SWINGS_BACK: int = 3    # Check up to this many recent swings
 SWEEP_LOOKBACK_BARS: int = 30     # Look for sweeps against last 30 M5 bars
 
 # Stop loss buffer beyond sweep point (in USD)
-SL_BUFFER_USD: float = 0.50      # $0.50 buffer past sweep high/low
+SL_BUFFER_USD: float = 0.25      # $0.25 buffer past sweep high/low
 
 # ─── Filters ────────────────────────────────────────────────
 # Volatility filter

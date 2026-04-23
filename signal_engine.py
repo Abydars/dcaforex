@@ -23,6 +23,7 @@ from typing import Optional
 import config
 import ui_state
 from bias import BiasResult, get_bias
+from filters import _compute_atr
 from liquidity import (
     FVG,
     LiquiditySweep,
@@ -30,7 +31,7 @@ from liquidity import (
     find_next_liquidity_target,
     find_recent_sweep,
 )
-from mt5_connector import get_rates, get_tick, TF_M5
+from mt5_connector import get_rates, get_tick, TF_M5, TF_M15
 
 logger = logging.getLogger("SignalEngine")
 
@@ -109,7 +110,9 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     logger.debug(f"Sweep found: {sweep}")
 
     # ── Step 5: Find unmitigated FVG after sweep ──
-    fvg = find_entry_fvg_after_sweep(m5, direction_smc, sweep)
+    m15 = get_rates(symbol, TF_M15, 20)
+    atr_m15 = _compute_atr(m15, period=14)
+    fvg = find_entry_fvg_after_sweep(m5, direction_smc, sweep, atr=atr_m15)
     if fvg is None:
         ui_state.last_market_context["fvg"] = "WAITING FOR FVG"
         logger.debug(f"❌ No unmitigated FVG after sweep")

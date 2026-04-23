@@ -52,6 +52,7 @@ def detect_fvgs(
     min_size: float = None,
     max_age: int = None,
     only_unmitigated: bool = True,
+    atr: float = None,
 ) -> List[FVG]:
     """
     Detect Fair Value Gaps in the candle array.
@@ -67,7 +68,8 @@ def detect_fvgs(
     has already filled the gap.
     """
     if min_size is None:
-        min_size = config.FVG_MIN_SIZE_USD
+        atr_based = (atr * config.FVG_MIN_SIZE_ATR_FRAC) if atr else 0.0
+        min_size = max(config.FVG_MIN_SIZE_USD, atr_based)
     if max_age is None:
         max_age = config.FVG_MAX_AGE_BARS
 
@@ -182,11 +184,13 @@ def find_recent_sweep(
 
         if direction == 'BULLISH':
             # Find swing lows that formed BEFORE this candle
+            checked = 0
             for s in reversed(swings):
                 if s.index >= i:
                     continue
                 if s.kind != 'LOW':
                     continue
+                checked += 1
                 if c_low < s.price - min_wick and c_close > s.price:
                     # Sweep confirmed
                     return LiquiditySweep(
@@ -196,15 +200,17 @@ def find_recent_sweep(
                         sweep_extreme=c_low,
                         close_price=c_close,
                     )
-                # Only check against the most recent prior swing low
-                break
+                if checked >= config.SWEEP_MAX_SWINGS_BACK:
+                    break
 
         elif direction == 'BEARISH':
+            checked = 0
             for s in reversed(swings):
                 if s.index >= i:
                     continue
                 if s.kind != 'HIGH':
                     continue
+                checked += 1
                 if c_high > s.price + min_wick and c_close < s.price:
                     return LiquiditySweep(
                         direction='BEARISH',
@@ -213,7 +219,8 @@ def find_recent_sweep(
                         sweep_extreme=c_high,
                         close_price=c_close,
                     )
-                break
+                if checked >= config.SWEEP_MAX_SWINGS_BACK:
+                    break
 
     return best_sweep
 
@@ -223,6 +230,7 @@ def find_entry_fvg_after_sweep(
     candles,
     direction: str,
     sweep: LiquiditySweep,
+    atr: float = None,
 ) -> Optional[FVG]:
     """
     After a sweep, look for an unmitigated FVG in the same direction
@@ -234,7 +242,7 @@ def find_entry_fvg_after_sweep(
     if sweep is None:
         return None
 
-    fvgs = detect_fvgs(candles, only_unmitigated=True)
+    fvgs = detect_fvgs(candles, only_unmitigated=True, atr=atr)
     # Filter: same direction, formed after sweep
     aligned = [
         f for f in fvgs
