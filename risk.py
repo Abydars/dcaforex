@@ -15,6 +15,8 @@ from typing import List, Optional
 import MetaTrader5 as mt5
 
 import config
+import ui_state
+import time
 
 logger = logging.getLogger("Risk")
 
@@ -113,6 +115,15 @@ class RiskManager:
     def __init__(self):
         self.stats = DailyStats(date=self._today_utc())
         self._init_equity()
+        self._last_risk_log_time = {}  # reason -> timestamp
+
+    def _should_log_risk(self, reason: str, min_interval: int = 300) -> bool:
+        now = time.time()
+        last = self._last_risk_log_time.get(reason, 0)
+        if now - last >= min_interval:
+            self._last_risk_log_time[reason] = now
+            return True
+        return False
 
     @staticmethod
     def _today_utc() -> str:
@@ -135,15 +146,26 @@ class RiskManager:
         self._roll_over_if_new_day()
 
         if self.stats.stopped_by_limit:
-            return False, f"Daily stop active: {self.stats.stop_reason}"
+            reason = f"Daily stop active: {self.stats.stop_reason}"
+            if self._should_log_risk(reason):
+                ui_state.log_rejection("RISK", reason,
+                    details={"consecutive_losses": self.stats.consecutive_losses,
+                             "realized_pnl": self.stats.realized_pnl})
+            return False, reason
 
         if self.stats.trades_today >= config.MAX_TRADES_PER_DAY:
-            return False, f"Daily trade cap reached ({self.stats.trades_today}/{config.MAX_TRADES_PER_DAY})"
+            reason = f"Daily trade cap reached ({self.stats.trades_today}/{config.MAX_TRADES_PER_DAY})"
+            if self._should_log_risk(reason):
+                ui_state.log_rejection("RISK", reason)
+            return False, reason
 
         if self.stats.consecutive_losses >= config.MAX_CONSECUTIVE_LOSSES:
             self.stats.stopped_by_limit = True
             self.stats.stop_reason = f"{self.stats.consecutive_losses} consecutive losses"
-            return False, self.stats.stop_reason
+            reason = self.stats.stop_reason
+            if self._should_log_risk(reason):
+                ui_state.log_rejection("RISK", reason, details={"consecutive_losses": self.stats.consecutive_losses})
+            return False, reason
 
         # Live drawdown check
         account = mt5.account_info()
@@ -152,7 +174,10 @@ class RiskManager:
             if dd_pct >= config.MAX_DAILY_LOSS_PCT:
                 self.stats.stopped_by_limit = True
                 self.stats.stop_reason = f"Daily DD hit: -{dd_pct:.2f}%"
-                return False, self.stats.stop_reason
+                reason = self.stats.stop_reason
+                if self._should_log_risk(reason):
+                    ui_state.log_rejection("RISK", reason, details={"dd_pct": round(dd_pct, 2)})
+                return False, reason
 
         return True, "Limits OK"
 

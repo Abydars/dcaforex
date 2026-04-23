@@ -15,6 +15,7 @@ from typing import List, Tuple
 import requests
 
 import config
+import ui_state
 from mt5_connector import get_rates, get_spread_usd, TF_M15, get_tick
 
 logger = logging.getLogger("Filters")
@@ -170,5 +171,10 @@ def all_filters_pass(symbol: str) -> Tuple[bool, str]:
     ]:
         passed, reason = check_fn()
         if not passed:
+            ui_state.log_rejection(
+                "FILTER",
+                f"[{label}] {reason}",
+                details={"filter": label},
+            )
             return False, f"[{label}] {reason}"
     return True, "All filters passed"

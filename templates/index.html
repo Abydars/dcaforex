@@ -269,6 +269,36 @@
             padding: 0.2rem 0.4rem;
         }
 
+        .rejection-panel { max-height: 400px; overflow-y: auto; }
+
+        .scan-status .badge {
+          padding: 2px 8px; border-radius: 4px; font-size: 0.85em; margin-left: 8px;
+        }
+        .badge.SIGNAL  { background: #1f7a3f; color: #fff; }
+        .badge.REJECTED { background: #5c2020; color: #fff; }
+        .badge.PENDING  { background: #555;    color: #fff; }
+
+        .rejection-stats {
+          display: flex; gap: 12px; align-items: center;
+          font-size: 0.9em; color: #9ca3af; margin: 8px 0;
+        }
+
+        .rejection-table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
+        .rejection-table th,
+        .rejection-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+        .rejection-table th { color: #9ca3af; font-weight: 500; }
+
+        .stage-badge { padding: 2px 6px; border-radius: 3px; font-size: 0.8em; font-weight: 600; }
+        .stage-FILTER    { background: #6b4e1c; color: #fff; }
+        .stage-BIAS      { background: #2a4e7c; color: #fff; }
+        .stage-SWEEP     { background: #4c2a7c; color: #fff; }
+        .stage-FVG       { background: #2a6e5f; color: #fff; }
+        .stage-RR        { background: #7c4a2a; color: #fff; }
+        .stage-RISK      { background: #7c2a2a; color: #fff; }
+        .stage-EXECUTION { background: #444;    color: #fff; }
+
+        .rejection-table .empty { color: #6b7280; text-align: center; padding: 16px; font-style: italic; }
+
         @media (max-width: 1100px) {
             .app-layout { grid-template-columns: 1fr; }
         }
@@ -355,6 +385,34 @@
                     <div class="stat-value mono text-cyan" id="ctx-price">--</div>
                 </div>
             </div>
+        </div>
+
+        <div class="panel rejection-panel" id="rejection-panel">
+            <div class="panel-header">🚫 Rejection Log</div>
+            <div class="scan-status" style="margin-bottom: 0.5rem;">
+                <span class="label text-muted">Last scan:</span>
+                <span id="last-scan-time" class="mono">—</span>
+                <span id="last-scan-result" class="badge mono">—</span>
+            </div>
+
+            <div class="rejection-stats" style="margin-bottom: 0.5rem;">
+                <span class="label text-muted">Last hour:</span>
+                <span id="rejection-total" class="mono text-cyan">0</span> <span class="text-muted">rejections</span>
+                <span id="rejection-breakdown"></span>
+            </div>
+
+            <table class="rejection-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Stage</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="rejection-rows">
+                    <tr><td colspan="3" class="empty">No rejections yet — bot is scanning.</td></tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="panel">
@@ -754,9 +812,54 @@
         document.getElementById('sessions-container').appendChild(div);
     }
 
-    fetchData(); fetchHistory();
+    async function refreshRejections() {
+        try {
+            const r = await fetch('/api/rejections?limit=30');
+            const data = await r.json();
+
+            const lastTime = data.last_scan_time
+                ? new Date(data.last_scan_time * 1000).toLocaleTimeString()
+                : '—';
+            document.getElementById('last-scan-time').textContent = lastTime;
+            const resultEl = document.getElementById('last-scan-result');
+            resultEl.textContent = data.last_scan_result;
+            resultEl.className = 'badge ' + data.last_scan_result;
+
+            const stats = data.stats_60m;
+            document.getElementById('rejection-total').textContent = stats.total;
+            const breakdown = Object.entries(stats.by_stage)
+                .sort((a, b) => b[1] - a[1])
+                .map(([stage, n]) => `<span class="stage-badge stage-${stage}">${stage}:${n}</span>`)
+                .join(' ');
+            document.getElementById('rejection-breakdown').innerHTML = breakdown;
+
+            const tbody = document.getElementById('rejection-rows');
+            if (data.rejections.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="empty">No rejections yet — bot is scanning.</td></tr>';
+            } else {
+                tbody.innerHTML = data.rejections.map(r => `
+                    <tr>
+                        <td class="mono">${r.time_str}</td>
+                        <td><span class="stage-badge stage-${r.stage}">${r.stage}</span></td>
+                        <td class="mono" style="font-size: 11px;">${escapeHtml(r.reason)}</td>
+                    </tr>
+                `).join('');
+            }
+        } catch (e) {
+            console.error('Rejection refresh failed', e);
+        }
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+
+    fetchData(); fetchHistory(); refreshRejections();
     setInterval(fetchData, 2000);
     setInterval(fetchHistory, 60000);
+    setInterval(refreshRejections, 3000);
 </script>
 </body>
 </html>

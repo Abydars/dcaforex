@@ -275,6 +275,18 @@ def get_history():
         "recent_trades": trades[:10]  # Just the last 10
     })
 
+@app.route('/api/rejections')
+def api_rejections():
+    """Return recent rejection events + rollup stats."""
+    if not session.get('authenticated'): return jsonify({"error": "Unauthorized"}), 401
+    limit = int(request.args.get('limit', 30))
+    return jsonify({
+        "rejections": ui_state.get_rejections(limit=limit),
+        "stats_60m": ui_state.get_rejection_stats(last_n_minutes=60),
+        "last_scan_time": ui_state.last_scan_time,
+        "last_scan_result": ui_state.last_scan_result,
+    })
+
 def run_dashboard_server():
     print("\n" + "="*50)
     print("🚀 XAUUSD SMC Dashboard LIVE at http://localhost:5000")

@@ -15,6 +15,7 @@ from typing import Optional
 import MetaTrader5 as mt5
 
 import config
+import ui_state
 
 logger = logging.getLogger("Execution")
 
@@ -56,16 +57,20 @@ def _validate_stops(symbol: str, direction: str, entry: float, sl: float, tp: fl
     if direction == "BUY":
         if entry - sl < min_stops:
             logger.error(f"SL too close: {entry - sl} < min {min_stops}")
+            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
             return False
         if tp - entry < min_stops:
             logger.error(f"TP too close: {tp - entry} < min {min_stops}")
+            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
             return False
     else:
         if sl - entry < min_stops:
             logger.error(f"SL too close: {sl - entry} < min {min_stops}")
+            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
             return False
         if entry - tp < min_stops:
             logger.error(f"TP too close: {entry - tp} < min {min_stops}")
+            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
             return False
     return True
 
@@ -159,6 +164,11 @@ def place_market_order(
         logger.error(f"Order rejected. RetCode: {result.retcode} | Comment: {result.comment}")
         time.sleep(0.2)
 
+    ui_state.log_rejection(
+        "EXECUTION",
+        f"Order placement failed: all {max_retries} attempts exhausted",
+        details={"direction": direction, "volume": volume},
+    )
     return OrderResult(success=False, error=f"All {max_retries} attempts exhausted")
 
 

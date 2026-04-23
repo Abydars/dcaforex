@@ -64,10 +64,14 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     End-to-end signal generation. Returns a TradeSignal if all conditions
     are met, else None with detailed logging of why.
     """
+    ui_state.last_scan_time = time.time()
+
     # ── Step 1: Current price ──
     tick = get_tick(symbol)
     if tick is None:
         logger.debug("No tick available")
+        ui_state.log_rejection("EXECUTION", "No tick data available")
+        ui_state.last_scan_result = "REJECTED"
         return None
     current_price = (tick.bid + tick.ask) / 2.0
 
@@ -88,6 +92,17 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
         ui_state.last_market_context["sweep"] = msg
         ui_state.last_market_context["fvg"] = msg
         logger.debug(f"❌ Bias not tradeable: {bias.reason}")
+        ui_state.log_rejection(
+            "BIAS",
+            bias.reason,
+            details={
+                "h1_trend": bias.h1_trend,
+                "m15_aligned": getattr(bias, 'm15_aligned', False),
+                "in_valid_zone": getattr(bias, 'in_valid_zone', False),
+                "price": current_price,
+            },
+        )
+        ui_state.last_scan_result = "REJECTED"
         return None
 
     direction_smc = _bias_direction_to_smc(bias.h1_trend)
@@ -97,6 +112,8 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     m5 = get_rates(symbol, TF_M5, config.M5_LOOKBACK)
     if m5 is None:
         logger.debug("M5 data unavailable")
+        ui_state.log_rejection("EXECUTION", "M5 data unavailable")
+        ui_state.last_scan_result = "REJECTED"
         return None
     m5_atr = _compute_atr(m5, period=14)
 
@@ -105,6 +122,16 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     if sweep is None:
         ui_state.last_market_context["sweep"] = "NO RECENT SWEEP"
         logger.debug(f"❌ No recent {direction_smc} sweep on M5")
+        ui_state.log_rejection(
+            "SWEEP",
+            f"No recent {direction_smc} liquidity sweep on M5",
+            details={
+                "direction": direction_smc,
+                "m5_atr": round(m5_atr, 2),
+                "lookback_bars": config.SWEEP_LOOKBACK_BARS,
+            },
+        )
+        ui_state.last_scan_result = "REJECTED"
         return None
 
     ui_state.last_market_context["sweep"] = f"SWEPT {sweep.swing.kind} @ {sweep.swing.price:.2f}"
@@ -115,6 +142,16 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     if fvg is None:
         ui_state.last_market_context["fvg"] = "WAITING FOR FVG"
         logger.debug(f"❌ No unmitigated FVG after sweep")
+        ui_state.log_rejection(
+            "FVG",
+            f"No unmitigated {direction_smc} FVG after sweep",
+            details={
+                "sweep_index": sweep.sweep_index,
+                "sweep_price": sweep.sweep_extreme,
+                "m5_atr": round(m5_atr, 2),
+            },
+        )
+        ui_state.last_scan_result = "REJECTED"
         return None
 
     ui_state.last_market_context["fvg"] = f"FVG {fvg.bottom:.2f}-{fvg.top:.2f}"
@@ -126,10 +163,22 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     if direction_smc == 'BULLISH':
         if current_price < fvg.bottom:
             logger.debug(f"❌ Price ${current_price:.2f} already below FVG bottom ${fvg.bottom:.2f}")
+            ui_state.log_rejection(
+                "FVG",
+                f"Price ${current_price:.2f} already below FVG bottom ${fvg.bottom:.2f}",
+                details={"price": current_price, "fvg_bottom": fvg.bottom},
+            )
+            ui_state.last_scan_result = "REJECTED"
             return None
     else:
         if current_price > fvg.top:
             logger.debug(f"❌ Price ${current_price:.2f} already above FVG top ${fvg.top:.2f}")
+            ui_state.log_rejection(
+                "FVG",
+                f"Price ${current_price:.2f} already above FVG top ${fvg.top:.2f}",
+                details={"price": current_price, "fvg_top": fvg.top},
+            )
+            ui_state.last_scan_result = "REJECTED"
             return None
 
     # ── Step 7: Calculate entry, SL, TP ──
@@ -160,11 +209,25 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
     reward_dist = abs(tp - entry)
     if risk_dist <= 0:
         logger.debug("Zero risk distance — rejecting")
+        ui_state.log_rejection("RR", "Zero risk distance — rejecting", details={"entry": entry, "sl": sl})
+        ui_state.last_scan_result = "REJECTED"
         return None
     rr = reward_dist / risk_dist
 
     if rr < config.MIN_RR:
         logger.debug(f"❌ RR {rr:.2f} < min {config.MIN_RR}")
+        ui_state.log_rejection(
+            "RR",
+            f"RR {rr:.2f} below minimum {config.MIN_RR}",
+            details={
+                "rr": round(rr, 2),
+                "min_rr": config.MIN_RR,
+                "entry": round(entry, 2),
+                "sl": round(sl, 2),
+                "tp": round(tp, 2),
+            },
+        )
+        ui_state.last_scan_result = "REJECTED"
         return None
 
     # Cap unrealistic RR — target might be too far, use cap
@@ -190,4 +253,5 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
         fvg=fvg,
     )
     logger.info(f"🎯 SIGNAL: {signal} | {signal.setup_note}")
+    ui_state.last_scan_result = "SIGNAL"
     return signal
