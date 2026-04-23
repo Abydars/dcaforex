@@ -837,13 +837,16 @@
             if (data.rejections.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="3" class="empty">No rejections yet — bot is scanning.</td></tr>';
             } else {
-                tbody.innerHTML = data.rejections.map(r => `
+                tbody.innerHTML = data.rejections.map(r => {
+                    const d = new Date(r.timestamp * 1000);
+                    const timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+                    return `
                     <tr>
-                        <td class="mono">${r.time_str}</td>
+                        <td class="mono">${timeStr}</td>
                         <td><span class="stage-badge stage-${r.stage}">${r.stage}</span></td>
                         <td class="mono" style="font-size: 11px;">${escapeHtml(r.reason)}</td>
                     </tr>
-                `).join('');
+                `}).join('');
             }
         } catch (e) {
             console.error('Rejection refresh failed', e);
