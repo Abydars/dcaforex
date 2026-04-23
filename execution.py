@@ -10,7 +10,7 @@ Every order has a hard SL and TP attached at placement time.
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 import MetaTrader5 as mt5
 
@@ -46,33 +46,50 @@ def _normalize_volume(symbol: str, volume: float) -> float:
     return round(int(volume * factor) / factor, 8) if factor > 1 else volume
 
 
-def _validate_stops(symbol: str, direction: str, entry: float, sl: float, tp: float) -> bool:
-    """Ensure SL/TP respect the broker's minimum stops distance."""
+def _validate_stops(symbol: str, direction: str, entry: float, sl: float, tp: float) -> Tuple[bool, str]:
+    """
+    Validate SL/TP placement.
+
+    Returns (is_valid, reason). If invalid, reason explains why specifically.
+
+    Three failure modes:
+    1. SL on wrong side of entry (price moved past SL between signal and execution)
+    2. TP on wrong side of entry (invalid setup)
+    3. Stops within broker's minimum distance (broker constraint)
+    """
     info = mt5.symbol_info(symbol)
     if info is None:
-        return False
+        return False, "Symbol info unavailable"
+
     point = info.point
-    min_stops = info.trade_stops_level * point  # minimum distance from current price
+    min_stops = info.trade_stops_level * point  # 0 for Exness typically
 
     if direction == "BUY":
-        if entry - sl < min_stops:
-            logger.error(f"SL too close: {entry - sl} < min {min_stops}")
-            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
-            return False
-        if tp - entry < min_stops:
-            logger.error(f"TP too close: {tp - entry} < min {min_stops}")
-            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
-            return False
-    else:
-        if sl - entry < min_stops:
-            logger.error(f"SL too close: {sl - entry} < min {min_stops}")
-            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
-            return False
-        if entry - tp < min_stops:
-            logger.error(f"TP too close: {entry - tp} < min {min_stops}")
-            ui_state.log_rejection("EXECUTION", "Stops too tight for broker minimum distance", details={"entry": entry, "sl": sl, "tp": tp})
-            return False
-    return True
+        sl_dist = entry - sl  # Should be positive
+        tp_dist = tp - entry  # Should be positive
+
+        if sl_dist <= 0:
+            return False, f"SL {sl:.2f} on wrong side of entry {entry:.2f} (price moved past sweep — failed reversal)"
+        if tp_dist <= 0:
+            return False, f"TP {tp:.2f} on wrong side of entry {entry:.2f}"
+        if sl_dist < min_stops:
+            return False, f"SL distance {sl_dist:.2f} < broker minimum {min_stops:.2f}"
+        if tp_dist < min_stops:
+            return False, f"TP distance {tp_dist:.2f} < broker minimum {min_stops:.2f}"
+    else:  # SELL
+        sl_dist = sl - entry  # Should be positive
+        tp_dist = entry - tp  # Should be positive
+
+        if sl_dist <= 0:
+            return False, f"SL {sl:.2f} on wrong side of entry {entry:.2f} (price moved past sweep — failed reversal)"
+        if tp_dist <= 0:
+            return False, f"TP {tp:.2f} on wrong side of entry {entry:.2f}"
+        if sl_dist < min_stops:
+            return False, f"SL distance {sl_dist:.2f} < broker minimum {min_stops:.2f}"
+        if tp_dist < min_stops:
+            return False, f"TP distance {tp_dist:.2f} < broker minimum {min_stops:.2f}"
+
+    return True, "OK"
 
 
 def place_market_order(
@@ -103,8 +120,21 @@ def place_market_order(
 
         price = tick.ask if direction == "BUY" else tick.bid
 
-        if not _validate_stops(symbol, direction, price, sl, tp):
-            return OrderResult(success=False, error="Stops too tight for broker limits")
+        valid, reason = _validate_stops(symbol, direction, price, sl, tp)
+        if not valid:
+            logger.error(f"Stops validation failed: {reason}")
+            ui_state.log_rejection(
+                "EXECUTION",
+                reason,
+                details={
+                    "direction": direction,
+                    "current_price": round(price, 2),
+                    "sl": round(sl, 2),
+                    "tp": round(tp, 2),
+                    "broker_min_stops": info.trade_stops_level if (info := mt5.symbol_info(symbol)) else None,
+                },
+            )
+            return OrderResult(success=False, error=reason)
 
         request = {
             "action": mt5.TRADE_ACTION_DEAL,

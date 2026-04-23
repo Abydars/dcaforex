@@ -204,6 +204,67 @@ def generate_signal(symbol: str) -> Optional[TradeSignal]:
             target = entry - (sl - entry) * config.MIN_RR
         tp = target
 
+    # ── Step 7.5: Validate SL/TP directionality ──
+    # Confirm SL and TP are on the correct sides of entry.
+    # If not, the sweep likely failed (price continued past sweep extreme)
+    # and the setup is invalidated.
+    if direction_smc == 'BULLISH':
+        if sl >= entry:
+            ui_state.log_rejection(
+                "STRUCTURE",
+                f"BUY setup invalid: SL ({sl:.2f}) >= entry ({entry:.2f}). "
+                f"Price moved past sweep extreme — failed sweep.",
+                details={
+                    "direction": "BUY",
+                    "entry": round(entry, 2),
+                    "sl": round(sl, 2),
+                    "sweep_extreme": round(sweep.sweep_extreme, 2),
+                },
+            )
+            ui_state.last_scan_result = "REJECTED"
+            return None
+        if tp <= entry:
+            ui_state.log_rejection(
+                "STRUCTURE",
+                f"BUY setup invalid: TP ({tp:.2f}) <= entry ({entry:.2f}). "
+                f"No valid liquidity target above entry.",
+                details={
+                    "direction": "BUY",
+                    "entry": round(entry, 2),
+                    "tp": round(tp, 2),
+                },
+            )
+            ui_state.last_scan_result = "REJECTED"
+            return None
+    else:  # BEARISH
+        if sl <= entry:
+            ui_state.log_rejection(
+                "STRUCTURE",
+                f"SELL setup invalid: SL ({sl:.2f}) <= entry ({entry:.2f}). "
+                f"Price moved past sweep extreme — failed sweep.",
+                details={
+                    "direction": "SELL",
+                    "entry": round(entry, 2),
+                    "sl": round(sl, 2),
+                    "sweep_extreme": round(sweep.sweep_extreme, 2),
+                },
+            )
+            ui_state.last_scan_result = "REJECTED"
+            return None
+        if tp >= entry:
+            ui_state.log_rejection(
+                "STRUCTURE",
+                f"SELL setup invalid: TP ({tp:.2f}) >= entry ({entry:.2f}). "
+                f"No valid liquidity target below entry.",
+                details={
+                    "direction": "SELL",
+                    "entry": round(entry, 2),
+                    "tp": round(tp, 2),
+                },
+            )
+            ui_state.last_scan_result = "REJECTED"
+            return None
+
     # ── Step 8: RR validation ──
     risk_dist = abs(entry - sl)
     reward_dist = abs(tp - entry)
