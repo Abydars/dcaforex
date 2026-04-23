@@ -362,7 +362,8 @@
             <div class="grid grid-3" id="market-context-content">
                 <div class="stat-box">
                     <div class="stat-label">H1 Trend Bias</div>
-                    <div class="stat-value mono" id="ctx-bias">--</div>
+                    <div class="stat-value mono" id="ctx-bias" style="margin-bottom: 2px;">--</div>
+                    <div class="tile-sublabel" id="setup-type" style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">—</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-label">M15 P/D Zone</div>
@@ -661,6 +662,18 @@
             const mc = data.market_context;
             const biasCol = mc.bias_h1 === 'BULLISH' ? 'text-green' : (mc.bias_h1 === 'BEARISH' ? 'text-red' : 'text-muted');
             document.getElementById('ctx-bias').innerHTML = `<span class="${biasCol}">${mc.bias_h1}</span>`;
+
+            const setupEl = document.getElementById('setup-type');
+            if (mc.setup_type === 'CONTINUATION') {
+                setupEl.textContent = 'Continuation';
+                setupEl.style.color = 'var(--accent-green)';
+            } else if (mc.setup_type === 'PULLBACK_END') {
+                setupEl.textContent = 'Pullback-End';
+                setupEl.style.color = 'var(--accent-amber)';
+            } else {
+                setupEl.textContent = '—';
+                setupEl.style.color = 'var(--text-muted)';
+            }
             
             const zoneCol = mc.zone === 'DISCOUNT' ? 'text-green' : (mc.zone === 'PREMIUM' ? 'text-red' : 'text-muted');
             document.getElementById('ctx-zone').innerHTML = `<span class="${zoneCol}">${mc.zone}</span>`;

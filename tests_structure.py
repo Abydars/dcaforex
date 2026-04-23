@@ -14,6 +14,7 @@ from structure import (
     analyze_structure,
     detect_swings,
     get_premium_discount,
+    get_last_impulsive_leg,
     is_in_discount,
     is_in_premium,
 )
@@ -340,6 +341,75 @@ def test_sweep_wick_atr_adaptive():
     # atr=40.0 => threshold = max(0.10, 40 * 0.08) = 3.20. 2.0 < 3.20 -> fails
     sweep_high = find_recent_sweep(candles, direction='BULLISH', atr=40.0)
     assert sweep_high is None
+
+
+def test_get_last_impulsive_leg_bullish():
+    """After a down-pullback, we should still find the preceding up-leg."""
+    candles = _mk_candles([
+        (10, 10, 8, 9),    # 0 padding
+        (10, 10, 8, 9),    # 1 padding
+        (10, 10, 8, 9),    # 2 padding
+        (10, 10, 5, 9),    # 3 Swing LOW at 5
+        (10, 10, 8, 9),    # 4 padding
+        (10, 10, 8, 9),    # 5 padding
+        (10, 10, 8, 9),    # 6 padding
+        (12, 15, 10, 14),  # 7 Swing HIGH at 15
+        (12, 12, 10, 11),  # 8 padding
+        (12, 12, 10, 11),  # 9 padding
+        (12, 12, 10, 11),  # 10 padding
+        (10, 11, 7, 9),    # 11 Pullback LOW at 7
+        (10, 10, 8, 9),    # 12 padding
+        (10, 10, 8, 9),    # 13 padding
+        (10, 10, 8, 9),    # 14 padding
+    ])
+    leg = get_last_impulsive_leg(candles, 'BULLISH')
+    assert leg is not None
+    leg_low, leg_mid, leg_high = leg
+    assert leg_low == 5.0
+    assert leg_high == 15.0
+    assert leg_mid == 10.0
+
+
+def test_get_last_impulsive_leg_bearish():
+    """Mirror: after an up-pullback, find preceding down-leg."""
+    candles = _mk_candles([
+        (10, 12, 10, 11),  # 0 padding
+        (10, 12, 10, 11),  # 1 padding
+        (10, 12, 10, 11),  # 2 padding
+        (12, 20, 10, 14),  # 3 Swing HIGH at 20
+        (10, 12, 10, 11),  # 4 padding
+        (10, 12, 10, 11),  # 5 padding
+        (10, 12, 10, 11),  # 6 padding
+        (10, 10, 5, 9),    # 7 Swing LOW at 5
+        (10, 12, 10, 11),  # 8 padding
+        (10, 12, 10, 11),  # 9 padding
+        (10, 12, 10, 11),  # 10 padding
+        (12, 15, 10, 14),  # 11 Pullback HIGH at 15
+        (10, 12, 10, 11),  # 12 padding
+        (10, 12, 10, 11),  # 13 padding
+        (10, 12, 10, 11),  # 14 padding
+    ])
+    leg = get_last_impulsive_leg(candles, 'BEARISH')
+    assert leg is not None
+    leg_low, leg_mid, leg_high = leg
+    assert leg_high == 20.0
+    assert leg_low == 5.0
+    assert leg_mid == 12.5
+
+
+def test_get_last_impulsive_leg_none_when_missing():
+    """If no qualifying leg exists, return None."""
+    candles = _mk_candles([
+        (10, 12, 10, 11),
+        (10, 12, 10, 11),
+        (10, 12, 10, 11),
+        (12, 20, 10, 14),
+        (10, 12, 10, 11),
+        (10, 12, 10, 11),
+        (10, 12, 10, 11),
+    ])
+    assert get_last_impulsive_leg(candles, 'BULLISH') is None
+    assert get_last_impulsive_leg(candles, 'BEARISH') is None
 
 
 # ─── Run All ───────────────────────────────────────────────

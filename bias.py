@@ -21,6 +21,7 @@ from structure import (
     analyze_structure,
     detect_swings,
     get_premium_discount,
+    get_last_impulsive_leg,
     is_in_discount,
     is_in_premium,
 )
@@ -32,7 +33,8 @@ logger = logging.getLogger("Bias")
 class BiasResult:
     """Complete bias snapshot for decision-making."""
     h1_trend: str                  # 'BULLISH' | 'BEARISH' | 'UNKNOWN'
-    m15_aligned: bool              # True if M15 structure confirms H1 bias
+    setup_type: str                # 'CONTINUATION' | 'PULLBACK_END' | 'NONE'
+    m15_aligned: bool              # True if bias state is tradeable
     in_valid_zone: bool            # True if price is in discount (for longs) or premium (for shorts)
     current_price: float
     zone_low: Optional[float] = None
@@ -54,21 +56,12 @@ class BiasResult:
 
 
 def get_bias(symbol: str, current_price: float) -> BiasResult:
-    """
-    Full bias evaluation for entry decision.
-
-    Steps:
-      1. Fetch H1 candles, analyze structure → get trend
-      2. Fetch M15 candles, check if local structure agrees
-      3. Check if price is in discount/premium zone on M15
-    """
-    # ── H1 bias ──
+    # ── H1 bias (unchanged) ──
     h1_candles = get_rates(symbol, TF_H1, config.H1_LOOKBACK)
     if h1_candles is None:
         return BiasResult(
-            h1_trend='UNKNOWN',
-            m15_aligned=False,
-            in_valid_zone=False,
+            h1_trend='UNKNOWN', setup_type='NONE',
+            m15_aligned=False, in_valid_zone=False,
             current_price=current_price,
             reason="H1 data unavailable",
         )
@@ -78,9 +71,8 @@ def get_bias(symbol: str, current_price: float) -> BiasResult:
 
     if h1_trend == 'UNKNOWN':
         return BiasResult(
-            h1_trend='UNKNOWN',
-            m15_aligned=False,
-            in_valid_zone=False,
+            h1_trend='UNKNOWN', setup_type='NONE',
+            m15_aligned=False, in_valid_zone=False,
             current_price=current_price,
             reason="H1 structure undefined (no BOS detected)",
         )
@@ -89,38 +81,45 @@ def get_bias(symbol: str, current_price: float) -> BiasResult:
     m15_candles = get_rates(symbol, TF_M15, config.M15_LOOKBACK)
     if m15_candles is None:
         return BiasResult(
-            h1_trend=h1_trend,
-            m15_aligned=False,
-            in_valid_zone=False,
+            h1_trend=h1_trend, setup_type='NONE',
+            m15_aligned=False, in_valid_zone=False,
             current_price=current_price,
             reason="M15 data unavailable",
         )
 
     m15_state = analyze_structure(m15_candles)
 
-    # M15 aligned if M15 trend matches H1 trend.
-    # (A fresh CHoCH in H1 direction would have already flipped m15_state.trend,
-    #  so checking current trend alone is sufficient and avoids stale-CHoCH bugs.)
-    m15_aligned = m15_state.trend == h1_trend
-
-    if not m15_aligned:
+    # ── Determine setup type ──
+    if m15_state.trend == h1_trend:
+        setup_type = 'CONTINUATION'
+    elif m15_state.trend in ('BULLISH', 'BEARISH'):
+        # M15 trend opposes H1 — this is a PULLBACK setup
+        setup_type = 'PULLBACK_END'
+    else:
         return BiasResult(
-            h1_trend=h1_trend,
-            m15_aligned=False,
-            in_valid_zone=False,
+            h1_trend=h1_trend, setup_type='NONE',
+            m15_aligned=False, in_valid_zone=False,
             current_price=current_price,
-            reason=f"M15 structure ({m15_state.trend}) contradicts H1 ({h1_trend})",
+            reason=f"M15 trend UNKNOWN, cannot classify",
         )
 
-    # ── Premium / Discount zone on M15 ──
-    zone = get_premium_discount(m15_candles, h1_trend)
+    # ── Zone check: differs by setup type ──
+    if setup_type == 'CONTINUATION':
+        # Use M15's own last impulsive leg (existing behavior)
+        zone = get_premium_discount(m15_candles, h1_trend)
+        zone_source = "M15 impulsive leg"
+    else:
+        # PULLBACK_END: use M15 swings to find the last leg that was IN THE H1
+        # direction (i.e., the leg that got retraced by current pullback)
+        zone = get_last_impulsive_leg(m15_candles, h1_trend)
+        zone_source = "M15 parent leg (pre-pullback)"
+
     if zone is None:
         return BiasResult(
-            h1_trend=h1_trend,
-            m15_aligned=True,
-            in_valid_zone=False,
+            h1_trend=h1_trend, setup_type=setup_type,
+            m15_aligned=False, in_valid_zone=False,
             current_price=current_price,
-            reason="Could not determine M15 P/D zone (insufficient swings)",
+            reason=f"Could not determine zone from {zone_source}",
         )
 
     leg_low, leg_mid, leg_high = zone
@@ -128,12 +127,13 @@ def get_bias(symbol: str, current_price: float) -> BiasResult:
     if h1_trend == 'BULLISH':
         in_zone = is_in_discount(current_price, zone)
         zone_desc = "DISCOUNT" if in_zone else "PREMIUM"
-    else:
+    else:  # BEARISH
         in_zone = is_in_premium(current_price, zone)
         zone_desc = "PREMIUM" if in_zone else "DISCOUNT"
 
     return BiasResult(
         h1_trend=h1_trend,
+        setup_type=setup_type,
         m15_aligned=True,
         in_valid_zone=in_zone,
         current_price=current_price,
@@ -141,7 +141,7 @@ def get_bias(symbol: str, current_price: float) -> BiasResult:
         zone_mid=leg_mid,
         zone_high=leg_high,
         reason=(
-            f"H1={h1_trend}, M15 aligned, price in {zone_desc} "
+            f"H1={h1_trend} {setup_type}, price in {zone_desc} of {zone_source} "
             f"(leg {leg_low:.2f}-{leg_high:.2f}, mid {leg_mid:.2f})"
         ),
     )

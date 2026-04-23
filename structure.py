@@ -287,3 +287,63 @@ def is_in_premium(price: float, zone: Tuple[float, float, float]) -> bool:
     if zone is None:
         return False
     return price >= zone[1]
+
+def get_last_impulsive_leg(candles, direction: str) -> Optional[Tuple[float, float, float]]:
+    """
+    Find the last clean impulsive leg in `direction` based on analyzed structure.
+
+    For direction='BULLISH': returns (low, mid, high) of the most recent
+        low→high swing in an uptrend context (either the current impulsive
+        push or the leg that preceded the current pullback).
+
+    For direction='BEARISH': returns (high, mid, low) conceptually, returned
+        as (leg_low, leg_mid, leg_high) for consistency with existing code
+        (leg_low = the swing low, leg_high = the swing high, mid = average).
+
+    This differs from get_premium_discount() in that it specifically looks
+    for a leg matching a given direction, even if the most recent leg is
+    the opposite direction (the pullback).
+
+    Returns None if no suitable leg is found.
+    """
+    swings = detect_swings(candles)
+    if len(swings) < 2:
+        return None
+
+    # Walk backwards through swings; find the last pair that forms a leg
+    # in the requested direction.
+    # For BULLISH leg: a swing LOW followed (in time) by a swing HIGH.
+    # For BEARISH leg: a swing HIGH followed (in time) by a swing LOW.
+    #
+    # IMPORTANT: We want the leg that corresponds to the PARENT trend, not
+    # the pullback. So for direction='BULLISH', we iterate from most recent
+    # backwards and find the first LOW→HIGH pair where HIGH came after LOW
+    # chronologically AND high > low.
+
+    if direction == 'BULLISH':
+        # Find most recent (swing_low, swing_high) pair where high.index > low.index
+        for hi in reversed([s for s in swings if s.kind == 'HIGH']):
+            # Find the most recent swing LOW before this high
+            low_before = None
+            for lo in reversed([s for s in swings if s.kind == 'LOW' and s.index < hi.index]):
+                low_before = lo
+                break
+            if low_before and hi.price > low_before.price:
+                leg_low = low_before.price
+                leg_high = hi.price
+                return (leg_low, (leg_low + leg_high) / 2.0, leg_high)
+        return None
+
+    elif direction == 'BEARISH':
+        for lo in reversed([s for s in swings if s.kind == 'LOW']):
+            high_before = None
+            for hi in reversed([s for s in swings if s.kind == 'HIGH' and s.index < lo.index]):
+                high_before = hi
+                break
+            if high_before and high_before.price > lo.price:
+                leg_low = lo.price
+                leg_high = high_before.price
+                return (leg_low, (leg_low + leg_high) / 2.0, leg_high)
+        return None
+
+    return None
